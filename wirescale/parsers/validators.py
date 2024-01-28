@@ -1,0 +1,30 @@
+#!/usr/bin/env python3
+# encoding:utf-8
+
+
+import re
+from argparse import ArgumentTypeError
+from ipaddress import IPv4Address
+
+from wirescale.vpn import TSManager
+
+
+def check_peer(value) -> IPv4Address:
+    value = value.strip()
+    if not value:
+        raise ArgumentTypeError('you provided an empty peer')
+    try:
+        ip = IPv4Address(value)
+    except Exception:
+        ip = TSManager.peer_ip(value)
+    if ip == TSManager.my_ip():
+        raise ArgumentTypeError('you should not connect to your own machine')
+    TSManager.peer(ip)  # Checks the IP belongs to somebody
+    return ip
+
+
+def interface_name_validator(value):
+    regex = r'([a-zA-Z0-9_=+.-]{1,15})'
+    if not re.fullmatch(regex, value):
+        error = f"'{value}' is not a valid name for a WireGuard interface"
+        raise ArgumentTypeError(error)

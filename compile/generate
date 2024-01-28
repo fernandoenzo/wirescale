@@ -1,0 +1,10 @@
+#!/bin/bash
+
+SCRIPT_PATH=$(dirname "$(realpath "${BASH_SOURCE[0]}")")
+PARENT_DIR="$(dirname "$SCRIPT_PATH")"
+PROGRAM_NAME="wirescale"
+COMPILER_NAME="$PROGRAM_NAME""_compiler"
+
+docker build -t "$COMPILER_NAME" "$SCRIPT_PATH/docker/"
+docker run --rm --init -it -e USERID="$(id -u "${USER}")" -e GROUPID="$(id -g "${USER}")" -v "$PARENT_DIR":/working_dir "$COMPILER_NAME"
+

@@ -1,0 +1,12 @@
+[Unit]
+Description=Wirescale service
+After=network.target
+BindsTo=wirescaled.socket
+
+[Service]
+ExecStart=/home/fernando/.virtualenvs/wirescale/bin/python3 "/home/fernando/Proyectos JetBrains/PycharmProjects/ts-upgrade/wirescale/__main__.py" daemon --start
+ExecStop=/home/fernando/.virtualenvs/wirescale/bin/python3 "/home/fernando/Proyectos JetBrains/PycharmProjects/ts-upgrade/wirescale/__main__.py" daemon --stop
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target

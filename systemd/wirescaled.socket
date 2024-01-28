@@ -1,0 +1,9 @@
+[Unit]
+Description=Wirescale socket
+
+[Socket]
+ListenStream=/run/wirescale/wirescaled.sock
+FlushPending=yes
+
+[Install]
+WantedBy=sockets.target
