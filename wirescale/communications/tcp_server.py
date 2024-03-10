@@ -36,7 +36,7 @@ class TCPServer:
     @classmethod
     def handler(cls, websocket: ServerConnection):
         try:
-            with websocket:
+            with StaticMonitor.synchronized(uid=ActionCodes.UPGRADE), websocket:
                 pair = ConnectionPair(caller=IPv4Address(websocket.remote_address[0]), receiver=TSManager.my_ip())
                 pair.tcp_socket = websocket
                 if SHUTDOWN.is_set():
@@ -44,8 +44,7 @@ class TCPServer:
                     send_error(pair.remote_socket, remote_error, ErrorCodes.REMOTE_CLOSED)
                 message: dict = json.loads(pair.remote_socket.recv())
                 if message[MessageFields.CODE] == ActionCodes.UPGRADE:
-                    with StaticMonitor.synchronized(uid=ActionCodes.UPGRADE):
-                        cls.upgrade(message)
+                    cls.upgrade(message)
         finally:
             CONNECTION_PAIRS.pop(get_ident(), None)
 

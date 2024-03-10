@@ -8,7 +8,8 @@ import sys
 from contextlib import suppress
 from ipaddress import IPv4Address
 from pathlib import Path
-from threading import get_ident
+from threading import get_ident, active_count
+from time import sleep
 
 from parallel_utils.thread import StaticMonitor
 from websockets.sync.server import ServerConnection, unix_serve, WebSocketServer
@@ -74,9 +75,13 @@ class UnixServer:
     @classmethod
     def stop(cls):
         SHUTDOWN.set()
-        cls.SERVER.shutdown()
         TCPServer.SERVER.shutdown()
+        cls.SERVER.shutdown()
         print('The server has been set to shut down', flush=True)
+        while active_count() > 3:
+            sleep(0)
+            with StaticMonitor.synchronized(uid=ActionCodes.UPGRADE):
+                pass
 
     @staticmethod
     def upgrade(websocket: ServerConnection, message: dict):
