@@ -11,6 +11,7 @@ from websockets import ConnectionClosedOK
 from websockets.sync.client import ClientConnection, unix_connect
 
 from wirescale.communications import UnixMessages, ErrorCodes, MessageFields, ActionCodes, ErrorMessages
+from wirescale.communications.common import SOCKET_PATH
 from wirescale.parsers import upgrade_subparser, ARGS
 from wirescale.parsers.parsers import config_argument, interface_argument
 
@@ -21,8 +22,7 @@ class UnixClient:
     @classmethod
     def connect(cls):
         if cls.CLIENT is None:
-            from wirescale.communications import UnixServer
-            cls.CLIENT = unix_connect(path=str(UnixServer.SOCKET_PATH))
+            cls.CLIENT = unix_connect(path=str(SOCKET_PATH))
 
     @classmethod
     def stop(cls):
@@ -48,8 +48,7 @@ class UnixClient:
         except:
             print(ErrorMessages.UNIX_SOCKET, file=sys.stderr, flush=True)
             sys.exit(1)
-        with ExitStack() as stack:
-            stack.enter_context(cls.CLIENT)
+        with cls.CLIENT:
             message: dict = UnixMessages.build_upgrade(ARGS)
             cls.CLIENT.send(json.dumps(message))
             for message in cls.CLIENT:

@@ -14,6 +14,7 @@ from websockets.sync.server import ServerConnection, unix_serve, WebSocketServer
 
 from wirescale.communications import TCPServer, SHUTDOWN
 from wirescale.communications.checkers import check_interface, check_configfile, check_wgconfig, send_error
+from wirescale.communications.common import SOCKET_PATH
 from wirescale.communications.messages import ActionCodes, ErrorCodes, MessageFields, ErrorMessages
 from wirescale.communications.tcp_client import TCPClient
 from wirescale.parsers import ARGS
@@ -22,7 +23,6 @@ from wirescale.vpn import TSManager
 
 
 class UnixServer:
-    SOCKET_PATH = Path('/run/wirescale/wirescaled.sock').resolve()
     SYSTEMD_SOCKET_FD: int = None
     SOCKET: socket.socket = None
     SERVER: WebSocketServer = None
@@ -36,12 +36,12 @@ class UnixServer:
         for fd in fd_dir:
             with suppress(Exception):
                 s = socket.fromfd(fd, socket.AF_UNIX, socket.SOCK_STREAM)
-                if s.getsockname() == str(cls.SOCKET_PATH):
+                if s.getsockname() == str(SOCKET_PATH):
                     cls.SYSTEMD_SOCKET_FD = fd
                     cls.SOCKET = s
                     return
                 s.close()
-        print(f'Error: No file descriptor found for the UNIX socket located at "{cls.SOCKET_PATH}"', file=sys.stderr, flush=True)
+        print(f"Error: No file descriptor found for the UNIX socket located at '{SOCKET_PATH}'", file=sys.stderr, flush=True)
         sys.exit(1)
 
     @classmethod
@@ -54,16 +54,17 @@ class UnixServer:
 
     @classmethod
     def handler(cls, websocket: ServerConnection):
-        cls.discard_connections(websocket)
-        message: dict = json.loads(websocket.recv())
-        if code := message[MessageFields.CODE]:
-            match code:
-                case ActionCodes.STOP:
-                    cls.stop()
-                case ActionCodes.UPGRADE:
-                    with StaticMonitor.synchronized(uid=ActionCodes.UPGRADE):
-                        cls.discard_connections(websocket)
-                        cls.upgrade(websocket, message)
+        with websocket:
+            cls.discard_connections(websocket)
+            message: dict = json.loads(websocket.recv())
+            if code := message[MessageFields.CODE]:
+                match code:
+                    case ActionCodes.STOP:
+                        cls.stop()
+                    case ActionCodes.UPGRADE:
+                        with StaticMonitor.synchronized(uid=ActionCodes.UPGRADE):
+                            cls.discard_connections(websocket)
+                            cls.upgrade(websocket, message)
 
     @staticmethod
     def discard_connections(websocket: ServerConnection):

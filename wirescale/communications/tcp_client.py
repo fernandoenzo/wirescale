@@ -4,7 +4,6 @@
 
 import json
 import sys
-from contextlib import ExitStack
 from ipaddress import IPv4Address, ip_address
 
 from websockets.sync.client import ClientConnection, connect
@@ -34,8 +33,7 @@ class TCPClient:
             print(error, file=sys.stderr, flush=True)
             send_error(pair.local_socket, message=error, error_code=ErrorCodes.REMOTE_MISSING_WIRESCALE)
         pair.tcp_socket = cls.CLIENT
-        with ExitStack() as stack:
-            stack.enter_context(pair.remote_socket)
+        with pair.remote_socket:
             upgrade_message = TCPMessages.build_upgrade(wgconfig)
             pair.remote_socket.send(json.dumps(upgrade_message))
             for message in cls.CLIENT:
