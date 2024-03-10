@@ -4,12 +4,13 @@
 
 from functools import cached_property
 from ipaddress import IPv4Address
+from threading import get_ident
 
 from websockets.sync.client import ClientConnection
 from websockets.sync.server import ServerConnection
 
+from wirescale.communications.common import CONNECTION_PAIRS
 from wirescale.parsers.parsers import top_parser
-from wirescale.vpn import TSManager
 
 
 class ConnectionPair:
@@ -19,13 +20,16 @@ class ConnectionPair:
         self.caller_name, self.receiver_name
         self.tcp_socket: ClientConnection | ServerConnection = None
         self.unix_socket: ServerConnection = None
+        CONNECTION_PAIRS[get_ident()] = self
 
     @cached_property
     def my_ip(self) -> IPv4Address:
+        from wirescale.vpn import TSManager
         return TSManager.my_ip()
 
     @cached_property
     def my_name(self) -> str:
+        from wirescale.vpn import TSManager
         return TSManager.my_name()
 
     @cached_property
@@ -34,6 +38,7 @@ class ConnectionPair:
 
     @cached_property
     def peer_name(self) -> str:
+        from wirescale.vpn import TSManager
         return TSManager.peer_name(self.peer_ip)
 
     @cached_property
@@ -74,6 +79,7 @@ class ARGS:
 
 
 def parse_args():
+    from wirescale.vpn import TSManager
     args = vars(top_parser.parse_args())
     ARGS.DAEMON = args.get('opt') == 'daemon'
     ARGS.UPGRADE = args.get('opt') == 'upgrade'

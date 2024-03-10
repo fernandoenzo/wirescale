@@ -5,16 +5,17 @@
 import json
 import socket
 import sys
-from contextlib import ExitStack, suppress
+from contextlib import suppress
 from ipaddress import IPv4Address
 from pathlib import Path
+from threading import get_ident
 
 from parallel_utils.thread import StaticMonitor
 from websockets.sync.server import ServerConnection, unix_serve, WebSocketServer
 
 from wirescale.communications import TCPServer, SHUTDOWN
 from wirescale.communications.checkers import check_interface, check_configfile, check_wgconfig, send_error
-from wirescale.communications.common import SOCKET_PATH
+from wirescale.communications.common import SOCKET_PATH, CONNECTION_PAIRS
 from wirescale.communications.messages import ActionCodes, ErrorCodes, MessageFields, ErrorMessages
 from wirescale.communications.tcp_client import TCPClient
 from wirescale.parsers import ARGS
@@ -48,8 +49,7 @@ class UnixServer:
     def run_server(cls):
         cls.set_socket()
         cls.SERVER = unix_serve(sock=cls.SOCKET, handler=cls.handler)
-        with ExitStack() as stack:
-            stack.enter_context(cls.SERVER)
+        with cls.SERVER:
             cls.SERVER.serve_forever()
 
     @classmethod
@@ -80,12 +80,15 @@ class UnixServer:
 
     @staticmethod
     def upgrade(websocket: ServerConnection, message: dict):
-        pair = ConnectionPair(caller=TSManager.my_ip(), receiver=IPv4Address(message[MessageFields.PEER_IP]))
-        pair.unix_socket = websocket
-        interface = check_interface(pair, interface=message[MessageFields.INTERFACE], suffix=ARGS.SUFFIX)
-        config = check_configfile(pair, config=message[MessageFields.CONFIG])
-        wgconfig = check_wgconfig(pair, config)
-        wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)
-        wgconfig.autoremove = message[MessageFields.AUTOREMOVE]
-        wgconfig.interface = interface
-        TCPClient.upgrade(pair=pair, wgconfig=wgconfig)
+        try:
+            pair = ConnectionPair(caller=TSManager.my_ip(), receiver=IPv4Address(message[MessageFields.PEER_IP]))
+            pair.unix_socket = websocket
+            interface = check_interface(interface=message[MessageFields.INTERFACE], suffix=ARGS.SUFFIX)
+            config = check_configfile(config=message[MessageFields.CONFIG])
+            wgconfig = check_wgconfig(config)
+            wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)
+            wgconfig.autoremove = message[MessageFields.AUTOREMOVE]
+            wgconfig.interface = interface
+            TCPClient.upgrade(wgconfig=wgconfig)
+        finally:
+            CONNECTION_PAIRS.pop(get_ident(), None)

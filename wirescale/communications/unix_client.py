@@ -5,7 +5,6 @@
 import json
 import sys
 from argparse import ArgumentError
-from contextlib import ExitStack
 
 from websockets import ConnectionClosedOK
 from websockets.sync.client import ClientConnection, unix_connect
@@ -27,8 +26,7 @@ class UnixClient:
     @classmethod
     def stop(cls):
         cls.connect()
-        with ExitStack() as stack:
-            stack.enter_context(cls.CLIENT)
+        with cls.CLIENT:
             cls.CLIENT.send(json.dumps(UnixMessages.STOP_MESSAGE))
             try:
                 message: dict = json.loads(cls.CLIENT.recv(timeout=40))
@@ -54,6 +52,7 @@ class UnixClient:
             for message in cls.CLIENT:
                 message = json.loads(message)
                 if error_code := message[MessageFields.ERROR_CODE]:
+                    cls.CLIENT.close()
                     error = message[MessageFields.ERROR_MESSAGE]
                     match error_code:
                         case ErrorCodes.INTERFACE_EXISTS:

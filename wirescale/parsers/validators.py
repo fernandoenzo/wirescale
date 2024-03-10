@@ -20,6 +20,7 @@ def check_peer(value) -> IPv4Address:
     if ip == TSManager.my_ip():
         raise ArgumentTypeError('you should not connect to your own machine')
     TSManager.peer(ip)  # Checks the IP belongs to somebody
+    TSManager.peer_endpoint(ip)  # Checks an endpoint is available
     return ip
 
 
