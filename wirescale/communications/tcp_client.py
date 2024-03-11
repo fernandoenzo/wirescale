@@ -17,23 +17,20 @@ from wirescale.vpn.wgconfig import WGConfig
 
 
 class TCPClient:
-    CLIENT: ClientConnection = None
 
-    @classmethod
-    def connect(cls, uri: IPv4Address):
-        if cls.CLIENT is None:
-            cls.CLIENT = connect(uri=f'ws://{uri}:{TCP_PORT}')
+    @staticmethod
+    def connect(uri: IPv4Address) -> ClientConnection:
+        return connect(uri=f'ws://{uri}:{TCP_PORT}')
 
     @classmethod
     def upgrade(cls, wgconfig: WGConfig):
         pair = CONNECTION_PAIRS[get_ident()]
         try:
-            cls.connect(uri=pair.peer_ip)
+            pair.tcp_socket = cls.connect(uri=pair.peer_ip)
         except ConnectionRefusedError:
             error = ErrorMessages.REMOTE_MISSING_WIRESCALE.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
             print(error, file=sys.stderr, flush=True)
             send_error(pair.local_socket, message=error, error_code=ErrorCodes.REMOTE_MISSING_WIRESCALE)
-        pair.tcp_socket = cls.CLIENT
         with pair.remote_socket:
             upgrade_message = TCPMessages.build_upgrade(wgconfig)
             pair.remote_socket.send(json.dumps(upgrade_message))
