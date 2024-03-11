@@ -25,7 +25,7 @@ class WGConfig:
         self.autoremove: bool = None
         self.interface: str = None
         self.file_path: Path = file_path if isinstance(file_path, Path) else Path(file_path)
-        self.config: ConfigParser = ConfigParser()
+        self.config: ConfigParser = ConfigParser(interpolation=None)
         self.config.optionxform = lambda option: option
         self.counters: Dict = {}
         self.read_config()
@@ -130,7 +130,7 @@ class WGConfig:
         return subprocess.run(['wg', 'genpsk'], capture_output=True, text=True).stdout.strip()
 
     def generate_new_config(self):
-        new_config = ConfigParser()
+        new_config = ConfigParser(interpolation=None)
         new_config.optionxform = lambda option: option
         interface, peer, allowedips = 'Interface', 'Peer', 'AllowedIPs'
         new_config.add_section(interface)

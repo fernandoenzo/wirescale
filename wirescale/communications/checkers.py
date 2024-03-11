@@ -125,7 +125,7 @@ def check_wgconfig(config: Path) -> WGConfig:
 
 def test_wgconfig(wgconfig: WGConfig) -> str | None:
     res = None
-    test_config = ConfigParser()
+    test_config = ConfigParser(interpolation=None)
     test_config.optionxform = lambda option: option
     test_path = Path('/run/wirescale/test.conf')
     interface, peer = 'Interface', 'Peer'
