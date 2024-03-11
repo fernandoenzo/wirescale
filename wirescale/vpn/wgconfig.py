@@ -142,7 +142,7 @@ class WGConfig:
         repeatable_fields = [field for field in self.repeatable_fields if field != allowedips]
         for field in repeatable_fields:
             for i, value in enumerate(self.get_field(interface, field), start=1):
-                new_config.set(interface, f'{field[1]}{i}_', value)
+                new_config.set(interface, f'{field}{i}_', value)
         new_config.set(interface, 'ListenPort', str(self.listen_port))
         new_config.set(interface, 'PrivateKey', self.private_key)
         new_config.set(interface, 'Table', self.table) if self.table else None
