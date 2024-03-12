@@ -104,12 +104,17 @@ class WGConfig:
         self.add_script('postup', ping, first_place=True)
 
     def set_autoremove_interface(self, peer_ip: IPv4Address | IPv6Address):
-        remove_interface = f'/bin/sh -c "(while true; do ping -I %i -W5 -c5 {peer_ip} || {{ wg-quick down {self.configfile}; break; }}; sleep 20; done > /dev/null 2>&1) &"'
+        remove_interface = f'/bin/sh -c "(while true; do sleep 20; ping -I %i -W5 -c5 {peer_ip} || {{ wg-quick down {self.configfile}; break; }}; done > /dev/null 2>&1) &"'
         self.add_script('postup', remove_interface)
 
     def set_autoremove_configfile(self):
         remove_configfile = f'rm -f {self.configfile}'
         self.add_script('postdown', remove_configfile)
+
+    def set_metric(self, metric: int):
+        metric = (r'/bin/bash -c "ip route | grep -w %i | while read -r line ; do sudo ip route del $line; if [[ ${line##* } == metric ]]; then line=${line% *}; line=${line% *}; fi; '
+                  fr'sudo ip route add $line metric {metric}; done"')
+        self.add_script('postup', metric, first_place=True)
 
     @staticmethod
     def generate_wg_privkey() -> str:
