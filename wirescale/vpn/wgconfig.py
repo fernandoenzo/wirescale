@@ -11,9 +11,10 @@ from functools import cached_property
 from io import StringIO
 from ipaddress import ip_address, ip_network, IPv4Address, IPv6Address, IPv4Network, IPv6Network
 from pathlib import Path
-from subprocess import CompletedProcess
+from subprocess import CompletedProcess, STDOUT
 from typing import Dict, Tuple, FrozenSet
 
+from wirescale.communications.common import subprocess_run_tmpfile
 from wirescale.vpn.tsmanager import TSManager
 
 
@@ -183,7 +184,7 @@ class WGConfig:
 
     def upgrade(self) -> CompletedProcess[str]:
         TSManager.stop()
-        wgquick = subprocess.run(['wg-quick', 'up', str(self.new_config_path)], text=True)
+        wgquick = subprocess_run_tmpfile(['wg-quick', 'up', str(self.new_config_path)], stderr=STDOUT)
         TSManager.start()
         if wgquick.returncode == 0:
             print(f"Success! Now you have a new working P2P connection through interface {self.interface}", flush=True)
