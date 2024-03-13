@@ -35,17 +35,18 @@ class TCPServer:
 
     @classmethod
     def handler(cls, websocket: ServerConnection):
-        pair = ConnectionPair(caller=IPv4Address(websocket.remote_address[0]), receiver=TSManager.my_ip())
-        pair.tcp_socket = websocket
-        try:
-            cls.discard_connections()
-            with StaticMonitor.synchronized(uid=ActionCodes.UPGRADE), websocket:
+        with websocket:
+            pair = ConnectionPair(caller=IPv4Address(websocket.remote_address[0]), receiver=TSManager.my_ip())
+            pair.tcp_socket = websocket
+            try:
                 cls.discard_connections()
-                message: dict = json.loads(pair.remote_socket.recv())
-                if message[MessageFields.CODE] == ActionCodes.UPGRADE:
-                    cls.upgrade(message)
-        finally:
-            CONNECTION_PAIRS.pop(get_ident(), None)
+                with StaticMonitor.synchronized(uid=ActionCodes.UPGRADE), websocket:
+                    cls.discard_connections()
+                    message: dict = json.loads(pair.remote_socket.recv())
+                    if message[MessageFields.CODE] == ActionCodes.UPGRADE:
+                        cls.upgrade(message)
+            finally:
+                CONNECTION_PAIRS.pop(get_ident(), None)
 
     @staticmethod
     def discard_connections():

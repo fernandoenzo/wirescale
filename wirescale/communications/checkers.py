@@ -39,6 +39,7 @@ def next_interface_with_suffix(name: str) -> str:
 def send_error(websocket: ClientConnection | ServerConnection, message: str, error_code: ErrorCodes, exit_code: int | None = 1):
     error = ErrorMessages.build_error_message(message, error_code)
     websocket.send(json.dumps(error))
+    websocket.close()
     if exit_code is not None:
         sys.exit(exit_code)
 
