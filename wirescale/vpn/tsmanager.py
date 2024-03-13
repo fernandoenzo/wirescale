@@ -27,15 +27,24 @@ class TSManager:
 
     @classmethod
     def status(cls) -> Dict:
+        cls.check_running()
         status = subprocess.run(['tailscale', 'status', '--json'], capture_output=True, text=True)
-        if status.returncode != 0:
-            print(ErrorMessages.TAILSCALED_STOPPED, file=sys.stderr, flush=True)
-            sys.exit(1)
         return json.loads(status.stdout)
 
     @classmethod
     def is_running(cls) -> bool:
-        return cls.status()['BackendState'].lower() == 'running'
+        is_active = subprocess.run(['systemctl', 'is-active', 'tailscaled.service'], capture_output=True, text=True)
+        if is_active.returncode != 0:
+            return False
+        status = subprocess.run(['tailscale', 'status', '--json'], capture_output=True, text=True)
+        status = json.loads(status.stdout)
+        return status.get('BackendState', '').lower() == 'running'
+
+    @classmethod
+    def check_running(cls):
+        if not cls.is_running():
+            print(ErrorMessages.TAILSCALED_STOPPED, file=sys.stderr, flush=True)
+            sys.exit(1)
 
     @classmethod
     @lru_cache(maxsize=None)
@@ -46,14 +55,16 @@ class TSManager:
     def my_name(cls) -> str:
         return cls.status()['Self']['DNSName'].removesuffix(f'.{cls.dns_suffix()}')
 
-    @staticmethod
+    @classmethod
     @lru_cache(maxsize=None)
-    def my_ip() -> IPv4Address:
+    def my_ip(cls) -> IPv4Address:
+        cls.check_running()
         ip = subprocess.run(['tailscale', 'ip', '-4'], capture_output=True, text=True).stdout.strip()
         return IPv4Address(ip)
 
     @classmethod
     def peer(cls, ip: IPv4Address) -> Dict:
+        cls.check_running()
         peer = subprocess.run(['tailscale', 'whois', '--json', str(ip)], capture_output=True, text=True)
         if peer.returncode != 0:
             print(f"Error: No peer found matching the IP '{ip}'", file=sys.stderr, flush=True)
@@ -67,6 +78,7 @@ class TSManager:
 
     @classmethod
     def peer_ip(cls, name: str) -> IPv4Address:
+        cls.check_running()
         ip = subprocess.run(['tailscale', 'ip', '-4', name], capture_output=True, text=True)
         if ip.returncode != 0:
             print(f"Error: No IPv4 found for peer '{name}'", file=sys.stderr, flush=True)
@@ -79,9 +91,7 @@ class TSManager:
 
     @classmethod
     def peer_endpoint(cls, ip: IPv4Address) -> Tuple[IPv4Address, int]:
-        if not cls.is_running():
-            print(ErrorMessages.TAILSCALED_STOPPED, file=sys.stderr, flush=True)
-            sys.exit(1)
+        cls.check_running()
         if not cls.peer_is_online(ip):
             print(f'Error: Peer {cls.peer_name(ip)} ({ip}) is offline', file=sys.stderr, flush=True)
             sys.exit(1)
@@ -93,6 +103,7 @@ class TSManager:
 
     @classmethod
     def local_port(cls) -> int:
+        cls.check_running()
         if os.geteuid() != 0:
             print('Error: This program must be run as a superuser', file=sys.stderr, flush=True)
             sys.exit(1)
