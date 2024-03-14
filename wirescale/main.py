@@ -7,8 +7,8 @@ import sys
 
 from parallel_utils.thread import create_thread
 
-from wirescale.communications import UnixServer, UnixClient, TCPServer
-from wirescale.parsers import parse_args, ARGS, top_parser
+from wirescale.communications import TCPServer, UnixClient, UnixServer
+from wirescale.parsers import ARGS, parse_args, top_parser
 
 sys.tracebacklimit = 0
 
@@ -19,7 +19,7 @@ def main():
     parse_args()
     if ARGS.DAEMON:
         systemd_exec_pid = int(os.environ.get('SYSTEMD_EXEC_PID', default=-1))
-        if os.geteuid() != 0 or systemd_exec_pid is None or systemd_exec_pid != os.getpid():
+        if os.geteuid() != 0 or systemd_exec_pid is None or os.getpgid(systemd_exec_pid) != os.getpgid(os.getpid()):
             print('Error: Wirescale daemon must be launched as root via systemd', file=sys.stderr, flush=True)
             sys.exit(1)
         if ARGS.START:
