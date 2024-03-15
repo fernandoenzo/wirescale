@@ -28,7 +28,7 @@ def check_peer(value) -> IPv4Address:
 def check_existing_conf(value) -> Path:
     res = Path(f'/run/wirescale/{value}.conf')
     if not res.exists():
-        raise ArgumentTypeError(f'file {res} does not exist')
+        raise ArgumentTypeError(f"file '{res}' does not exist")
     return res.resolve()
 
 
@@ -37,3 +37,4 @@ def interface_name_validator(value):
     if not re.fullmatch(regex, value):
         error = f"'{value}' is not a valid name for a WireGuard interface"
         raise ArgumentTypeError(error)
+    return value
