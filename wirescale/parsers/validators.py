@@ -5,6 +5,7 @@
 import re
 from argparse import ArgumentTypeError
 from ipaddress import IPv4Address
+from pathlib import Path
 
 from wirescale.vpn import TSManager
 
@@ -22,6 +23,13 @@ def check_peer(value) -> IPv4Address:
     TSManager.peer(ip)  # Checks the IP belongs to somebody
     TSManager.peer_endpoint(ip)  # Checks an endpoint is available
     return ip
+
+
+def check_existing_conf(value) -> Path:
+    res = Path(f'/run/wirescale/{value}.conf')
+    if not res.exists():
+        raise ArgumentTypeError(f'file {res} does not exist')
+    return res.resolve()
 
 
 def interface_name_validator(value):

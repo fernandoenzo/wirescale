@@ -4,6 +4,7 @@
 
 from functools import cached_property
 from ipaddress import IPv4Address
+from pathlib import Path
 from threading import get_ident
 
 from websockets.sync.client import ClientConnection
@@ -70,6 +71,7 @@ class ARGS:
     AUTOREMOVE: bool = None
     CONFIGFILE: str = None
     DAEMON: bool = None
+    DOWN: Path = None
     INTERFACE: str = None
     PAIR: ConnectionPair = None
     START: bool = None
@@ -83,6 +85,7 @@ def parse_args():
     args = vars(top_parser.parse_args())
     ARGS.DAEMON = args.get('opt') == 'daemon'
     ARGS.UPGRADE = args.get('opt') == 'upgrade'
+    ARGS.DOWN = args.get('down')
     if ARGS.DAEMON:
         ARGS.START = args.get('start')
         ARGS.STOP = args.get('stop')

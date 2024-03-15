@@ -5,7 +5,7 @@
 from argparse import ArgumentParser
 
 from wirescale.parsers.utils import CustomArgumentFormatter
-from wirescale.parsers.validators import check_peer, interface_name_validator
+from wirescale.parsers.validators import check_existing_conf, check_peer, interface_name_validator
 from wirescale.version import version_msg
 
 top_parser = ArgumentParser(prog='wirescale', description='Upgrade your existing Tailscale connection by transitioning to pure WireGuard', formatter_class=CustomArgumentFormatter)
@@ -28,4 +28,5 @@ upgrade_subparser.add_argument('--disable-autoremove', action='store_true',
 interface_argument = upgrade_subparser.add_argument('--interface', '-i', metavar='iface', type=interface_name_validator,
                                                     help='interface name that WireGuard will set up. Defaults to {peername}')
 
+top_parser.add_argument('--down', '-d', metavar='interface', type=check_existing_conf, help="shortcut for 'wg-quick down /run/wirescale/interface.conf'")
 top_parser.add_argument('--version', '-v', help='print version information and exit', action='version', version=version_msg)

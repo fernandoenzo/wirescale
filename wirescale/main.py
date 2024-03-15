@@ -3,6 +3,7 @@
 
 
 import os
+import subprocess
 import sys
 
 from parallel_utils.thread import create_thread
@@ -33,5 +34,7 @@ def main():
             UnixClient.stop()
     elif ARGS.UPGRADE:
         UnixClient.upgrade()
+    elif ARGS.DOWN:
+        subprocess.run(['wg-quick', 'down', str(ARGS.DOWN)], text=True)
     else:
         top_parser.print_help()
