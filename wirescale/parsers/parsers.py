@@ -18,6 +18,9 @@ group.add_argument('--stop', help="stop the deaemon if it's running", action='st
 daemon_subparser.add_argument('--no-suffix', action='store_true',
                               help='disables the default behavior of appending a numeric suffix to interface names when they already exist')
 
+down_subparser = subparsers.add_parser('down', help='deactivates a WireGuard interface set up by wirescale', formatter_class=CustomArgumentFormatter)
+down_subparser.add_argument('interface', type=check_existing_conf, help="shortcut for 'wg-quick down /run/wirescale/interface.conf'")
+
 upgrade_subparser = subparsers.add_parser('upgrade', help='duplicates a Tailscale connection with pure WireGuard', formatter_class=CustomArgumentFormatter)
 upgrade_subparser.add_argument('peer', type=check_peer, help='either the IP address or the Tailscale name of the peer you want to connect to')
 config_argument = upgrade_subparser.add_argument('--config', '-c', metavar='wgconf',
@@ -28,5 +31,4 @@ upgrade_subparser.add_argument('--disable-autoremove', action='store_true',
 interface_argument = upgrade_subparser.add_argument('--interface', '-i', metavar='iface', type=interface_name_validator,
                                                     help='interface name that WireGuard will set up. Defaults to {peername}')
 
-top_parser.add_argument('--down', '-d', metavar='interface', type=check_existing_conf, help="shortcut for 'wg-quick down /run/wirescale/interface.conf'")
 top_parser.add_argument('--version', '-v', help='print version information and exit', action='version', version=version_msg)

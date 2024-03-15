@@ -85,7 +85,7 @@ def parse_args():
     args = vars(top_parser.parse_args())
     ARGS.DAEMON = args.get('opt') == 'daemon'
     ARGS.UPGRADE = args.get('opt') == 'upgrade'
-    ARGS.DOWN = args.get('down')
+    ARGS.DOWN = args.get('opt') == 'down'
     if ARGS.DAEMON:
         ARGS.START = args.get('start')
         ARGS.STOP = args.get('stop')
@@ -96,3 +96,5 @@ def parse_args():
         ARGS.PAIR = ConnectionPair(caller=TSManager.my_ip(), receiver=peer_ip)
         ARGS.CONFIGFILE = args.get('config') if args.get('config') is not None and args.get('config').split() else f'/etc/wirescale/{ARGS.PAIR.peer_name}.conf'
         ARGS.INTERFACE = args.get('interface') or ARGS.PAIR.peer_name
+    elif ARGS.DOWN:
+        ARGS.CONFIGFILE = args.get('interface')

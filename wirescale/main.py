@@ -35,6 +35,6 @@ def main():
     elif ARGS.UPGRADE:
         UnixClient.upgrade()
     elif ARGS.DOWN:
-        subprocess.run(['wg-quick', 'down', str(ARGS.DOWN)], text=True)
+        subprocess.run(['wg-quick', 'down', str(ARGS.CONFIGFILE)], text=True)
     else:
         top_parser.print_help()
