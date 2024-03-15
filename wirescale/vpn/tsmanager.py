@@ -95,10 +95,12 @@ class TSManager:
         if not cls.peer_is_online(ip):
             print(f'Error: Peer {cls.peer_name(ip)} ({ip}) is offline', file=sys.stderr, flush=True)
             sys.exit(1)
-        subprocess.run(['tailscale', 'ping', '-c', '30', str(ip)], capture_output=True, text=True)
-        if not (endpoint := cls.peer(ip)['CurAddr']):
+        force_endpoint = subprocess.run(['tailscale', 'ping', '-c', '30', str(ip)], capture_output=True, text=True)
+        if force_endpoint.returncode != 0:
             print(f'Sorry, it was impossible to find a public endpoint for peer {cls.peer_name(ip)} ({ip})', file=sys.stderr, flush=True)
             sys.exit(1)
+        else:
+            endpoint = force_endpoint.stdout.split()[-3]
         return IPv4Address(endpoint.split(':')[0]), int(endpoint.split(':')[1])
 
     @classmethod
