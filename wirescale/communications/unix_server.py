@@ -19,6 +19,7 @@ from wirescale.communications.checkers import check_interface, check_configfile,
 from wirescale.communications.common import SOCKET_PATH, CONNECTION_PAIRS
 from wirescale.communications.messages import ActionCodes, ErrorCodes, MessageFields, ErrorMessages
 from wirescale.communications.tcp_client import TCPClient
+from wirescale.communications.udp_server import UDPServer
 from wirescale.parsers import ARGS
 from wirescale.parsers.args import ConnectionPair
 from wirescale.vpn import TSManager
@@ -48,6 +49,7 @@ class UnixServer:
 
     @classmethod
     def run_server(cls):
+        UDPServer.occupy_port_41641()
         cls.set_socket()
         cls.SERVER = unix_serve(sock=cls.SOCKET, handler=cls.handler)
         with cls.SERVER:
@@ -82,6 +84,7 @@ class UnixServer:
             sleep(0)
             with StaticMonitor.synchronized(uid=ActionCodes.UPGRADE):
                 pass
+        UDPServer.UDPDummy.close()
 
     @staticmethod
     def upgrade(websocket: ServerConnection, message: dict):
