@@ -86,12 +86,11 @@ def parse_args():
     ARGS.DAEMON = args.get('opt') == 'daemon'
     ARGS.UPGRADE = args.get('opt') == 'upgrade'
     ARGS.DOWN = args.get('opt') == 'down'
-    if ARGS.DAEMON:
-        ARGS.START = args.get('start')
-        ARGS.STOP = args.get('stop')
-        ARGS.SUFFIX = not args.get('no_suffix')
-    elif ARGS.UPGRADE:
-        ARGS.AUTOREMOVE = not args.get('disable_autoremove')
+    ARGS.START = args.get('command') == 'start'
+    ARGS.STOP = args.get('command') == 'stop'
+    ARGS.SUFFIX = not args.get('no_suffix')
+    ARGS.AUTOREMOVE = not args.get('disable_autoremove')
+    if ARGS.UPGRADE:
         peer_ip = args.get('peer')
         ARGS.PAIR = ConnectionPair(caller=TSManager.my_ip(), receiver=peer_ip)
         ARGS.CONFIGFILE = args.get('config') if args.get('config') is not None and args.get('config').split() else f'/etc/wirescale/{ARGS.PAIR.peer_name}.conf'

@@ -4,8 +4,8 @@ After=network.target
 BindsTo=wirescaled.socket
 
 [Service]
-ExecStart=wirescale daemon --start
-ExecStop=wirescale daemon --stop
+ExecStart=wirescale daemon start
+ExecStop=wirescale daemon stop
 TimeoutStopSec=60
 
 [Install]
