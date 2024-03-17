@@ -8,19 +8,18 @@ import sys
 from contextlib import suppress
 from ipaddress import IPv4Address
 from pathlib import Path
-from threading import get_ident, active_count
+from threading import active_count, get_ident
 from time import sleep
 
 from parallel_utils.thread import StaticMonitor
-from websockets.sync.server import ServerConnection, unix_serve, WebSocketServer
+from websockets.sync.server import ServerConnection, WebSocketServer, unix_serve
 
-from wirescale.communications import TCPServer, SHUTDOWN
-from wirescale.communications.checkers import check_interface, check_configfile, check_wgconfig, send_error
-from wirescale.communications.common import SOCKET_PATH, CONNECTION_PAIRS
-from wirescale.communications.messages import ActionCodes, ErrorCodes, MessageFields, ErrorMessages
+from wirescale.communications import SHUTDOWN, TCPServer
+from wirescale.communications.checkers import check_configfile, check_interface, check_wgconfig, send_error
+from wirescale.communications.common import CONNECTION_PAIRS, SOCKET_PATH
+from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, MessageFields
 from wirescale.communications.tcp_client import TCPClient
 from wirescale.communications.udp_server import UDPServer
-from wirescale.parsers import ARGS
 from wirescale.parsers.args import ConnectionPair
 from wirescale.vpn import TSManager
 
@@ -91,7 +90,7 @@ class UnixServer:
         try:
             pair = ConnectionPair(caller=TSManager.my_ip(), receiver=IPv4Address(message[MessageFields.PEER_IP]))
             pair.unix_socket = websocket
-            interface = check_interface(interface=message[MessageFields.INTERFACE], suffix=ARGS.SUFFIX)
+            interface = check_interface(interface=message[MessageFields.INTERFACE], suffix=message[MessageFields.SUFFIX])
             config = check_configfile(config=message[MessageFields.CONFIG])
             wgconfig = check_wgconfig(config)
             wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)

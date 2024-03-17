@@ -2,7 +2,7 @@
 # encoding:utf-8
 
 
-from enum import auto, IntEnum, StrEnum, unique
+from enum import IntEnum, StrEnum, auto, unique
 from subprocess import CompletedProcess
 
 
@@ -20,6 +20,7 @@ class MessageFields(StrEnum):
     PSK = auto()
     PUBKEY = auto()
     REMOTE_PUBKEY = auto()
+    SUFFIX = auto()
 
 
 class ActionCodes(IntEnum):
@@ -69,6 +70,7 @@ class UnixMessages:
             MessageFields.CONFIG: args.CONFIGFILE,
             MessageFields.INTERFACE: args.INTERFACE,
             MessageFields.PEER_IP: str(args.PAIR.peer_ip),
+            MessageFields.SUFFIX: args.SUFFIX,
         }
         return res
 

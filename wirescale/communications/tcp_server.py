@@ -61,7 +61,7 @@ class TCPServer:
         interface = check_interface(interface=pair.peer_name, suffix=ARGS.SUFFIX)
         config = check_configfile(config=f'/etc/wirescale/{pair.peer_name}.conf')
         wgconfig = check_wgconfig(config)
-        wgconfig.autoremove = True
+        wgconfig.autoremove = ARGS.AUTOREMOVE
         wgconfig.interface = interface
         wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)
         wgconfig.remote_addresses = frozenset(ip_address(ip) for ip in message[MessageFields.ADDRESSES])
