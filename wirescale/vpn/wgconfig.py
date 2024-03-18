@@ -9,10 +9,10 @@ import sys
 from configparser import ConfigParser
 from functools import cached_property
 from io import StringIO
-from ipaddress import ip_address, ip_network, IPv4Address, IPv6Address, IPv4Network, IPv6Network
+from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network, ip_address, ip_network
 from pathlib import Path
 from subprocess import CompletedProcess, STDOUT
-from typing import Dict, Tuple, FrozenSet
+from typing import Dict, FrozenSet, Tuple
 
 from wirescale.communications.common import subprocess_run_tmpfile
 from wirescale.vpn.tsmanager import TSManager
@@ -100,9 +100,10 @@ class WGConfig:
         self.add_script('preup', preup, first_place=True)
         self.add_script('postdown', postdown, first_place=True)
 
-    def add_ping(self, peer_ip: IPv4Address | IPv6Address):
-        ping = f'ping -I %i -W5 -c3 {peer_ip}'
-        self.add_script('postup', ping, first_place=True)
+    def first_handshake(self):
+        handshake = (rf"""/bin/sh -c 'count=0; while [ $count -lt 11 ]; do handshake=$(wg show %i latest-handshakes | awk -v pubkey="{self.remote_pubkey}" '\''$1 == pubkey {{print $2}}'\''); """
+                     "if [ $handshake -eq 0 ]; then sleep 0.5; count=$((count+1)); else exit 0; fi; done; exit 1'")
+        self.add_script('postup', handshake, first_place=True)
 
     def set_autoremove_interface(self, peer_ip: IPv4Address | IPv6Address):
         remove_interface = f'/bin/sh -c "(while true; do sleep 20; ping -I %i -W5 -c5 {peer_ip} || {{ wg-quick down {self.configfile}; break; }}; done > /dev/null 2>&1) &"'
@@ -141,7 +142,7 @@ class WGConfig:
         interface, peer, allowedips = 'Interface', 'Peer', 'AllowedIPs'
         new_config.add_section(interface)
         new_config.add_section(peer)
-        self.add_ping(next(ip for ip in self.remote_addresses))
+        self.first_handshake()
         if self.autoremove:
             self.set_autoremove_interface(next(ip for ip in self.remote_addresses))
         self.set_autoremove_configfile()
