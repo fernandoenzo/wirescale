@@ -4,6 +4,8 @@ After=network.target
 BindsTo=wirescaled.socket
 
 [Service]
+ExecStartPre=mkdir -p /run/wirescale/control
+ExecStartPre=chmod 700 /run/wirescale /run/wirescale/control
 ExecStart=wirescale daemon start
 ExecStop=wirescale daemon stop
 TimeoutStopSec=60
