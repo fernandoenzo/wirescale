@@ -105,8 +105,8 @@ class WGConfig:
                      "if [ $handshake -eq 0 ]; then sleep 0.5; count=$((count+1)); else exit 0; fi; done; exit 1'")
         self.add_script('postup', handshake, first_place=True)
 
-    def set_autoremove_interface(self, peer_ip: IPv4Address | IPv6Address):
-        remove_interface = f'/bin/sh -c "(while true; do sleep 20; ping -I %i -W5 -c5 {peer_ip} || {{ wg-quick down {self.configfile}; break; }}; done > /dev/null 2>&1) &"'
+    def autoremove_interface(self):
+        remove_interface = rf"""/bin/sh -c 'while true; do sleep 30; handshake=$(wg show %i latest-handshakes | awk -v pubkey="{self.remote_pubkey}" '\''$1 == pubkey {{print $2}}'\'' ); difference=$(($(date +%s) - handshake)); if [ $difference -gt 25 ]; then while ! {{ ip link add dev "$INTERFACE_NAME" type wireguard; }} > /dev/null 2>&1; do INTERFACE_NAME="wg$(head -c 1024 /dev/urandom | tr -dc "0-9" | fold -w 7 | head -n 1)"; done; wg showconf %i > "/run/wirescale/control/%i.conf"; wg set %i listen-port 0 peer "{self.remote_pubkey}" endpoint 127.0.0.1:9999; wg setconf "$INTERFACE_NAME" "/run/wirescale/control/%i.conf"; ip link set up dev "$INTERFACE_NAME"; count=0; while [ $count -lt 11 ]; do handshake=$(wg show "$INTERFACE_NAME" latest-handshakes | awk -v pubkey="{self.remote_pubkey}" '\''$1 == pubkey {{print $2}}'\'' ); if [ $handshake -eq 0 ]; then count=$((count+1)); sleep 0.5; else break; fi; done; ip link del "$INTERFACE_NAME"; wg syncconf %i "/run/wirescale/control/%i.conf"; rm -rf "/run/wirescale/control/%i.conf"; [ $count -eq 11 ] && wg-quick down "/run/wirescale/%i.conf" && exit 1; fi; done' > /dev/null 2>&1 &"""
         self.add_script('postup', remove_interface)
 
     def set_autoremove_configfile(self):
@@ -144,7 +144,7 @@ class WGConfig:
         new_config.add_section(peer)
         self.first_handshake()
         if self.autoremove:
-            self.set_autoremove_interface(next(ip for ip in self.remote_addresses))
+            self.autoremove_interface()
         self.set_autoremove_configfile()
         repeatable_fields = [field for field in self.repeatable_fields if field != allowedips]
         for field in repeatable_fields:
