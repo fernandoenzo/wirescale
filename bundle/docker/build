@@ -8,7 +8,7 @@ PROGRAM_NAME="wirescale"
 pip install -r /working_dir/requirements.txt
 
 cp -r /working_dir/"$PROGRAM_NAME" /"$PROGRAM_NAME"
-pyinstaller --onefile /"$PROGRAM_NAME"/__main__.py
+pyinstaller --add-data /working_dir/scripts:scripts  --onefile /"$PROGRAM_NAME"/__main__.py
 mkdir -p /working_dir/dist
 staticx /dist/__main__ /working_dir/dist/"$PROGRAM_NAME"
 
