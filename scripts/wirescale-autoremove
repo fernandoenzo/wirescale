@@ -54,3 +54,21 @@ autoremove() {
     fi
   done
 }
+
+# Ensure at least one argument (the function name) was provided
+if [ "$#" -eq 0 ]; then
+  echo "Error: You must provide the function name as the first argument."
+  exit 1
+fi
+
+# Extract the first argument and then remove it from the argument list
+func_name=$1
+shift
+
+# Verify the function exists before attempting to invoke it
+if type "$func_name" >/dev/null 2>&1; then
+  "$func_name" "$@"
+else
+  echo "Error: The function $func_name does not exist in this script."
+  exit 1
+fi
