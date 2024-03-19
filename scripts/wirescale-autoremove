@@ -17,11 +17,11 @@ force_handshake() {
   iptables -A OUTPUT -p udp -d "$remote_ip" --dport "$remote_port" -j DROP
   wg set "$interface" listen-port 0 peer "$remote_pubkey" endpoint 127.0.0.1:9999
   wg setconf "$INTERFACE_NAME" "/run/wirescale/control/$interface.conf"
-  ip link set up dev "$INTERFACE_NAME"
   iptables -D INPUT -p udp --dport "$local_port" -j DROP
   iptables -D OUTPUT -p udp --sport "$local_port" -j DROP
   iptables -D INPUT -p udp -s "$remote_ip" --sport "$remote_port" -j DROP
   iptables -D OUTPUT -p udp -d "$remote_ip" --dport "$remote_port" -j DROP
+  ip link set up dev "$INTERFACE_NAME"
   count=0
   while [ $count -lt 11 ]; do
     handshake=$(wg show "$INTERFACE_NAME" latest-handshakes | awk -v pubkey="$remote_pubkey" '$1 == pubkey {print $2}')
