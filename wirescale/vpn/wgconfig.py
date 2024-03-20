@@ -12,10 +12,10 @@ from io import StringIO
 from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network, ip_address, ip_network
 from pathlib import Path
 from subprocess import CompletedProcess, STDOUT
+from threading import get_ident
 from typing import Dict, FrozenSet, Tuple
 
-from wirescale.__main__ import SCRIPT_PATH
-from wirescale.communications.common import subprocess_run_tmpfile
+from wirescale.communications.common import CONNECTION_PAIRS, subprocess_run_tmpfile
 from wirescale.vpn.tsmanager import TSManager
 
 
@@ -102,12 +102,14 @@ class WGConfig:
         self.add_script('postdown', postdown, first_place=True)
 
     def first_handshake(self):
-        handshake = (rf"""/bin/sh -c 'count=0; while [ $count -lt 11 ]; do handshake=$(wg show %i latest-handshakes | awk -v pubkey="{self.remote_pubkey}" '\''$1 == pubkey {{print $2}}'\''); """
+        handshake = (rf"""/bin/sh -c 'count=0; while [ $count -le 10 ]; do handshake=$(wg show %i latest-handshakes | awk -v pubkey="{self.remote_pubkey}" '\''$1 == pubkey {{print $2}}'\''); """
                      "if [ $handshake -eq 0 ]; then sleep 0.5; count=$((count+1)); else exit 0; fi; done; exit 1'")
         self.add_script('postup', handshake, first_place=True)
 
     def autoremove_interface(self):
-        remove_interface = f'/bin/sh {SCRIPT_PATH.joinpath("wirescale-autoremove")} autoremove {self.remote_pubkey} %i {self.listen_port} {self.endpoint[0]} {self.endpoint[1]} > /dev/null 2>&1 &'
+        pair = CONNECTION_PAIRS[get_ident()]
+        caller = int(pair.running_in_remote)
+        remove_interface = f'/bin/sh /run/wirescale/wirescale-autoremove autoremove %i {self.remote_pubkey} {caller} > /dev/null 2>&1 &'
         self.add_script('postup', remove_interface)
 
     def set_autoremove_configfile(self):
@@ -144,6 +146,7 @@ class WGConfig:
         new_config.add_section(interface)
         new_config.add_section(peer)
         self.first_handshake()
+        self.add_iptables()
         if self.autoremove:
             self.autoremove_interface()
         self.set_autoremove_configfile()

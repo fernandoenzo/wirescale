@@ -4,7 +4,6 @@ After=network.target
 BindsTo=wirescaled.socket
 
 [Service]
-ExecStartPre=mkdir -m 700 -p /run/wirescale/control
 ExecStart=wirescale daemon start
 ExecStop=wirescale daemon stop
 TimeoutStopSec=60

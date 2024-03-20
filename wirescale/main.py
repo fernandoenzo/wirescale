@@ -3,11 +3,14 @@
 
 
 import os
+import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 from parallel_utils.thread import create_thread
 
+from wirescale.__main__ import SCRIPT_PATH
 from wirescale.communications import TCPServer, UnixClient, UnixServer
 from wirescale.parsers import ARGS, parse_args, top_parser
 
@@ -26,6 +29,8 @@ def check_root():
 
 def main():
     parse_args()
+    script_file = Path('/run/wirescale/wirescale-autoremove')
+    shutil.copy(SCRIPT_PATH.joinpath('wirescale-autoremove'), script_file) if not script_file.exists() else None
     if ARGS.DAEMON:
         check_root()
         systemd_exec_pid = int(os.environ.get('SYSTEMD_EXEC_PID', default=-1))
