@@ -12,10 +12,9 @@ from io import StringIO
 from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network, ip_address, ip_network
 from pathlib import Path
 from subprocess import CompletedProcess, STDOUT
-from threading import get_ident
 from typing import Dict, FrozenSet, Tuple
 
-from wirescale.communications.common import CONNECTION_PAIRS, subprocess_run_tmpfile
+from wirescale.communications.common import subprocess_run_tmpfile
 from wirescale.vpn.tsmanager import TSManager
 
 
@@ -96,10 +95,14 @@ class WGConfig:
 
     def add_iptables(self):
         port = TSManager.local_port()
-        preup = f'iptables -I INPUT -p udp --dport {port} -j ACCEPT'
-        postdown = f'iptables -D INPUT -p udp --dport {port} -j ACCEPT'
-        self.add_script('preup', preup, first_place=True)
-        self.add_script('postdown', postdown, first_place=True)
+        preup_input_interface = 'iptables -A INPUT -i %i -j ACCEPT'
+        preup_input_port = f'iptables -A INPUT -p udp --dport {port} -j ACCEPT'
+        postdown_input_interface = 'iptables -D INPUT -i %i -j ACCEPT'
+        postdown_input_port = f'iptables -D INPUT -p udp --dport {port} -j ACCEPT'
+        self.add_script('preup', preup_input_interface, first_place=True)
+        self.add_script('preup', preup_input_port, first_place=True)
+        self.add_script('postdown', postdown_input_interface, first_place=True)
+        self.add_script('postdown', postdown_input_port, first_place=True)
 
     def first_handshake(self):
         handshake = (rf"""/bin/sh -c 'count=0; while [ $count -le 10 ]; do handshake=$(wg show %i latest-handshakes | awk -v pubkey="{self.remote_pubkey}" '\''$1 == pubkey {{print $2}}'\''); """
@@ -107,10 +110,10 @@ class WGConfig:
         self.add_script('postup', handshake, first_place=True)
 
     def autoremove_interface(self):
-        pair = CONNECTION_PAIRS[get_ident()]
-        caller = int(not pair.running_in_remote)
-        remove_interface = f'/bin/sh /run/wirescale/wirescale-autoremove autoremove %i {self.remote_pubkey} {caller} > /dev/null 2>&1 &'
+        ping = f'/bin/sh /run/wirescale/wirescale-autoremove ping_keepalive %i {next(ip for ip in self.remote_addresses)} > /dev/null 2>&1 &'
+        remove_interface = f'/bin/sh /run/wirescale/wirescale-autoremove autoremove %i {self.remote_pubkey} > /dev/null 2>&1 &'
         self.add_script('postup', remove_interface, first_place=True)
+        self.add_script('postup', ping, first_place=True)
 
     def set_autoremove_configfile(self):
         remove_configfile = f'rm -f {self.configfile}'
@@ -146,11 +149,11 @@ class WGConfig:
         new_config.add_section(interface)
         new_config.add_section(peer)
         self.add_iptables()
-        self.first_handshake()
         peristent_keepalive = 10
         if self.autoremove:
             self.autoremove_interface()
             peristent_keepalive = 5
+        self.first_handshake()
         self.set_autoremove_configfile()
         repeatable_fields = [field for field in self.repeatable_fields if field != allowedips]
         for field in repeatable_fields:

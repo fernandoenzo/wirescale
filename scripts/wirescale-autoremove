@@ -13,42 +13,32 @@ calculate_sleep_time() {
   echo $((60 - current_second + first))
 }
 
-change_keepalive() {
+ping_keepalive() {
   interface=$1
-  remote_pubkey=$2
-  seconds=$3
-  wg set "$interface" peer "$remote_pubkey" persistent-keepalive "$seconds"
+  ip=$2
+  while { ip link show "$interface"; } > /dev/null 2>&1; do
+    ping -q -I "$interface" -i 0.5 -w5 "$ip" > /dev/null 2>&1
+    sleep "$(calculate_sleep_time '5 15 25 35 45 55')"
+  done
 }
 
 autoremove() {
   : > "/tmp/$interface.log"
   interface=$1
   remote_pubkey=$2
-  caller=$3
 
-  last_received=$(wg show "$interface" transfer | awk -v pubkey="$remote_pubkey" '$1 == pubkey {print $2}')
-  sleep 10
+  last_received=0
 
   while { ip link show "$interface"; } > /dev/null 2>&1; do
-
-    if [ "$caller" -eq 1 ]; then
-      sleep "$(calculate_sleep_time '0 20 40')"
-    else
-      sleep "$(calculate_sleep_time '10 30 50')"
-    fi
-    change_keepalive "$interface" "$remote_pubkey" 1
-    sleep 5
-    change_keepalive "$interface" "$remote_pubkey" 10
-
     received=$(wg show "$interface" transfer | awk -v pubkey="$remote_pubkey" '$1 == pubkey {print $2}')
-
     if [ "$received" -gt "$last_received" ]; then
       last_received=$received
     else
       break
     fi
-
+    sleep "$(calculate_sleep_time '0 20 40')"
   done
+
   echo "$(date) Removing interface $interface" >> "/tmp/$interface.log"
   wg-quick down "/run/wirescale/$interface.conf"
   return 1
