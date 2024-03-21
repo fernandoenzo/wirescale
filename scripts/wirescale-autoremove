@@ -1,5 +1,18 @@
 #!/usr/bin/env sh
 
+calculate_sleep_time() {
+  desired_seconds_list=$1
+  current_second=$(date +%S)
+  for sec in $desired_seconds_list; do
+    if [ "$current_second" -lt "$sec" ]; then
+      echo $((sec - current_second))
+      return
+    fi
+  done
+  first=$(echo "$desired_seconds_list" | awk '{print $1}')
+  echo $((60 - current_second + first))
+}
+
 change_keepalive() {
   interface=$1
   remote_pubkey=$2
@@ -8,7 +21,7 @@ change_keepalive() {
 }
 
 autoremove() {
-  echo "" > "/tmp/$interface.log"
+  : > "/tmp/$interface.log"
   interface=$1
   remote_pubkey=$2
   caller=$3
@@ -18,33 +31,27 @@ autoremove() {
 
   while { ip link show "$interface"; } > /dev/null 2>&1; do
 
-    sleep $((30 - $(date +%S) % 30))
-
     if [ "$caller" -eq 1 ]; then
-      change_keepalive "$interface" "$remote_pubkey" 1
-      sleep 5
-      change_keepalive "$interface" "$remote_pubkey" 10
-      sleep 5
+      sleep "$(calculate_sleep_time '0 20 40')"
     else
-      sleep 5
-      change_keepalive "$interface" "$remote_pubkey" 1
-      sleep 5
-      change_keepalive "$interface" "$remote_pubkey" 10
+      sleep "$(calculate_sleep_time '10 30 50')"
     fi
+    change_keepalive "$interface" "$remote_pubkey" 1
+    sleep 5
+    change_keepalive "$interface" "$remote_pubkey" 10
 
     received=$(wg show "$interface" transfer | awk -v pubkey="$remote_pubkey" '$1 == pubkey {print $2}')
 
     if [ "$received" -gt "$last_received" ]; then
       last_received=$received
-      sleep 10
     else
-      echo "$(date) Bajando interfaz $interface" >> "/tmp/$interface.log"
-      wg-quick down "/run/wirescale/$interface.conf"
-      return 1
+      break
     fi
 
   done
+  echo "$(date) Removing interface $interface" >> "/tmp/$interface.log"
   wg-quick down "/run/wirescale/$interface.conf"
+  return 1
 }
 
 # Ensure at least one argument (the function name) was provided

@@ -108,9 +108,9 @@ class WGConfig:
 
     def autoremove_interface(self):
         pair = CONNECTION_PAIRS[get_ident()]
-        caller = int(pair.running_in_remote)
+        caller = int(not pair.running_in_remote)
         remove_interface = f'/bin/sh /run/wirescale/wirescale-autoremove autoremove %i {self.remote_pubkey} {caller} > /dev/null 2>&1 &'
-        self.add_script('postup', remove_interface)
+        self.add_script('postup', remove_interface, first_place=True)
 
     def set_autoremove_configfile(self):
         remove_configfile = f'rm -f {self.configfile}'
@@ -145,10 +145,12 @@ class WGConfig:
         interface, peer, allowedips = 'Interface', 'Peer', 'AllowedIPs'
         new_config.add_section(interface)
         new_config.add_section(peer)
-        self.first_handshake()
         self.add_iptables()
+        self.first_handshake()
+        peristent_keepalive = 10
         if self.autoremove:
             self.autoremove_interface()
+            peristent_keepalive = 5
         self.set_autoremove_configfile()
         repeatable_fields = [field for field in self.repeatable_fields if field != allowedips]
         for field in repeatable_fields:
@@ -162,7 +164,7 @@ class WGConfig:
         new_config.set(peer, 'PublicKey', self.remote_pubkey)
         new_config.set(peer, 'PresharedKey', self.psk)
         new_config.set(peer, 'Endpoint', f'{self.endpoint[0]}:{self.endpoint[1]}')
-        new_config.set(peer, 'PersistentKeepalive', '10')
+        new_config.set(peer, 'PersistentKeepalive', str(peristent_keepalive))
         for i, value in enumerate(self.get_field(peer, allowedips), start=1):
             new_config.set(peer, f'{allowedips}{i}_', value)
         new_config = self.write_config(new_config)
