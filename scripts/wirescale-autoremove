@@ -17,7 +17,7 @@ ping_keepalive() {
   interface=$1
   ip=$2
   while { ip link show "$interface"; } > /dev/null 2>&1; do
-    ping -q -I "$interface" -i 0.5 -w5 "$ip" > /dev/null 2>&1
+    ping -q -I "$interface" -i 0.5 -w3 "$ip" > /dev/null 2>&1
     sleep "$(calculate_sleep_time '5 15 25 35 45 55')"
   done
 }
@@ -30,13 +30,13 @@ autoremove() {
   last_received=0
 
   while { ip link show "$interface"; } > /dev/null 2>&1; do
+    sleep "$(calculate_sleep_time '0 20 40')"
     received=$(wg show "$interface" transfer | awk -v pubkey="$remote_pubkey" '$1 == pubkey {print $2}')
     if [ "$received" -gt "$last_received" ]; then
       last_received=$received
     else
       break
     fi
-    sleep "$(calculate_sleep_time '0 20 40')"
   done
 
   echo "$(date) Removing interface $interface" >> "/tmp/$interface.log"

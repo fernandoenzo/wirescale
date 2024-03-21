@@ -149,10 +149,8 @@ class WGConfig:
         new_config.add_section(interface)
         new_config.add_section(peer)
         self.add_iptables()
-        peristent_keepalive = 10
         if self.autoremove:
             self.autoremove_interface()
-            peristent_keepalive = 5
         self.first_handshake()
         self.set_autoremove_configfile()
         repeatable_fields = [field for field in self.repeatable_fields if field != allowedips]
@@ -167,7 +165,7 @@ class WGConfig:
         new_config.set(peer, 'PublicKey', self.remote_pubkey)
         new_config.set(peer, 'PresharedKey', self.psk)
         new_config.set(peer, 'Endpoint', f'{self.endpoint[0]}:{self.endpoint[1]}')
-        new_config.set(peer, 'PersistentKeepalive', str(peristent_keepalive))
+        new_config.set(peer, 'PersistentKeepalive', '10')
         for i, value in enumerate(self.get_field(peer, allowedips), start=1):
             new_config.set(peer, f'{allowedips}{i}_', value)
         new_config = self.write_config(new_config)
