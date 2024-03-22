@@ -29,10 +29,14 @@ def check_root():
 
 def main():
     parse_args()
-    script_file = Path('/run/wirescale/wirescale-autoremove')
-    shutil.copy(SCRIPT_PATH.joinpath('wirescale-autoremove'), script_file) if not script_file.exists() else None
     if ARGS.DAEMON:
         check_root()
+        script_file = Path('/run/wirescale/wirescale-autoremove')
+        if not script_file.exists():
+            shutil.copy(SCRIPT_PATH.joinpath('wirescale-autoremove'), script_file) if not script_file.exists() else None
+            old_mask = os.umask(0o000)
+            script_file.chmod(744)
+            os.umask(old_mask)
         systemd_exec_pid = int(os.environ.get('SYSTEMD_EXEC_PID', default=-1))
         if ARGS.START:
             if systemd_exec_pid == -1 or os.getpgid(systemd_exec_pid) != os.getpgid(os.getpid()):

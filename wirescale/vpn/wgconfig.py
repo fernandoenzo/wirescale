@@ -195,7 +195,7 @@ class WGConfig:
         wgquick = subprocess_run_tmpfile(['wg-quick', 'up', str(self.new_config_path)], stderr=STDOUT)
         TSManager.start()
         if wgquick.returncode == 0:
-            print(f"Success! Now you have a new working P2P connection through interface {self.interface}", flush=True)
+            print(f"Success! Now you have a new working P2P connection through interface '{self.interface}'", flush=True)
         else:
             self.new_config_path.unlink()
             print(f'Something went wrong and, finally, it was not possible to establish the P2P connection', file=sys.stderr, flush=True)
