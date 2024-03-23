@@ -74,7 +74,7 @@ def check_configfile(config: str) -> Path:
         send_error(pair.remote_socket, message=error_message, error_code=ErrorCodes.REMOTE_CONFIG_PATH_ERROR)
 
 
-def check_wgconfig(config: Path) -> WGConfig:
+def check_wgconfig(config: Path, inteface: str) -> WGConfig:
     pair = CONNECTION_PAIRS[get_ident()]
     try:
         wgconfig = WGConfig(config)
@@ -85,6 +85,7 @@ def check_wgconfig(config: Path) -> WGConfig:
         else:
             remote_error = ErrorMessages.REMOTE_CONFIG_ERROR.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
             send_error(pair.remote_socket, message=remote_error, error_code=ErrorCodes.REMOTE_CONFIG_ERROR)
+    wgconfig.interface = inteface
     if wgconfig.addresses is None:
         error = ErrorMessages.MISSING_ADDRESS.format(config_file=wgconfig.file_path)
         remote_error = ErrorMessages.REMOTE_MISSING_ADDRESS.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
@@ -128,7 +129,6 @@ def test_wgconfig(wgconfig: WGConfig) -> str | None:
     res = None
     test_config = ConfigParser(interpolation=None)
     test_config.optionxform = lambda option: option
-    test_path = Path('/run/wirescale/test.conf')
     interface, peer = 'Interface', 'Peer'
     test_config.add_section(interface)
     test_config.add_section(peer)
@@ -144,13 +144,13 @@ def test_wgconfig(wgconfig: WGConfig) -> str | None:
     test_config.set(peer, 'PublicKey', remote_pubkey)
     test_config.set(peer, 'PresharedKey', wgconfig.psk) if wgconfig.has_psk else None
     test_config = WGConfig.write_config(test_config)
-    test_path.write_text(test_config, encoding='utf-8')
-    wgquick = subprocess.run(['wg-quick', 'up', str(test_path)], capture_output=True, text=True)
+    wgconfig.new_config_path.write_text(test_config, encoding='utf-8')
+    wgquick = subprocess.run(['wg-quick', 'up', str(wgconfig.new_config_path)], capture_output=True, text=True)
     if wgquick.returncode != 0:
         res = wgquick.stderr
     else:
-        subprocess.run(['wg-quick', 'down', str(test_path)], capture_output=True, text=True)
-    test_path.unlink(missing_ok=False)
+        subprocess.run(['wg-quick', 'down', str(wgconfig.new_config_path)], capture_output=True, text=True)
+    wgconfig.new_config_path.unlink(missing_ok=False)
     return res
 
 

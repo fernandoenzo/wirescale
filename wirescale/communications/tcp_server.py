@@ -60,9 +60,8 @@ class TCPServer:
         pair = CONNECTION_PAIRS[get_ident()]
         interface = check_interface(interface=pair.peer_name, suffix=ARGS.SUFFIX)
         config = check_configfile(config=f'/etc/wirescale/{pair.peer_name}.conf')
-        wgconfig = check_wgconfig(config)
+        wgconfig = check_wgconfig(config, interface)
         wgconfig.autoremove = ARGS.AUTOREMOVE
-        wgconfig.interface = interface
         wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)
         wgconfig.remote_addresses = frozenset(ip_address(ip) for ip in message[MessageFields.ADDRESSES])
         match_pubkeys(wgconfig, remote_pubkey=message[MessageFields.PUBKEY], my_pubkey=message[MessageFields.REMOTE_PUBKEY])

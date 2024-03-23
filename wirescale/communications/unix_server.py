@@ -92,10 +92,9 @@ class UnixServer:
             pair.unix_socket = websocket
             interface = check_interface(interface=message[MessageFields.INTERFACE], suffix=message[MessageFields.SUFFIX])
             config = check_configfile(config=message[MessageFields.CONFIG])
-            wgconfig = check_wgconfig(config)
+            wgconfig = check_wgconfig(config, interface)
             wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)
             wgconfig.autoremove = message[MessageFields.AUTOREMOVE]
-            wgconfig.interface = interface
             TCPClient.upgrade(wgconfig=wgconfig)
         finally:
             CONNECTION_PAIRS.pop(get_ident(), None)
