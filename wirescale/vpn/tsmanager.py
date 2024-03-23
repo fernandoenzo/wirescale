@@ -43,7 +43,7 @@ class TSManager:
     @classmethod
     def check_running(cls):
         if not cls.is_running():
-            print(ErrorMessages.TAILSCALED_STOPPED, file=sys.stderr, flush=True)
+            print(ErrorMessages.TS_STOPPED, file=sys.stderr, flush=True)
             sys.exit(1)
 
     @classmethod
@@ -67,7 +67,7 @@ class TSManager:
         cls.check_running()
         peer = subprocess.run(['tailscale', 'whois', '--json', str(ip)], capture_output=True, text=True)
         if peer.returncode != 0:
-            print(f"Error: No peer found matching the IP '{ip}'", file=sys.stderr, flush=True)
+            print(ErrorMessages.TS_NO_PEER.format(ip=ip), file=sys.stderr, flush=True)
             sys.exit(1)
         data = json.loads(peer.stdout)
         return cls.status()['Peer'][data['Node']['Key']]
@@ -81,7 +81,7 @@ class TSManager:
         cls.check_running()
         ip = subprocess.run(['tailscale', 'ip', '-4', name], capture_output=True, text=True)
         if ip.returncode != 0:
-            print(f"Error: No IPv4 found for peer '{name}'", file=sys.stderr, flush=True)
+            print(ErrorMessages.TS_NO_IP.format(peer_name=name), file=sys.stderr, flush=True)
             sys.exit(1)
         return IPv4Address(ip.stdout.strip())
 
@@ -93,11 +93,11 @@ class TSManager:
     def peer_endpoint(cls, ip: IPv4Address) -> Tuple[IPv4Address, int]:
         cls.check_running()
         if not cls.peer_is_online(ip):
-            print(f'Error: Peer {cls.peer_name(ip)} ({ip}) is offline', file=sys.stderr, flush=True)
+            print(ErrorMessages.TS_PEER_OFFLINE.format(peer_name=cls.peer_name(ip), peer_ip=ip), file=sys.stderr, flush=True)
             sys.exit(1)
         force_endpoint = subprocess.run(['tailscale', 'ping', '-c', '30', str(ip)], capture_output=True, text=True)
         if force_endpoint.returncode != 0:
-            print(f'Sorry, it was impossible to find a public endpoint for peer {cls.peer_name(ip)} ({ip})', file=sys.stderr, flush=True)
+            print(ErrorMessages.TS_NO_ENDPOINT.format(peer_name=cls.peer_name(ip), peer_ip=ip), file=sys.stderr, flush=True)
             sys.exit(1)
         else:
             endpoint = force_endpoint.stdout.split()[-3]
@@ -106,8 +106,10 @@ class TSManager:
     @classmethod
     def local_port(cls) -> int:
         cls.check_running()
-        if os.geteuid() != 0:
-            print('Error: This program must be run as a superuser', file=sys.stderr, flush=True)
+        try:
+            os.setuid(0)
+        except PermissionError:
+            print(ErrorMessages.SUDO, file=sys.stderr, flush=True)
             sys.exit(1)
         while True:
             result = subprocess.run(['ss', '-lunp4'], capture_output=True, text=True)
@@ -119,5 +121,5 @@ class TSManager:
             except StopIteration:
                 if port:
                     return port
-                print('Error: No listening port for Tailscale was found', file=sys.stderr, flush=True)
+                print(ErrorMessages.TS_NO_PORT, file=sys.stderr, flush=True)
                 sys.exit(1)

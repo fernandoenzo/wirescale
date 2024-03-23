@@ -9,9 +9,9 @@ from argparse import ArgumentError
 from websockets import ConnectionClosedOK
 from websockets.sync.client import ClientConnection, unix_connect
 
-from wirescale.communications import UnixMessages, ErrorCodes, MessageFields, ActionCodes, ErrorMessages
+from wirescale.communications import ActionCodes, ErrorCodes, ErrorMessages, MessageFields, Messages, UnixMessages
 from wirescale.communications.common import SOCKET_PATH
-from wirescale.parsers import upgrade_subparser, ARGS
+from wirescale.parsers import ARGS, upgrade_subparser
 from wirescale.parsers.parsers import config_argument, interface_argument
 
 
@@ -47,7 +47,7 @@ class UnixClient:
             print(ErrorMessages.UNIX_SOCKET, file=sys.stderr, flush=True)
             sys.exit(1)
         with cls.CLIENT:
-            message: dict = UnixMessages.build_upgrade(ARGS)
+            message: dict = UnixMessages.build_upgrade_option(ARGS)
             cls.CLIENT.send(json.dumps(message))
             for message in cls.CLIENT:
                 message = json.loads(message)
@@ -59,12 +59,16 @@ class UnixClient:
                             upgrade_subparser.error(str(ArgumentError(interface_argument, error)))
                         case ErrorCodes.CONFIG_PATH_ERROR:
                             upgrade_subparser.error(str(ArgumentError(config_argument, error)))
+                        case ErrorCodes.FINAL_ERROR:
+                            print(error, file=sys.stderr, flush=True)
+                            print(ErrorMessages.FINAL_ERROR, file=sys.stderr, flush=True)
+                            sys.exit(1)
                         case _:
                             print(error, file=sys.stderr, flush=True)
                             sys.exit(1)
                 elif code := message[MessageFields.CODE]:
                     match code:
-                        case ActionCodes.UPGRADE_GO:
-                            print(f"Success! Now you have a new working P2P connection through interface {ARGS.INTERFACE}", flush=True)
+                        case ActionCodes.SUCCESS:
+                            print(Messages.SUCCESS.format(interface=message[MessageFields.INTERFACE]), flush=True)
                             cls.CLIENT.close()
                             sys.exit(0)

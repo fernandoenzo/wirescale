@@ -11,7 +11,7 @@ from pathlib import Path
 from parallel_utils.thread import create_thread
 
 from wirescale.__main__ import SCRIPT_PATH
-from wirescale.communications import TCPServer, UnixClient, UnixServer
+from wirescale.communications import ErrorMessages, TCPServer, UnixClient, UnixServer
 from wirescale.parsers import ARGS, parse_args, top_parser
 
 sys.tracebacklimit = 0
@@ -23,20 +23,21 @@ def check_root():
     try:
         os.setuid(0)
     except PermissionError:
-        print("Error: Wirescale daemon must be managed by root's systemd", file=sys.stderr, flush=True)
+        print(ErrorMessages.ROOT_SYSTEMD, file=sys.stderr, flush=True)
         sys.exit(1)
+
+
+def copy_script():
+    script_file = Path('/run/wirescale/wirescale-autoremove')
+    script_file.unlink(missing_ok=True)
+    shutil.copy(SCRIPT_PATH.joinpath('wirescale-autoremove'), script_file)
+    script_file.chmod(0o744)
 
 
 def main():
     parse_args()
     if ARGS.DAEMON:
         check_root()
-        script_file = Path('/run/wirescale/wirescale-autoremove')
-        if not script_file.exists():
-            shutil.copy(SCRIPT_PATH.joinpath('wirescale-autoremove'), script_file) if not script_file.exists() else None
-            old_mask = os.umask(0o000)
-            script_file.chmod(744)
-            os.umask(old_mask)
         systemd_exec_pid = int(os.environ.get('SYSTEMD_EXEC_PID', default=-1))
         if ARGS.START:
             if systemd_exec_pid == -1 or os.getpgid(systemd_exec_pid) != os.getpgid(os.getpid()):
@@ -46,6 +47,7 @@ def main():
             if next((True for e in systemd_envvars if e not in os.environ), False):
                 print('Error: Wirescale needs a UNIX socket supplied by systemd', file=sys.stderr, flush=True)
                 sys.exit(1)
+            copy_script()
             create_thread(TCPServer.run_server)
             create_thread(UnixServer.run_server)
         elif ARGS.STOP:

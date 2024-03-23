@@ -5,6 +5,11 @@
 from enum import IntEnum, StrEnum, auto, unique
 from subprocess import CompletedProcess
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from wirescale.vpn.wgconfig import WGConfig
+
 
 @unique
 class MessageFields(StrEnum):
@@ -26,6 +31,7 @@ class MessageFields(StrEnum):
 class ActionCodes(IntEnum):
     ACK = auto()
     STOP = auto()
+    SUCCESS = auto()
     UPGRADE = auto()
     UPGRADE_RESPONSE = auto()
     UPGRADE_GO = auto()
@@ -62,7 +68,7 @@ class UnixMessages:
     STOP_MESSAGE = {MessageFields.CODE: ActionCodes.STOP, MessageFields.ERROR_CODE: None}
 
     @staticmethod
-    def build_upgrade(args) -> dict:
+    def build_upgrade_option(args) -> dict:
         res = {
             MessageFields.CODE: ActionCodes.UPGRADE,
             MessageFields.ERROR_CODE: None,
@@ -75,11 +81,12 @@ class UnixMessages:
         return res
 
     @staticmethod
-    def build_upgrade_go(wgquick: CompletedProcess[str]) -> dict:
+    def build_upgrade_result(wgquick: CompletedProcess[str], interface: str) -> dict:
         res = {}
         if wgquick.returncode == 0:
-            res[MessageFields.CODE] = ActionCodes.UPGRADE_GO
+            res[MessageFields.CODE] = ActionCodes.SUCCESS
             res[MessageFields.ERROR_CODE] = None
+            res[MessageFields.INTERFACE] = interface
         else:
             res[MessageFields.CODE] = None
             res[MessageFields.ERROR_CODE] = ErrorCodes.FINAL_ERROR
@@ -90,7 +97,7 @@ class UnixMessages:
 class TCPMessages:
 
     @staticmethod
-    def build_upgrade(wgconfig) -> dict:
+    def build_upgrade(wgconfig: 'WGConfig') -> dict:
         res = {
             MessageFields.CODE: ActionCodes.UPGRADE,
             MessageFields.ERROR_CODE: None,
@@ -121,6 +128,10 @@ class TCPMessages:
         return res
 
 
+class Messages:
+    SUCCESS = "Success! Now you have a new working P2P connection through interface '{interface}'"
+
+
 class ErrorMessages:
     ALLOWED_IPS_MISMATCH = "Error: IPs from the 'Address' field of '{sender_name}' ({sender_ip}) are not fully covered in the 'AllowedIPs' field of '{my_name}' ({my_ip})"
     BAD_FORMAT_PRIVKEY = "Error: The private key has not the correct length or format in file '{config_file}'"
@@ -129,6 +140,7 @@ class ErrorMessages:
     CLOSED = 'Error: Wirescale is shutting down and is no longer accepting new requests'
     CONFIG_ERROR = None
     CONFIG_PATH_ERROR = None
+    FINAL_ERROR = 'Something went wrong and, finally, it was not possible to establish the P2P connection'
     GENERIC = None
     INTERFACE_EXISTS = "Error: A network interface '{interface}' already exists and Wirescale was started with the --no-suffix option"
     MISSING_ADDRESS = "Error: 'Address' option missing in 'Interface' section of file '{config_file}'"
@@ -147,7 +159,14 @@ class ErrorMessages:
     REMOTE_MISSING_ALLOWEDIPS = "Error: 'AllowedIPs' option missing in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'"
     REMOTE_MISSING_WIRESCALE = "Error: Remote peer '{peer_name}' ({peer_ip}) does not have Wirescale running"
     REMOTE_TAILSCALED_STOPPED = "Error: Tailscaled service is not running in remote peer `{peer_name}` ({peer_ip})"
-    TAILSCALED_STOPPED = "Error: Tailscaled is stopped"
+    ROOT_SYSTEMD = "Error: Wirescale daemon must be managed by root's systemd"
+    SUDO = 'Error: This program must be run as a superuser'
+    TS_PEER_OFFLINE = "Error: Peer '{peer_name}' ({peer_ip}) is offline"
+    TS_STOPPED = 'Error: Tailscaled is stopped'
+    TS_NO_ENDPOINT = "Sorry, it was impossible to find a public endpoint for peer `{peer_name}` ({peer_ip})"
+    TS_NO_IP = "Error: No IPv4 found for peer '{peer_name}'"
+    TS_NO_PEER = "Error: No peer found matching the IP '{peer_ip}'"
+    TS_NO_PORT = 'Error: No listening port for Tailscale was found'
     UNIX_SOCKET = "Error: Couldn't connect to the local UNIX socket"
 
     @staticmethod

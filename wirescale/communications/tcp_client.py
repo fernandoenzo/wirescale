@@ -50,7 +50,7 @@ class TCPClient:
                             wgconfig.generate_new_config()
                             pair.remote_socket.send(json.dumps(TCPMessages.build_upgrade_go()))
                             wgquick = wgconfig.upgrade()
-                            pair.local_socket.send(json.dumps(UnixMessages.build_upgrade_go(wgquick)))
+                            pair.local_socket.send(json.dumps(UnixMessages.build_upgrade_result(wgquick, wgconfig.interface)))
                             pair.remote_socket.close()
                             pair.local_socket.close()
                             sys.exit(wgquick.returncode)
