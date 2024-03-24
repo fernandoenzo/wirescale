@@ -18,14 +18,17 @@ ping_keepalive() {
   ip=$2
   while { ip link show "$interface"; } > /dev/null 2>&1; do
     ping -q -I "$interface" -c 1 -W 0.05 "$ip" > /dev/null 2>&1
-    sleep 1
+    sleep 3
   done
 }
 
 autoremove() {
-  : > "/tmp/$interface.log"
   interface=$1
   remote_pubkey=$2
+  log_file="/tmp/$interface.log"
+
+  : > "$log_file"
+  chmod 666 "$log_file"
 
   last_received=0
 
