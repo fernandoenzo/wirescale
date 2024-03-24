@@ -17,8 +17,8 @@ ping_keepalive() {
   interface=$1
   ip=$2
   while { ip link show "$interface"; } > /dev/null 2>&1; do
-    ping -q -I "$interface" -i 0.5 -w3 "$ip" > /dev/null 2>&1
-    sleep "$(calculate_sleep_time '5 15 25 35 45 55')"
+    ping -q -I "$interface" -c 1 -W 0.05 "$ip" > /dev/null 2>&1
+    sleep 1
   done
 }
 
