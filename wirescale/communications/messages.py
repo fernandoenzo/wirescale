@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # encoding:utf-8
+
+
 import json
 import sys
 from enum import IntEnum, StrEnum, auto, unique
@@ -57,6 +59,8 @@ class ErrorCodes(IntEnum):
     INTERFACE_EXISTS = auto()
     MISSING_ADDRESS = auto()
     MISSING_ALLOWEDIPS = auto()
+    NO_ENDPOINT = auto()
+    PEER_OFFLINE = auto()
     PSK_MISMATCH = auto()
     PUBKEY_MISMATCH = auto()
     REMOTE_BAD_FORMAT_PRIVKEY = auto()
@@ -221,7 +225,7 @@ class ErrorMessages:
         return res
 
     @classmethod
-    def send_error_message(cls, websocket: ClientConnection | ServerConnection, error_message: str, error_code: ErrorCodes, exit_code: int | None = 1):
+    def send_error_message(cls, websocket: ClientConnection | ServerConnection, error_message: str, error_code: ErrorCodes = ErrorCodes.GENERIC, exit_code: int | None = 1):
         error = cls.build_error_message(error_message, error_code)
         websocket.send(json.dumps(error))
         websocket.close()

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # encoding:utf-8
+
+
 import fcntl
 import json
 import os
@@ -10,12 +12,13 @@ from functools import lru_cache
 from ipaddress import IPv4Address
 from pathlib import Path
 from subprocess import DEVNULL
+from threading import get_ident
 from time import sleep
 from typing import Dict, Tuple
 
 from parallel_utils.thread import StaticMonitor
 
-from wirescale.communications import ActionCodes, Messages
+from wirescale.communications import ActionCodes, CONNECTION_PAIRS, ErrorCodes, Messages
 from wirescale.communications.messages import ErrorMessages
 
 
@@ -74,6 +77,8 @@ class TSManager:
                 lockfile.close()
         if not systemd_running:
             print(ErrorMessages.TS_SYSTEMD_STOPPED, file=sys.stderr, flush=True)
+            pair = CONNECTION_PAIRS.get(get_ident())
+            ErrorMessages.send_error_message(pair.local_socket, ErrorMessages.TS_SYSTEMD_STOPPED) if pair is not None else None
             sys.exit(1)
 
     @classmethod
@@ -81,14 +86,18 @@ class TSManager:
         cls.check_service_running()
         while not cls.has_state():
             sleep(0.5)
+        pair = CONNECTION_PAIRS.get(get_ident())
         if not cls.is_logged():
             print(ErrorMessages.TS_NO_LOGGED, file=sys.stderr, flush=True)
+            ErrorMessages.send_error_message(pair.local_socket, ErrorMessages.TS_NO_LOGGED) if pair is not None else None
             sys.exit(1)
         if cls.is_stopped():
             print(ErrorMessages.TS_STOPPED, file=sys.stderr, flush=True)
+            ErrorMessages.send_error_message(pair.local_socket, ErrorMessages.TS_STOPPED) if pair is not None else None
             sys.exit(1)
         if not cls.is_running():
             print(ErrorMessages.TS_NOT_RUNNING, file=sys.stderr, flush=True)
+            ErrorMessages.send_error_message(pair.local_socket, ErrorMessages.TS_NOT_RUNNING) if pair is not None else None
             sys.exit(1)
 
     @classmethod
@@ -112,7 +121,10 @@ class TSManager:
         cls.check_running()
         peer = subprocess.run(['tailscale', 'whois', '--json', str(ip)], capture_output=True, text=True)
         if peer.returncode != 0:
-            print(ErrorMessages.TS_NO_PEER.format(ip=ip), file=sys.stderr, flush=True)
+            pair = CONNECTION_PAIRS.get(get_ident())
+            no_peer = ErrorMessages.TS_NO_PEER.format(ip=ip)
+            print(no_peer, file=sys.stderr, flush=True)
+            ErrorMessages.send_error_message(pair.local_socket, no_peer) if pair is not None else None
             sys.exit(1)
         data = json.loads(peer.stdout)
         return cls.status()['Peer'][data['Node']['Key']]
@@ -126,30 +138,36 @@ class TSManager:
         cls.check_running()
         ip = subprocess.run(['tailscale', 'ip', '-4', name], capture_output=True, text=True)
         if ip.returncode != 0:
-            print(ErrorMessages.TS_NO_IP.format(peer_name=name), file=sys.stderr, flush=True)
+            pair = CONNECTION_PAIRS.get(get_ident())
+            no_ip = ErrorMessages.TS_NO_IP.format(peer_name=name)
+            print(no_ip, file=sys.stderr, flush=True)
+            ErrorMessages.send_error_message(pair.local_socket, no_ip) if pair is not None else None
             sys.exit(1)
         return IPv4Address(ip.stdout.strip())
 
     @classmethod
     def peer_is_online(cls, ip: IPv4Address) -> bool:
-        if not cls.peer(ip)['Online']:
-            return False
-        check_ping = subprocess.run(['tailscale', 'ping', '-c', '1', str(ip)], capture_output=True, text=True)
-        if check_ping.returncode != 0 and 'no reply' in check_ping.stderr.strip().lower():
-            return False
-        return True
+        # if not cls.peer(ip)['Online']:
+        #     return False
+        check_ping = subprocess.run(['tailscale', 'ping', '-c', '5', '--timeout', '1s', str(ip)], stdout=DEVNULL, stderr=DEVNULL, text=True)
+        return check_ping.returncode == 0
 
     @classmethod
     def peer_endpoint(cls, ip: IPv4Address) -> Tuple[IPv4Address, int]:
         cls.check_running()
-        peer_name = cls.peer_name(ip)
+        pair = CONNECTION_PAIRS.get(get_ident())
+        peer_name = pair.peer_name if pair is not None else cls.peer_name(ip)
         print(Messages.CHECKING_ENDPOINT.format(peer_name=peer_name, peer_ip=ip), flush=True)
         if not cls.peer_is_online(ip):
-            print(ErrorMessages.TS_PEER_OFFLINE.format(peer_name=peer_name, peer_ip=ip), file=sys.stderr, flush=True)
+            peer_is_offline = ErrorMessages.TS_PEER_OFFLINE.format(peer_name=peer_name, peer_ip=ip)
+            print(peer_is_offline, file=sys.stderr, flush=True)
+            ErrorMessages.send_error_message(pair.local_socket, peer_is_offline, ErrorCodes.PEER_OFFLINE) if pair is not None else None
             sys.exit(1)
         force_endpoint = subprocess.run(['tailscale', 'ping', '-c', '30', str(ip)], capture_output=True, text=True)
         if force_endpoint.returncode != 0:
-            print(ErrorMessages.TS_NO_ENDPOINT.format(peer_name=peer_name, peer_ip=ip), file=sys.stderr, flush=True)
+            no_endpoint = ErrorMessages.TS_NO_ENDPOINT.format(peer_name=peer_name, peer_ip=ip)
+            print(no_endpoint, file=sys.stderr, flush=True)
+            ErrorMessages.send_error_message(pair.local_socket, no_endpoint, ErrorCodes.NO_ENDPOINT) if pair is not None else None
             sys.exit(1)
         else:
             print(Messages.REACHABLE.format(peer_name=peer_name, peer_ip=ip), flush=True)
@@ -175,4 +193,6 @@ class TSManager:
                 if port:
                     return port
                 print(ErrorMessages.TS_NO_PORT, file=sys.stderr, flush=True)
+                pair = CONNECTION_PAIRS.get(get_ident())
+                ErrorMessages.send_error_message(pair.local_socket, ErrorMessages.TS_NO_PORT) if pair is not None else None
                 sys.exit(1)
