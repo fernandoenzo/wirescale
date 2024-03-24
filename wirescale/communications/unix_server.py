@@ -15,7 +15,7 @@ from parallel_utils.thread import StaticMonitor
 from websockets.sync.server import ServerConnection, WebSocketServer, unix_serve
 
 from wirescale.communications import Messages, SHUTDOWN, TCPServer
-from wirescale.communications.checkers import check_configfile, check_interface, check_wgconfig, send_error
+from wirescale.communications.checkers import check_configfile, check_interface, check_wgconfig
 from wirescale.communications.common import CONNECTION_PAIRS, SOCKET_PATH
 from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, MessageFields
 from wirescale.communications.tcp_client import TCPClient
@@ -80,7 +80,7 @@ class UnixServer:
     @staticmethod
     def discard_connections(websocket: ServerConnection):
         if SHUTDOWN.is_set():
-            send_error(websocket, ErrorMessages.CLOSED, ErrorCodes.CLOSED)
+            ErrorMessages.send_error_message(websocket, ErrorMessages.CLOSED, ErrorCodes.CLOSED)
 
     @classmethod
     def stop(cls):

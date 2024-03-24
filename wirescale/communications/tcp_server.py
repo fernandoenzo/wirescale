@@ -12,7 +12,7 @@ from websockets.sync.server import ServerConnection, WebSocketServer, serve
 
 from wirescale.communications import ActionCodes, ErrorCodes, ErrorMessages, MessageFields, Messages, TCPMessages
 from wirescale.communications import SHUTDOWN
-from wirescale.communications.checkers import check_addresses_in_allowedips, check_configfile, check_interface, check_wgconfig, match_psk, match_pubkeys, send_error
+from wirescale.communications.checkers import check_addresses_in_allowedips, check_configfile, check_interface, check_wgconfig, match_psk, match_pubkeys
 from wirescale.communications.common import CONNECTION_PAIRS, TCP_PORT
 from wirescale.parsers import ARGS
 from wirescale.parsers.args import ConnectionPair
@@ -59,7 +59,7 @@ class TCPServer:
         if SHUTDOWN.is_set():
             pair = CONNECTION_PAIRS[get_ident()]
             remote_error = ErrorMessages.REMOTE_CLOSED.format(my_name=pair.my_name, my_ip=pair.my_ip)
-            send_error(pair.remote_socket, remote_error, ErrorCodes.REMOTE_CLOSED)
+            ErrorMessages.send_error_message(pair.remote_socket, remote_error, ErrorCodes.REMOTE_CLOSED)
 
     @classmethod
     def upgrade(cls, message: dict):

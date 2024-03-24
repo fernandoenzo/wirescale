@@ -10,7 +10,7 @@ from threading import get_ident
 from websockets.sync.client import ClientConnection, connect
 
 from wirescale.communications import ErrorCodes, ErrorMessages
-from wirescale.communications.checkers import check_addresses_in_allowedips, match_pubkeys, send_error
+from wirescale.communications.checkers import check_addresses_in_allowedips, match_pubkeys
 from wirescale.communications.common import CONNECTION_PAIRS, TCP_PORT
 from wirescale.communications.messages import ActionCodes, MessageFields, TCPMessages, UnixMessages
 from wirescale.vpn.wgconfig import WGConfig
@@ -30,7 +30,7 @@ class TCPClient:
         except ConnectionRefusedError:
             error = ErrorMessages.REMOTE_MISSING_WIRESCALE.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
             print(error, file=sys.stderr, flush=True)
-            send_error(pair.local_socket, message=error, error_code=ErrorCodes.REMOTE_MISSING_WIRESCALE)
+            ErrorMessages.send_error_message(pair.local_socket, error_message=error, error_code=ErrorCodes.REMOTE_MISSING_WIRESCALE)
         with pair.remote_socket:
             upgrade_message = TCPMessages.build_upgrade(wgconfig)
             pair.remote_socket.send(json.dumps(upgrade_message))

@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 # encoding:utf-8
 import json
+import sys
 from enum import IntEnum, StrEnum, auto, unique
 from subprocess import CompletedProcess
 from threading import get_ident
 from typing import TYPE_CHECKING
+
+from websockets.sync.client import ClientConnection
+from websockets.sync.server import ServerConnection
 
 from wirescale.communications.common import CONNECTION_PAIRS
 
@@ -212,3 +216,11 @@ class ErrorMessages:
             MessageFields.ERROR_MESSAGE: error_message
         }
         return res
+
+    @classmethod
+    def send_error_message(cls, websocket: ClientConnection | ServerConnection, error_message: str, error_code: ErrorCodes, exit_code: int | None = 1):
+        error = cls.build_error_message(error_message, error_code)
+        websocket.send(json.dumps(error))
+        websocket.close()
+        if exit_code is not None:
+            sys.exit(exit_code)
