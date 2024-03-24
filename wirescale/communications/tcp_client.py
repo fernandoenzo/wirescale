@@ -9,10 +9,10 @@ from threading import get_ident
 
 from websockets.sync.client import ClientConnection, connect
 
-from wirescale.communications import ErrorMessages, ErrorCodes
-from wirescale.communications.checkers import match_pubkeys, check_addresses_in_allowedips, send_error
-from wirescale.communications.common import TCP_PORT, CONNECTION_PAIRS
-from wirescale.communications.messages import TCPMessages, ActionCodes, MessageFields, UnixMessages
+from wirescale.communications import ErrorCodes, ErrorMessages
+from wirescale.communications.checkers import check_addresses_in_allowedips, match_pubkeys, send_error
+from wirescale.communications.common import CONNECTION_PAIRS, TCP_PORT
+from wirescale.communications.messages import ActionCodes, MessageFields, TCPMessages, UnixMessages
 from wirescale.vpn.wgconfig import WGConfig
 
 
@@ -43,6 +43,9 @@ class TCPClient:
                     sys.exit(1)
                 elif code := message[MessageFields.CODE]:
                     match code:
+                        case ActionCodes.INFO:
+                            print(message[MessageFields.MESSAGE], flush=True)
+                            pair.local_socket.send(json.dumps(message))
                         case ActionCodes.UPGRADE_RESPONSE:
                             match_pubkeys(wgconfig, remote_pubkey=message[MessageFields.PUBKEY], my_pubkey=None)
                             wgconfig.remote_addresses = frozenset(ip_address(ip) for ip in message[MessageFields.ADDRESSES])

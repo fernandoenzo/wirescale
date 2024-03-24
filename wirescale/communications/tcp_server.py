@@ -8,12 +8,12 @@ from ipaddress import IPv4Address, ip_address
 from threading import get_ident
 
 from parallel_utils.thread import StaticMonitor
-from websockets.sync.server import ServerConnection, serve, WebSocketServer
+from websockets.sync.server import ServerConnection, WebSocketServer, serve
 
-from wirescale.communications import ErrorCodes, ActionCodes, ErrorMessages, TCPMessages, MessageFields
+from wirescale.communications import ActionCodes, ErrorCodes, ErrorMessages, MessageFields, TCPMessages
 from wirescale.communications import SHUTDOWN
-from wirescale.communications.checkers import send_error, check_configfile, check_interface, check_wgconfig, match_pubkeys, match_psk, check_addresses_in_allowedips
-from wirescale.communications.common import TCP_PORT, CONNECTION_PAIRS
+from wirescale.communications.checkers import check_addresses_in_allowedips, check_configfile, check_interface, check_wgconfig, match_psk, match_pubkeys, send_error
+from wirescale.communications.common import CONNECTION_PAIRS, TCP_PORT
 from wirescale.parsers import ARGS
 from wirescale.parsers.args import ConnectionPair
 from wirescale.vpn import TSManager
@@ -78,6 +78,8 @@ class TCPServer:
                 sys.exit(1)
             elif code := message[MessageFields.CODE]:
                 match code:
+                    case ActionCodes.INFO:
+                        print(message[MessageFields.MESSAGE], flush=True)
                     case ActionCodes.UPGRADE_GO:
                         wgquick = wgconfig.upgrade()
                         pair.remote_socket.close()

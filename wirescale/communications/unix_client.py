@@ -21,7 +21,13 @@ class UnixClient:
     @classmethod
     def connect(cls):
         if cls.CLIENT is None:
-            cls.CLIENT = unix_connect(path=str(SOCKET_PATH))
+            try:
+                print(Messages.CONNECTING_UNIX, flush=True)
+                cls.CLIENT = unix_connect(path=str(SOCKET_PATH))
+                print(Messages.CONNECTED_UNIX, flush=True)
+            except:
+                print(ErrorMessages.UNIX_SOCKET, file=sys.stderr, flush=True)
+                sys.exit(1)
 
     @classmethod
     def stop(cls):
@@ -41,11 +47,7 @@ class UnixClient:
 
     @classmethod
     def upgrade(cls):
-        try:
-            cls.connect()
-        except:
-            print(ErrorMessages.UNIX_SOCKET, file=sys.stderr, flush=True)
-            sys.exit(1)
+        cls.connect()
         with cls.CLIENT:
             message: dict = UnixMessages.build_upgrade_option(ARGS)
             cls.CLIENT.send(json.dumps(message))
@@ -68,6 +70,8 @@ class UnixClient:
                             sys.exit(1)
                 elif code := message[MessageFields.CODE]:
                     match code:
+                        case ActionCodes.INFO:
+                            print(message[MessageFields.MESSAGE], flush=True)
                         case ActionCodes.SUCCESS:
                             print(Messages.SUCCESS.format(interface=message[MessageFields.INTERFACE]), flush=True)
                             cls.CLIENT.close()

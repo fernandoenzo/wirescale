@@ -21,6 +21,7 @@ class MessageFields(StrEnum):
     ERROR_MESSAGE = auto()
     HAS_PSK = auto()
     INTERFACE = auto()
+    MESSAGE = auto()
     PEER_IP = auto()
     PSK = auto()
     PUBKEY = auto()
@@ -30,6 +31,7 @@ class MessageFields(StrEnum):
 
 class ActionCodes(IntEnum):
     ACK = auto()
+    INFO = auto()
     STOP = auto()
     SUCCESS = auto()
     UPGRADE = auto()
@@ -129,7 +131,19 @@ class TCPMessages:
 
 
 class Messages:
+    CONNECTING_UNIX = 'Connecting to local UNIX socket...'
+    CONNECTED_UNIX = 'Connection to local UNIX socket established'
+    NEW_UNIX_INCOMING = 'New local UNIX connection incoming'
     SUCCESS = "Success! Now you have a new working P2P connection through interface '{interface}'"
+
+    @staticmethod
+    def build_info_message(info_message: str) -> dict:
+        res = {
+            MessageFields.CODE: ActionCodes.INFO,
+            MessageFields.ERROR_CODE: None,
+            MessageFields.MESSAGE: info_message
+        }
+        return res
 
 
 class ErrorMessages:
