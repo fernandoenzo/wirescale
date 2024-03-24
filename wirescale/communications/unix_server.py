@@ -14,7 +14,7 @@ from time import sleep
 from parallel_utils.thread import StaticMonitor
 from websockets.sync.server import ServerConnection, WebSocketServer, unix_serve
 
-from wirescale.communications import SHUTDOWN, TCPServer
+from wirescale.communications import Messages, SHUTDOWN, TCPServer
 from wirescale.communications.checkers import check_configfile, check_interface, check_wgconfig, send_error
 from wirescale.communications.common import CONNECTION_PAIRS, SOCKET_PATH
 from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, MessageFields
@@ -78,7 +78,7 @@ class UnixServer:
         SHUTDOWN.set()
         TCPServer.SERVER.shutdown()
         cls.SERVER.shutdown()
-        print('The server has been set to shut down', flush=True)
+        print(Messages.SHUTDOWN_SET, flush=True)
         while active_count() > 3:
             sleep(0)
             with StaticMonitor.synchronized(uid=ActionCodes.UPGRADE):

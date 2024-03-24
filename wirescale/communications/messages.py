@@ -131,9 +131,12 @@ class TCPMessages:
 
 
 class Messages:
+    CHECKING_ENDPOINT = "Checking that an endpoint is available for peer '{peer_name}' ({peer_ip})..."
     CONNECTING_UNIX = 'Connecting to local UNIX socket...'
     CONNECTED_UNIX = 'Connection to local UNIX socket established'
     NEW_UNIX_INCOMING = 'New local UNIX connection incoming'
+    REACHABLE = "Peer '{peer_name}' ({peer_ip}) is reachable"
+    SHUTDOWN_SET = 'The server has been set to shut down'
     SUCCESS = "Success! Now you have a new working P2P connection through interface '{interface}'"
 
     @staticmethod

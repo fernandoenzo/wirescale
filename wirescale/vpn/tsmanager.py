@@ -11,6 +11,7 @@ from functools import lru_cache
 from ipaddress import IPv4Address
 from typing import Dict, Tuple
 
+from wirescale.communications import Messages
 from wirescale.communications.messages import ErrorMessages
 
 
@@ -97,14 +98,17 @@ class TSManager:
     @classmethod
     def peer_endpoint(cls, ip: IPv4Address) -> Tuple[IPv4Address, int]:
         cls.check_running()
+        peer_name = cls.peer_name(ip)
+        print(Messages.CHECKING_ENDPOINT.format(peer_name=peer_name, peer_ip=ip), flush=True)
         if not cls.peer_is_online(ip):
-            print(ErrorMessages.TS_PEER_OFFLINE.format(peer_name=cls.peer_name(ip), peer_ip=ip), file=sys.stderr, flush=True)
+            print(ErrorMessages.TS_PEER_OFFLINE.format(peer_name=peer_name, peer_ip=ip), file=sys.stderr, flush=True)
             sys.exit(1)
         force_endpoint = subprocess.run(['tailscale', 'ping', '-c', '30', str(ip)], capture_output=True, text=True)
         if force_endpoint.returncode != 0:
-            print(ErrorMessages.TS_NO_ENDPOINT.format(peer_name=cls.peer_name(ip), peer_ip=ip), file=sys.stderr, flush=True)
+            print(ErrorMessages.TS_NO_ENDPOINT.format(peer_name=peer_name, peer_ip=ip), file=sys.stderr, flush=True)
             sys.exit(1)
         else:
+            print(Messages.REACHABLE.format(peer_name=peer_name, peer_ip=ip), flush=True)
             endpoint = force_endpoint.stdout.split()[-3]
         return IPv4Address(endpoint.split(':')[0]), int(endpoint.split(':')[1])
 
