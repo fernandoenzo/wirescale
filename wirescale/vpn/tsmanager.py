@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # encoding:utf-8
-
-
+import fcntl
 import json
 import os
 import re
@@ -9,9 +8,14 @@ import subprocess
 import sys
 from functools import lru_cache
 from ipaddress import IPv4Address
+from pathlib import Path
+from subprocess import DEVNULL
+from time import sleep
 from typing import Dict, Tuple
 
-from wirescale.communications import Messages
+from parallel_utils.thread import StaticMonitor
+
+from wirescale.communications import ActionCodes, Messages
 from wirescale.communications.messages import ErrorMessages
 
 
@@ -28,25 +32,63 @@ class TSManager:
 
     @classmethod
     def status(cls) -> Dict:
-        cls.check_running()
+        cls.check_service_running()
         status = subprocess.run(['tailscale', 'status', '--json'], capture_output=True, text=True)
         return json.loads(status.stdout)
 
+    @staticmethod
+    def service_is_running() -> bool:
+        is_active = subprocess.run(['systemctl', 'is-active', 'tailscaled.service'], stdout=DEVNULL, stderr=DEVNULL)
+        return is_active.returncode == 0
+
+    @classmethod
+    def has_state(cls) -> bool:
+        return cls.status()['BackendState'].lower() != 'NoState'.lower()
+
+    @classmethod
+    def is_logged(cls) -> bool:
+        return cls.status()['BackendState'].lower() != 'NeedsLogin'.lower()
+
+    @classmethod
+    def is_stopped(cls) -> bool:
+        return cls.status()['BackendState'].lower() == 'Stopped'.lower()
+
     @classmethod
     def is_running(cls) -> bool:
-        is_active = subprocess.run(['systemctl', 'is-active', 'tailscaled.service'], capture_output=True, text=True)
-        if is_active.returncode != 0:
-            return False
-        status = subprocess.run(['tailscale', 'status', '--json'], capture_output=True, text=True)
-        if status.returncode != 0:
-            return False
-        status = json.loads(status.stdout)
-        return status.get('BackendState', '').lower() == 'running'
+        return cls.status()['BackendState'].lower() == 'Running'.lower()
+
+    @classmethod
+    def check_service_running(cls):
+        systemd_running = False
+        with StaticMonitor.synchronized(uid=ActionCodes.STOP):
+            try:
+                lockfile = Path('/run/wirescale/control/locker').open(mode='w')
+                fcntl.flock(lockfile, fcntl.LOCK_EX)
+                for _ in range(3):
+                    if cls.service_is_running():
+                        systemd_running = True
+                    else:
+                        sleep(0.5)
+            finally:
+                fcntl.flock(lockfile, fcntl.LOCK_UN)
+                lockfile.close()
+        if not systemd_running:
+            print(ErrorMessages.TS_SYSTEMD_STOPPED, file=sys.stderr, flush=True)
+            sys.exit(1)
 
     @classmethod
     def check_running(cls):
-        if not cls.is_running():
+        cls.check_service_running()
+        while not cls.has_state():
+            sleep(0.5)
+        if not cls.is_logged():
+            print(ErrorMessages.TS_NO_LOGGED, file=sys.stderr, flush=True)
+            sys.exit(1)
+        if cls.is_stopped():
             print(ErrorMessages.TS_STOPPED, file=sys.stderr, flush=True)
+            sys.exit(1)
+        if not cls.is_running():
+            print(ErrorMessages.TS_NOT_RUNNING, file=sys.stderr, flush=True)
             sys.exit(1)
 
     @classmethod

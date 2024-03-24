@@ -3,6 +3,9 @@ Description=Wirescale socket
 
 [Socket]
 ListenStream=/run/wirescale/wirescaled.sock
+ExecStartPost=/usr/bin/mkdir -p /run/wirescale/control/
+ExecStartPost=/usr/bin/touch /run/wirescale/control/locker
+ExecStartPost=/usr/bin/chmod 666 /run/wirescale/control/locker
 FlushPending=yes
 
 [Install]

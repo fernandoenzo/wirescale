@@ -201,11 +201,14 @@ class ErrorMessages:
     ROOT_SYSTEMD = "Error: Wirescale daemon must be managed by root's systemd"
     SUDO = 'Error: This program must be run as a superuser'
     TS_PEER_OFFLINE = "Error: Peer '{peer_name}' ({peer_ip}) is offline"
-    TS_STOPPED = 'Error: Tailscaled is stopped'
+    TS_SYSTEMD_STOPPED = "Error: 'tailscaled.service' is stopped. Start the service with systemd"
+    TS_STOPPED = "Error: Tailscale is stopped. Run 'sudo tailscale up'"
     TS_NO_ENDPOINT = "Sorry, it was impossible to find a public endpoint for peer `{peer_name}` ({peer_ip})"
     TS_NO_IP = "Error: No IPv4 found for peer '{peer_name}'"
+    TS_NO_LOGGED = 'Error: Tailscale is logged out'
     TS_NO_PEER = "Error: No peer found matching the IP '{peer_ip}'"
     TS_NO_PORT = 'Error: No listening port for Tailscale was found'
+    TS_NOT_RUNNING = 'Error: Tailscale is not running'
     UNIX_SOCKET = "Error: Couldn't connect to the local UNIX socket"
 
     @staticmethod

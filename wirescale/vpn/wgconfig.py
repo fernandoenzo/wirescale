@@ -3,6 +3,7 @@
 
 
 import collections
+import fcntl
 import re
 import subprocess
 import sys
@@ -14,7 +15,9 @@ from pathlib import Path
 from subprocess import CompletedProcess, STDOUT
 from typing import Dict, FrozenSet, Tuple
 
-from wirescale.communications import ErrorMessages, Messages
+from parallel_utils.thread import StaticMonitor
+
+from wirescale.communications import ActionCodes, ErrorMessages, Messages
 from wirescale.communications.common import subprocess_run_tmpfile
 from wirescale.vpn.tsmanager import TSManager
 
@@ -192,9 +195,16 @@ class WGConfig:
         return text
 
     def upgrade(self) -> CompletedProcess[str]:
-        TSManager.stop()
-        wgquick = subprocess_run_tmpfile(['wg-quick', 'up', str(self.new_config_path)], stderr=STDOUT)
-        TSManager.start()
+        with StaticMonitor.synchronized(uid=ActionCodes.STOP):
+            try:
+                lockfile = Path('/run/wirescale/control/locker').open(mode='w')
+                fcntl.flock(lockfile, fcntl.LOCK_EX)
+                TSManager.stop()
+                wgquick = subprocess_run_tmpfile(['wg-quick', 'up', str(self.new_config_path)], stderr=STDOUT)
+                TSManager.start()
+            finally:
+                fcntl.flock(lockfile, fcntl.LOCK_UN)
+                lockfile.close()
         if wgquick.returncode == 0:
             print(Messages.SUCCESS.format(interface=self.interface), flush=True)
         else:

@@ -28,7 +28,7 @@ autoremove() {
   log_file="/tmp/$interface.log"
 
   : > "$log_file"
-  chmod 666 "$log_file"
+  chmod 644 "$log_file"
 
   last_received=0
 
