@@ -96,8 +96,8 @@ class WGConfig:
 
     def add_iptables(self):
         port = TSManager.local_port()
-        preup_input_interface = 'iptables -A INPUT -i %i -j ACCEPT'
-        preup_input_port = f'iptables -A INPUT -p udp --dport {port} -j ACCEPT'
+        preup_input_interface = 'iptables -I INPUT -i %i -j ACCEPT'
+        preup_input_port = f'iptables -I INPUT -p udp --dport {port} -j ACCEPT'
         postdown_input_interface = 'iptables -D INPUT -i %i -j ACCEPT'
         postdown_input_port = f'iptables -D INPUT -p udp --dport {port} -j ACCEPT'
         self.add_script('preup', preup_input_interface, first_place=True)
