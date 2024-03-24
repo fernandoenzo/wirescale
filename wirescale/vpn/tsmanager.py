@@ -87,7 +87,12 @@ class TSManager:
 
     @classmethod
     def peer_is_online(cls, ip: IPv4Address) -> bool:
-        return cls.peer(ip)['Online'] is True
+        if not cls.peer(ip)['Online']:
+            return False
+        check_ping = subprocess.run(['tailscale', 'ping', '-c', '1', str(ip)], capture_output=True, text=True)
+        if check_ping.returncode != 0 and 'no reply' in check_ping.stderr.strip().lower():
+            return False
+        return True
 
     @classmethod
     def peer_endpoint(cls, ip: IPv4Address) -> Tuple[IPv4Address, int]:
