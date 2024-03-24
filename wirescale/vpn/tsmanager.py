@@ -38,6 +38,8 @@ class TSManager:
         if is_active.returncode != 0:
             return False
         status = subprocess.run(['tailscale', 'status', '--json'], capture_output=True, text=True)
+        if status.returncode != 0:
+            return False
         status = json.loads(status.stdout)
         return status.get('BackendState', '').lower() == 'running'
 
