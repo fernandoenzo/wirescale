@@ -10,7 +10,7 @@ from threading import get_ident
 from parallel_utils.thread import StaticMonitor
 from websockets.sync.server import ServerConnection, WebSocketServer, serve
 
-from wirescale.communications import ActionCodes, ErrorCodes, ErrorMessages, MessageFields, TCPMessages
+from wirescale.communications import ActionCodes, ErrorCodes, ErrorMessages, MessageFields, Messages, TCPMessages
 from wirescale.communications import SHUTDOWN
 from wirescale.communications.checkers import check_addresses_in_allowedips, check_configfile, check_interface, check_wgconfig, match_psk, match_pubkeys, send_error
 from wirescale.communications.common import CONNECTION_PAIRS, TCP_PORT
@@ -40,8 +40,14 @@ class TCPServer:
             pair.tcp_socket = websocket
             try:
                 cls.discard_connections()
+                enqueueing = Messages.ENQUEUEING_FROM.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+                enqueueing_remote = Messages.ENQUEUEING_REMOTE.format(sender_name=pair.my_name, sender_ip=pair.my_ip)
+                Messages.send_info_message(local_message=enqueueing, remote_message=enqueueing_remote)
                 with StaticMonitor.synchronized(uid=ActionCodes.UPGRADE), websocket:
                     cls.discard_connections()
+                    start_processing = Messages.START_PROCESSING_FROM.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+                    start_processing_remote = Messages.START_PROCESSING_REMOTE.format(sender_name=pair.my_name, sender_ip=pair.my_ip)
+                    Messages.send_info_message(local_message=start_processing, remote_message=start_processing_remote)
                     message: dict = json.loads(pair.remote_socket.recv())
                     if message[MessageFields.CODE] == ActionCodes.UPGRADE:
                         cls.upgrade(message)

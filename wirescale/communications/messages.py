@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 # encoding:utf-8
-
-
+import json
 from enum import IntEnum, StrEnum, auto, unique
 from subprocess import CompletedProcess
-
+from threading import get_ident
 from typing import TYPE_CHECKING
+
+from wirescale.communications.common import CONNECTION_PAIRS
 
 if TYPE_CHECKING:
     from wirescale.vpn.wgconfig import WGConfig
@@ -134,9 +135,15 @@ class Messages:
     CHECKING_ENDPOINT = "Checking that an endpoint is available for peer '{peer_name}' ({peer_ip})..."
     CONNECTING_UNIX = 'Connecting to local UNIX socket...'
     CONNECTED_UNIX = 'Connection to local UNIX socket established'
+    ENQUEUEING_FROM = "Enqueueing upgrade request coming from peer '{peer_name}' ({peer_ip})..."
+    ENQUEUEING_REMOTE = "Remote peer '{sender_name}' ({sender_ip}) has enqueued our upgrade request"
+    ENQUEUEING_TO = "Enqueueing upgrade request to peer '{peer_name}' ({peer_ip})..."
     NEW_UNIX_INCOMING = 'New local UNIX connection incoming'
     REACHABLE = "Peer '{peer_name}' ({peer_ip}) is reachable"
     SHUTDOWN_SET = 'The server has been set to shut down'
+    START_PROCESSING_FROM = "Starting to process the upgrade request coming from peer '{peer_name}' ({peer_ip})"
+    START_PROCESSING_REMOTE = "Remote peer '{sender_name}' ({sender_ip}) has started to process our upgrade request"
+    START_PROCESSING_TO = "Starting to process the upgrade request for the peer '{peer_name}' ({peer_ip})"
     SUCCESS = "Success! Now you have a new working P2P connection through interface '{interface}'"
 
     @staticmethod
@@ -147,6 +154,17 @@ class Messages:
             MessageFields.MESSAGE: info_message
         }
         return res
+
+    @classmethod
+    def send_info_message(cls, local_message: str, remote_message: str = None):
+        pair = CONNECTION_PAIRS[get_ident()]
+        print(local_message, flush=True)
+        if pair.local_socket is not None:
+            local_message = cls.build_info_message(local_message)
+            pair.local_socket.send(json.dumps(local_message))
+        if remote_message is not None:
+            remote_message = cls.build_info_message(remote_message)
+            pair.remote_socket.send(json.dumps(remote_message))
 
 
 class ErrorMessages:

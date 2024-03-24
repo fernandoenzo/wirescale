@@ -64,9 +64,18 @@ class UnixServer:
                     case ActionCodes.STOP:
                         cls.stop()
                     case ActionCodes.UPGRADE:
-                        with StaticMonitor.synchronized(uid=ActionCodes.UPGRADE):
-                            cls.discard_connections(websocket)
-                            cls.upgrade(websocket, message)
+                        try:
+                            pair = ConnectionPair(caller=TSManager.my_ip(), receiver=IPv4Address(message[MessageFields.PEER_IP]))
+                            pair.unix_socket = websocket
+                            enqueueing = Messages.ENQUEUEING_TO.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+                            Messages.send_info_message(local_message=enqueueing)
+                            with StaticMonitor.synchronized(uid=ActionCodes.UPGRADE):
+                                cls.discard_connections(websocket)
+                                start_processing = Messages.START_PROCESSING_TO.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+                                Messages.send_info_message(local_message=start_processing)
+                                cls.upgrade(message)
+                        finally:
+                            CONNECTION_PAIRS.pop(get_ident(), None)
 
     @staticmethod
     def discard_connections(websocket: ServerConnection):
@@ -86,15 +95,11 @@ class UnixServer:
         UDPServer.UDPDummy.close()
 
     @staticmethod
-    def upgrade(websocket: ServerConnection, message: dict):
-        try:
-            pair = ConnectionPair(caller=TSManager.my_ip(), receiver=IPv4Address(message[MessageFields.PEER_IP]))
-            pair.unix_socket = websocket
-            interface = check_interface(interface=message[MessageFields.INTERFACE], suffix=message[MessageFields.SUFFIX])
-            config = check_configfile(config=message[MessageFields.CONFIG])
-            wgconfig = check_wgconfig(config, interface)
-            wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)
-            wgconfig.autoremove = message[MessageFields.AUTOREMOVE]
-            TCPClient.upgrade(wgconfig=wgconfig)
-        finally:
-            CONNECTION_PAIRS.pop(get_ident(), None)
+    def upgrade(message: dict):
+        pair = CONNECTION_PAIRS[get_ident()]
+        interface = check_interface(interface=message[MessageFields.INTERFACE], suffix=message[MessageFields.SUFFIX])
+        config = check_configfile(config=message[MessageFields.CONFIG])
+        wgconfig = check_wgconfig(config, interface)
+        wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)
+        wgconfig.autoremove = message[MessageFields.AUTOREMOVE]
+        TCPClient.upgrade(wgconfig=wgconfig)
