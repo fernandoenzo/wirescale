@@ -33,7 +33,7 @@ autoremove() {
   last_received=0
 
   while { ip link show "$interface"; } > /dev/null 2>&1; do
-    sleep "$(calculate_sleep_time '0 20 40')"
+    sleep 20
     received=$(wg show "$interface" transfer | awk -v pubkey="$remote_pubkey" '$1 == pubkey {print $2}')
     if [ "$received" -gt "$last_received" ]; then
       last_received=$received
