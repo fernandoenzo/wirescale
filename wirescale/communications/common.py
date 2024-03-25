@@ -2,7 +2,8 @@
 
 
 import collections
-from contextlib import ExitStack
+import fcntl
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from subprocess import CompletedProcess, run
 from tempfile import TemporaryFile
@@ -28,3 +29,14 @@ def subprocess_run_tmpfile(*args, **kwargs) -> CompletedProcess[str]:
         p = run(*args, **kwargs)
         p.stdout, p.stderr = ((kwargs[stream].flush(), kwargs[stream].seek(0), kwargs[stream].read())[2] if not streams_are_set[stream] else getattr(p, stream) for stream in streams)
     return p
+
+
+@contextmanager
+def file_locker():
+    lockfile = Path('/run/wirescale/control/locker').open(mode='w')
+    fcntl.flock(lockfile, fcntl.LOCK_EX)
+    try:
+        yield
+    finally:
+        fcntl.flock(lockfile, fcntl.LOCK_UN)
+        lockfile.close()

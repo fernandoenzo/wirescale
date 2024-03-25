@@ -2,15 +2,14 @@
 # encoding:utf-8
 
 
-import fcntl
 import json
 import os
 import re
 import subprocess
 import sys
+from contextlib import ExitStack
 from functools import lru_cache
 from ipaddress import IPv4Address
-from pathlib import Path
 from subprocess import DEVNULL
 from threading import get_ident
 from time import sleep
@@ -19,6 +18,7 @@ from typing import Dict, Tuple
 from parallel_utils.thread import StaticMonitor
 
 from wirescale.communications import ActionCodes, CONNECTION_PAIRS, ErrorCodes, Messages
+from wirescale.communications.common import file_locker
 from wirescale.communications.messages import ErrorMessages
 
 
@@ -63,18 +63,14 @@ class TSManager:
     @classmethod
     def check_service_running(cls):
         systemd_running = False
-        with StaticMonitor.synchronized(uid=ActionCodes.STOP):
-            try:
-                lockfile = Path('/run/wirescale/control/locker').open(mode='w')
-                fcntl.flock(lockfile, fcntl.LOCK_EX)
-                for _ in range(3):
-                    if cls.service_is_running():
-                        systemd_running = True
-                    else:
-                        sleep(0.5)
-            finally:
-                fcntl.flock(lockfile, fcntl.LOCK_UN)
-                lockfile.close()
+        with ExitStack() as stack:
+            stack.enter_context(StaticMonitor.synchronized(uid=ActionCodes.STOP))
+            stack.enter_context(file_locker())
+            for _ in range(3):
+                if cls.service_is_running():
+                    systemd_running = True
+                else:
+                    sleep(0.5)
         if not systemd_running:
             print(ErrorMessages.TS_SYSTEMD_STOPPED, file=sys.stderr, flush=True)
             pair = CONNECTION_PAIRS.get(get_ident())

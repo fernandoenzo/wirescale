@@ -27,9 +27,6 @@ autoremove() {
   remote_pubkey=$2
   log_file="/tmp/$interface.log"
 
-  : > "$log_file"
-  chmod 644 "$log_file"
-
   last_received=0
 
   while { ip link show "$interface"; } > /dev/null 2>&1; do
@@ -41,6 +38,9 @@ autoremove() {
       break
     fi
   done
+
+  : > "$log_file"
+  chmod 644 "$log_file"
 
   echo "$(date) Removing interface $interface" >> "/tmp/$interface.log"
   wg-quick down "/run/wirescale/$interface.conf"
