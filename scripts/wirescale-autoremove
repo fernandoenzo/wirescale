@@ -13,6 +13,28 @@ calculate_sleep_time() {
   echo $((60 - current_second + first))
 }
 
+latest_handshake_less_than() {
+  interface=$1
+  remote_pubkey=$2
+  seconds=$3
+
+  ip ! link show "$interface" > /dev/null 2>&1 && return 1
+  latest_handshake=$(wg show "$interface" latest-handshakes | awk -v pubkey="$remote_pubkey" '$1 == pubkey {print $2}')
+  difference=$(($(date +%s) - latest_handshake))
+  [ $difference -lt "$seconds" ] && return 0
+  return 1
+}
+
+force_handshake() {
+  interface=$1
+  remote_pubkey=$2
+  control="/run/wirescale/control/$interface.conf"
+  wg-quick strip "/run/wirescale/$interface.conf" > "$control"
+  wg set "$interface" peer "$remote_pubkey" remove
+  wg syncconf "$interface" "$control"
+  rm -rf "$control"
+}
+
 ping_keepalive() {
   interface=$1
   ip=$2
@@ -25,7 +47,6 @@ ping_keepalive() {
 autoremove() {
   interface=$1
   remote_pubkey=$2
-  log_file="/tmp/$interface.log"
 
   last_received=0
 
@@ -35,14 +56,27 @@ autoremove() {
     if [ "$received" -gt "$last_received" ]; then
       last_received=$received
     else
-      break
+      echo "$(date) Connection appears to be broken. Trying to force a handshake"
+      force_handshake "$interface" "$remote_pubkey"
+      count=0
+      while [ $count -le 10 ]; do
+        if latest_handshake_less_than "$interface" "$remote_pubkey" 10; then
+          break
+        else
+          sleep 0.5
+          count=$((count + 1))
+        fi
+      done
+      if [ $count -le 10 ]; then
+        echo "$(date) Connection recovered!"
+        continue
+      else
+        break
+      fi
     fi
   done
 
-  : > "$log_file"
-  chmod 644 "$log_file"
-
-  echo "$(date) Removing interface $interface" >> "/tmp/$interface.log"
+  echo "$(date) Removing interface $interface"
   wg-quick down "/run/wirescale/$interface.conf"
   return 1
 }

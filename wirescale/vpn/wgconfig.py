@@ -115,8 +115,8 @@ class WGConfig:
         self.add_script('postup', handshake, first_place=True)
 
     def autoremove_interface(self):
-        ping = f'/bin/sh /run/wirescale/wirescale-autoremove ping_keepalive %i {next(ip for ip in self.remote_addresses)} > /dev/null 2>&1 &'
-        remove_interface = f'/bin/sh /run/wirescale/wirescale-autoremove autoremove %i {self.remote_pubkey} > /dev/null 2>&1 &'
+        ping = f'systemd-run /bin/sh /run/wirescale/wirescale-autoremove ping_keepalive %i {next(ip for ip in self.remote_addresses)}'
+        remove_interface = f'systemd-run /bin/sh /run/wirescale/wirescale-autoremove autoremove %i {self.remote_pubkey}'
         self.add_script('postup', remove_interface, first_place=True)
         self.add_script('postup', ping, first_place=True)
 
