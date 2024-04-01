@@ -114,7 +114,7 @@ class WGConfig:
         self.add_script('postup', handshake, first_place=True)
 
     def autoremove_interface(self):
-        ping = f'echo -n "Launching ping subprocess. "; systemd-run /bin/sh /run/wirescale/wirescale-autoremove ping_keepalive %i {next(ip for ip in self.remote_addresses)}'
+        ping = f'echo -n "Launching ping subprocess. "; systemd-run /bin/sh /run/wirescale/wirescale-autoremove ping_keepalive %i {next(ip for ip in self.remote_addresses)} {self.endpoint[1]}'
         remove_interface = f'echo -n "Launching autoremove subprocess. "; systemd-run /bin/sh /run/wirescale/wirescale-autoremove autoremove %i {self.remote_pubkey}'
         self.add_script('postup', remove_interface, first_place=True)
         self.add_script('postup', ping, first_place=True)
@@ -210,4 +210,3 @@ class WGConfig:
             self.new_config_path.unlink()
             print(ErrorMessages.FINAL_ERROR, file=sys.stderr, flush=True)
         return wgquick
-
