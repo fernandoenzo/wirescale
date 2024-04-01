@@ -3,7 +3,6 @@
 
 
 import collections
-import fcntl
 import re
 import subprocess
 import sys
@@ -115,8 +114,8 @@ class WGConfig:
         self.add_script('postup', handshake, first_place=True)
 
     def autoremove_interface(self):
-        ping = f'systemd-run /bin/sh /run/wirescale/wirescale-autoremove ping_keepalive %i {next(ip for ip in self.remote_addresses)}'
-        remove_interface = f'systemd-run /bin/sh /run/wirescale/wirescale-autoremove autoremove %i {self.remote_pubkey}'
+        ping = f'echo -n "Launching ping subprocess. "; systemd-run /bin/sh /run/wirescale/wirescale-autoremove ping_keepalive %i {next(ip for ip in self.remote_addresses)}'
+        remove_interface = f'echo -n "Launching autoremove subprocess. "; systemd-run /bin/sh /run/wirescale/wirescale-autoremove autoremove %i {self.remote_pubkey}'
         self.add_script('postup', remove_interface, first_place=True)
         self.add_script('postup', ping, first_place=True)
 
@@ -203,8 +202,12 @@ class WGConfig:
             wgquick = subprocess_run_tmpfile(['wg-quick', 'up', str(self.new_config_path)], stderr=STDOUT)
             TSManager.start()
         if wgquick.returncode == 0:
+            wgquick_messages = wgquick.stdout.split('\n')
+            systemd_messages = [m for m in wgquick_messages if "running as unit" in m.lower()]
+            collections.deque((Messages.send_info_message(local_message=m) for m in systemd_messages), maxlen=0)
             print(Messages.SUCCESS.format(interface=self.interface), flush=True)
         else:
             self.new_config_path.unlink()
             print(ErrorMessages.FINAL_ERROR, file=sys.stderr, flush=True)
         return wgquick
+
