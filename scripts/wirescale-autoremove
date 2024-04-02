@@ -35,25 +35,10 @@ force_handshake() {
   rm -rf "$control"
 }
 
-big_packet() {
-  interface=$1
-  ip=$2
-  port=$3
-  size=$4
-  while { ip link show "$interface"; } > /dev/null 2>&1; do
-    echo "Sending a random $size MiB file to IP $ip through the $interface interface on port $port"
-    dd if=/dev/urandom of=/tmp/random_data bs="$size"M count=1 > /dev/null 2>&1
-    socat -u /tmp/random_data UDP-DATAGRAM:"$ip":"$port",so-bindtodevice="$interface"
-    rm -rf /tmp/random_data
-    sleep 600
-  done
-}
-
 ping_keepalive() {
   interface=$1
   ip=$2
   port=$3
-  big_packet "$interface" "$ip" "$port" 5 &
   while { ip link show "$interface"; } > /dev/null 2>&1; do
     ping -q -I "$interface" -c 1 -W 0.05 "$ip" > /dev/null 2>&1
     sleep 3
@@ -114,4 +99,3 @@ else
   echo "Error: The function $func_name does not exist in this script."
   exit 1
 fi
-
