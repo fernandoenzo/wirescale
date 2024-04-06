@@ -8,16 +8,18 @@ import subprocess
 import sys
 from configparser import ConfigParser
 from contextlib import ExitStack
+from datetime import datetime
 from functools import cached_property
 from io import StringIO
 from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network, ip_address, ip_network
 from pathlib import Path
 from subprocess import CompletedProcess, STDOUT
+from threading import get_ident
 from typing import Dict, FrozenSet, Tuple
 
 from parallel_utils.thread import StaticMonitor
 
-from wirescale.communications import ActionCodes, ErrorMessages, Messages
+from wirescale.communications import ActionCodes, CONNECTION_PAIRS, ErrorMessages, Messages
 from wirescale.communications.common import file_locker, subprocess_run_tmpfile
 from wirescale.vpn.tsmanager import TSManager
 
@@ -48,6 +50,7 @@ class WGConfig:
         self.psk = self.get_field('Peer', 'PresharedKey')
         self.has_psk: bool = self.psk is not None
         self.psk = self.psk or self.generate_wg_psk()
+        self.start_time: int = datetime.now().second
 
     def read_config(self):
         with open(self.file_path, 'r') as f:
@@ -114,12 +117,12 @@ class WGConfig:
         self.add_script('postup', handshake, first_place=True)
 
     def autoremove_interface(self):
-        ping = f'echo -n "Launching ping subprocess. "; systemd-run /bin/sh /run/wirescale/wirescale-autoremove ping_keepalive %i {next(ip for ip in self.remote_addresses)} {self.endpoint[1]}'
-        remove_interface = f'echo -n "Launching autoremove subprocess. "; systemd-run /bin/sh /run/wirescale/wirescale-autoremove autoremove %i {self.remote_pubkey}'
+        running_in_remote = int(CONNECTION_PAIRS[get_ident()].running_in_remote)
+        remove_interface = (f'echo -n "Launching autoremove subprocess. "; systemd-run -u autoremove-%i /bin/sh /run/wirescale/wirescale-autoremove autoremove %i {self.remote_pubkey} '
+                            f'{running_in_remote} {self.start_time}')
         self.add_script('postup', remove_interface, first_place=True)
-        self.add_script('postup', ping, first_place=True)
 
-    def set_autoremove_configfile(self):
+    def autoremove_configfile(self):
         remove_configfile = f'rm -f {self.configfile}'
         self.add_script('postdown', remove_configfile)
 
@@ -156,7 +159,7 @@ class WGConfig:
         if self.autoremove:
             self.autoremove_interface()
         self.first_handshake()
-        self.set_autoremove_configfile()
+        self.autoremove_configfile()
         repeatable_fields = [field for field in self.repeatable_fields if field != allowedips]
         for field in repeatable_fields:
             for i, value in enumerate(self.get_field(interface, field), start=1):

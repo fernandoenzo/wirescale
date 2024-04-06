@@ -13,6 +13,13 @@ calculate_sleep_time() {
   echo $((60 - current_second + first))
 }
 
+get_sleep_times() {
+  start_time=$(($1 % 60))
+  num1=$(((start_time + 20) % 60))
+  num2=$(((start_time + 40) % 60))
+  echo "$start_time $num1 $num2" | tr " " "\n" | sort -n | tr "\n" " "
+}
+
 latest_handshake_less_than() {
   interface=$1
   remote_pubkey=$2
@@ -21,7 +28,7 @@ latest_handshake_less_than() {
   ip ! link show "$interface" > /dev/null 2>&1 && return 1
   latest_handshake=$(wg show "$interface" latest-handshakes | awk -v pubkey="$remote_pubkey" '$1 == pubkey {print $2}')
   difference=$(($(date +%s) - latest_handshake))
-  [ $difference -lt "$seconds" ]
+  [ "$difference" -lt "$seconds" ]
   return
 }
 
@@ -35,33 +42,56 @@ force_handshake() {
   rm -rf "$control"
 }
 
+change_keepalive() {
+  interface=$1
+  remote_pubkey=$2
+  seconds=$3
+  wg set "$interface" peer "$remote_pubkey" persistent-keepalive "$seconds"
+}
+
 ping_keepalive() {
   interface=$1
-  ip=$2
-  port=$3
+  remote_pubkey=$2
+  remote=$3
+  start_time=$4
+
   while { ip link show "$interface"; } > /dev/null 2>&1; do
-    ping -q -I "$interface" -c 1 -W 0.05 "$ip" > /dev/null 2>&1
-    sleep 3
+    if [ "$remote" -eq 1 ]; then
+      sleep_times=$(get_sleep_times "$start_time")
+      sleep "$(calculate_sleep_time "$sleep_times")"
+    else
+      start_time=$(((start_time + 10) % 60))
+      sleep_times=$(get_sleep_times "$start_time")
+      sleep "$(calculate_sleep_time "$sleep_times")"
+    fi
+    change_keepalive "$interface" "$remote_pubkey" 1
+    sleep 5
+    change_keepalive "$interface" "$remote_pubkey" 10
   done
 }
 
 autoremove() {
   interface=$1
   remote_pubkey=$2
+  remote=$3
+  start_time=$4
+
+  sleep 10
+  ping_keepalive "$interface" "$remote_pubkey" "$remote" "$start_time" &
 
   last_received=0
 
   while { ip link show "$interface"; } > /dev/null 2>&1; do
-    sleep 20
     received=$(wg show "$interface" transfer | awk -v pubkey="$remote_pubkey" '$1 == pubkey {print $2}')
     if [ "$received" -gt "$last_received" ]; then
       last_received=$received
     else
-      echo "$(date) Connection appears to be broken. Trying to force a handshake"
+      echo "Connection appears to be broken. Trying to force a handshake"
       force_handshake "$interface" "$remote_pubkey"
       count=0
       while [ $count -le 10 ]; do
         if latest_handshake_less_than "$interface" "$remote_pubkey" 10; then
+          echo "But the latest handshake was less than ten seconds ago, so won't do anything"
           break
         else
           sleep 0.5
@@ -69,12 +99,12 @@ autoremove() {
         fi
       done
       if [ $count -le 10 ]; then
-        echo "$(date) Connection recovered!"
-        continue
+        echo "Connection recovered!"
       else
         break
       fi
     fi
+    sleep 40
   done
 
   echo "$(date) Removing interface $interface"

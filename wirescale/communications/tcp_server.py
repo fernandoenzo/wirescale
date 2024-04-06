@@ -70,6 +70,7 @@ class TCPServer:
         wgconfig.autoremove = ARGS.AUTOREMOVE
         wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)
         wgconfig.remote_addresses = frozenset(ip_address(ip) for ip in message[MessageFields.ADDRESSES])
+        wgconfig.start_time = message[MessageFields.START_TIME]
         match_pubkeys(wgconfig, remote_pubkey=message[MessageFields.PUBKEY], my_pubkey=message[MessageFields.REMOTE_PUBKEY])
         match_psk(wgconfig, remote_has_psk=message[MessageFields.HAS_PSK], remote_psk=message[MessageFields.PSK])
         check_addresses_in_allowedips(wgconfig)

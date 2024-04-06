@@ -33,6 +33,7 @@ class MessageFields(StrEnum):
     PSK = auto()
     PUBKEY = auto()
     REMOTE_PUBKEY = auto()
+    START_TIME = auto()
     SUFFIX = auto()
 
 
@@ -117,6 +118,7 @@ class TCPMessages:
             MessageFields.REMOTE_PUBKEY: wgconfig.remote_pubkey,
             MessageFields.HAS_PSK: wgconfig.has_psk,
             MessageFields.PSK: wgconfig.psk if not wgconfig.has_psk else None,
+            MessageFields.START_TIME: wgconfig.start_time,
         }
         return res
 
