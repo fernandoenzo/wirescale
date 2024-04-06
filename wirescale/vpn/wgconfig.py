@@ -121,7 +121,7 @@ class WGConfig:
         running_in_remote = int(CONNECTION_PAIRS[get_ident()].running_in_remote)
         suffix = random.randint(100, 999)
         remove_interface = (f'echo -n "Launching autoremove subprocess. "; systemd-run -u autoremove-%i-{suffix} /bin/sh /run/wirescale/wirescale-autoremove autoremove %i {self.remote_pubkey} '
-                            f'{running_in_remote} {self.start_time}')
+                            f'{next(ip for ip in self.remote_addresses)} {running_in_remote} {self.start_time}')
         self.add_script('postup', remove_interface, first_place=True)
 
     def autoremove_configfile(self):
