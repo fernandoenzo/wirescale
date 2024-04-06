@@ -42,6 +42,19 @@ force_handshake() {
   rm -rf "$control"
 }
 
+assure_connection() {
+  interface=$1
+  remote_pubkey=$2
+  file=$3
+
+  listen_port=$(wg show "$interface" listen-port)
+  endpoint=$(wg show "$interface" endpoints | awk -v pubkey="$remote_pubkey" '$1 == pubkey {print $2}')
+  [ -z $endpoint ] && echo "Interface $interface has no peer with public key $remote_pubkey" && return 0
+  wg set "$interface" listen-port 0
+  { cat "$file" | socat UDP:"$endpoint",sourceport="$listen_port" - ;} > /dev/null 2>&1
+  wg set "$interface" listen-port "$listen_port"
+}
+
 change_keepalive() {
   interface=$1
   remote_pubkey=$2
@@ -87,21 +100,20 @@ autoremove() {
       last_received=$received
     else
       echo "Connection appears to be broken. Trying to force a handshake"
-      force_handshake "$interface" "$remote_pubkey"
-      count=0
-      while [ $count -le 10 ]; do
-        if latest_handshake_less_than "$interface" "$remote_pubkey" 10; then
-          echo "But the latest handshake was less than ten seconds ago, so won't do anything"
-          break
-        else
+      if latest_handshake_less_than "$interface" "$remote_pubkey" 10; then
+        echo "But the latest handshake was less than ten seconds ago, so won't do anything"
+      else
+        force_handshake "$interface" "$remote_pubkey"
+        count=0
+        while [ $count -le 10 ]; do
           sleep 0.5
           count=$((count + 1))
+        done
+        if [ $count -le 10 ]; then
+          echo "Connection recovered!"
+        else
+          break
         fi
-      done
-      if [ $count -le 10 ]; then
-        echo "Connection recovered!"
-      else
-        break
       fi
     fi
     sleep 40
