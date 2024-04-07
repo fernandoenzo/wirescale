@@ -36,12 +36,8 @@ def check_interface(interface: str, suffix: bool) -> str:
     pair = CONNECTION_PAIRS[get_ident()]
     if not suffix and interface_exists(interface):
         error = ErrorMessages.INTERFACE_EXISTS.format(interface=interface)
-        print(error, file=sys.stderr, flush=True)
-        if not pair.running_in_remote:
-            ErrorMessages.send_error_message(pair.local_socket, error_message=error, error_code=ErrorCodes.INTERFACE_EXISTS)
-        else:
-            remote_error = ErrorMessages.REMOTE_INTERFACE_EXISTS.format(my_name=pair.my_name, my_ip=pair.my_ip, interface=interface)
-            ErrorMessages.send_error_message(pair.remote_socket, error_message=remote_error, error_code=ErrorCodes.REMOTE_INTERFACE_EXISTS)
+        remote_error = ErrorMessages.REMOTE_INTERFACE_EXISTS.format(my_name=pair.my_name, my_ip=pair.my_ip, interface=interface)
+        ErrorMessages.send_error_message(local_message=error, remote_message=remote_error, error_code=ErrorCodes.INTERFACE_EXISTS, always_send_to_remote=False)
     return next_interface_with_suffix(interface)
 
 
@@ -53,64 +49,40 @@ def check_configfile(config: str) -> Path:
         error = f"path '{config}' is not a regular file"
     else:
         return config.resolve()
-    print(error, file=sys.stderr, flush=True)
     pair = CONNECTION_PAIRS[get_ident()]
-    if not pair.running_in_remote:
-        ErrorMessages.send_error_message(pair.local_socket, error_message=error, error_code=ErrorCodes.CONFIG_PATH_ERROR)
-    else:
-        error_message = ErrorMessages.REMOTE_CONFIG_PATH_ERROR.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
-        ErrorMessages.send_error_message(pair.remote_socket, error_message=error_message, error_code=ErrorCodes.REMOTE_CONFIG_PATH_ERROR)
+    remote_error = ErrorMessages.REMOTE_CONFIG_PATH_ERROR.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
+    ErrorMessages.send_error_message(local_message=error, remote_message=remote_error, error_code=ErrorCodes.CONFIG_PATH_ERROR, always_send_to_remote=False)
 
 
 def check_wgconfig(config: Path, inteface: str) -> WGConfig:
     pair = CONNECTION_PAIRS[get_ident()]
     try:
         wgconfig = WGConfig(config)
-    except Exception as e:
-        print(e, file=sys.stderr, flush=True)
-        if not pair.running_in_remote:
-            ErrorMessages.send_error_message(pair.local_socket, error_message=str(e), error_code=ErrorCodes.CONFIG_ERROR)
-        else:
-            remote_error = ErrorMessages.REMOTE_CONFIG_ERROR.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
-            ErrorMessages.send_error_message(pair.remote_socket, error_message=remote_error, error_code=ErrorCodes.REMOTE_CONFIG_ERROR)
+    except Exception as error:
+        remote_error = ErrorMessages.REMOTE_CONFIG_ERROR.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
+        ErrorMessages.send_error_message(local_message=str(error), remote_message=remote_error, always_send_to_remote=False)
     wgconfig.interface = inteface
     if wgconfig.addresses is None:
         error = ErrorMessages.MISSING_ADDRESS.format(config_file=wgconfig.file_path)
         remote_error = ErrorMessages.REMOTE_MISSING_ADDRESS.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
-        error_code = ErrorCodes.MISSING_ADDRESS
-        remote_error_code = ErrorCodes.REMOTE_MISSING_ADDRESS
     elif wgconfig.allowed_ips is None:
         error = ErrorMessages.MISSING_ALLOWEDIPS.format(config_file=wgconfig.file_path)
         remote_error = ErrorMessages.REMOTE_MISSING_ALLOWEDIPS.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
-        error_code = ErrorCodes.MISSING_ALLOWEDIPS
-        remote_error_code = ErrorCodes.REMOTE_MISSING_ALLOWEDIPS
     elif not wgconfig.public_key:
         error = ErrorMessages.BAD_FORMAT_PRIVKEY.format(config_file=wgconfig.file_path)
         remote_error = ErrorMessages.REMOTE_BAD_FORMAT_PRIVKEY.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
-        error_code = ErrorCodes.BAD_FORMAT_PRIVKEY
-        remote_error_code = ErrorCodes.REMOTE_BAD_FORMAT_PRIVKEY
     elif wgconfig.has_psk and not wgconfig.generate_wg_pubkey(wgconfig.psk):
         error = ErrorMessages.BAD_FORMAT_PSK.format(config_file=wgconfig.file_path)
         remote_error = ErrorMessages.REMOTE_BAD_FORMAT_PSK.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
-        error_code = ErrorCodes.BAD_FORMAT_PSK
-        remote_error_code = ErrorCodes.REMOTE_BAD_FORMAT_PSK
     elif wgconfig.remote_pubkey and not wgconfig.generate_wg_pubkey(wgconfig.remote_pubkey):
         error = ErrorMessages.BAD_FORMAT_PUBKEY.format(config_file=wgconfig.file_path)
         remote_error = ErrorMessages.REMOTE_BAD_FORMAT_PUBKEY.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
-        error_code = ErrorCodes.BAD_FORMAT_PUBKEY
-        remote_error_code = ErrorCodes.REMOTE_BAD_FORMAT_PUBKEY
     else:
         error = test_wgconfig(wgconfig)
         if error is None:
             return wgconfig
-        error_code = ErrorCodes.CONFIG_ERROR
         remote_error = ErrorMessages.REMOTE_CONFIG_ERROR.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
-        remote_error_code = ErrorCodes.REMOTE_CONFIG_ERROR
-    print(error, file=sys.stderr, flush=True)
-    if not pair.running_in_remote:
-        ErrorMessages.send_error_message(pair.local_socket, error, error_code)
-    else:
-        ErrorMessages.send_error_message(pair.remote_socket, remote_error, remote_error_code)
+    ErrorMessages.send_error_message(local_message=error, remote_message=remote_error, always_send_to_remote=False)
 
 
 def test_wgconfig(wgconfig: WGConfig) -> str | None:
@@ -153,23 +125,18 @@ def match_pubkeys(wgconfig: WGConfig, remote_pubkey: str, my_pubkey: str | None)
         error = ErrorMessages.PUBKEY_MISMATCH.format(receiver_name=pair.peer_name, receiver_ip=pair.peer_ip, sender_ip=pair.my_ip, sender_name=pair.my_name)
     if error is None:
         return
-    error_code = ErrorCodes.PUBKEY_MISMATCH
-    print(error, file=sys.stderr, flush=True)
-    collections.deque((ErrorMessages.send_error_message(ws, error_message=error, error_code=error_code, exit_code=None) for ws in pair.websockets), maxlen=0)
-    sys.exit(1)
+    ErrorMessages.send_error_message(local_message=error, remote_message=error)
 
 
 def match_psk(wgconfig: WGConfig, remote_has_psk: bool, remote_psk: str):
     pair = CONNECTION_PAIRS[get_ident()]
     if wgconfig.has_psk != remote_has_psk:
-        error_code = ErrorCodes.PSK_MISMATCH
         error = ErrorMessages.PSK_MISMATCH
         if wgconfig.has_psk:
             error = error.format(name_with_psk=pair.my_name, ip_with_psk=pair.my_ip, name_without_psk=pair.peer_name, ip_without_psk=pair.peer_ip)
         elif remote_has_psk:
             error = error.format(name_with_psk=pair.peer_name, ip_with_psk=pair.peer_ip, name_without_psk=pair.my_name, ip_without_psk=pair.my_ip)
-        print(error, file=sys.stderr, flush=True)
-        ErrorMessages.send_error_message(pair.remote_socket, error, error_code)
+        ErrorMessages.send_error_message(local_message=error, remote_message=error)
     if not wgconfig.has_psk:
         wgconfig.psk = remote_psk
 
@@ -180,7 +147,4 @@ def check_addresses_in_allowedips(wgconfig: WGConfig):
         return
     pair = CONNECTION_PAIRS[get_ident()]
     error = ErrorMessages.ALLOWED_IPS_MISMATCH.format(my_name=pair.my_name, my_ip=pair.my_ip, sender_name=pair.peer_name, sender_ip=pair.peer_ip)
-    error_code = ErrorCodes.ALLOWED_IPS_MISMATCH
-    print(error, file=sys.stderr, flush=True)
-    collections.deque((ErrorMessages.send_error_message(ws, error_message=error, error_code=error_code, exit_code=None) for ws in pair.websockets), maxlen=0)
-    sys.exit(1)
+    ErrorMessages.send_error_message(local_message=error, remote_message=error)

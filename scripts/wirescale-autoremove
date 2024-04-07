@@ -48,7 +48,7 @@ ping_periodic() {
 
   start_time=$(date +%s)
 
-  while { ip link show "$interface"; } > /dev/null 2>&1 && [ $(($(date +%s) - start_time)) -lt 7200 ]; do
+  while { ip link show "$interface"; } > /dev/null 2>&1 && [ $(($(date +%s) - start_time)) -lt 5400 ]; do
     ping -q -I "$interface" -c 1 -W 0.05 "$ip" > /dev/null 2>&1
     sleep 5
   done
@@ -85,7 +85,7 @@ ping_keepalive() {
 
   ping_periodic "$interface" "$wg_ip" &
 
-  while { ip link show "$interface"; } > /dev/null 2>&1 && [ $(($(date +%s) - start_time_func)) -lt 7200 ]; do
+  while { ip link show "$interface"; } > /dev/null 2>&1 && [ $(($(date +%s) - start_time_func)) -lt 5400 ]; do
     if [ "$is_remote" -eq 1 ]; then
       sleep_times=$(get_sleep_times "$start_time")
       sleep "$(calculate_sleep_time "$sleep_times")"
@@ -138,8 +138,8 @@ autoremove() {
   fi
 
   while { ip link show "$interface"; } > /dev/null 2>&1; do
-    if [ $(($(date +%s) - start_time_func)) -ge 7200 ]; then
-      echo "Terminating the primary autoremove function, as over two hours have elapsed since the script began"
+    if [ $(($(date +%s) - start_time_func)) -ge 5400 ]; then
+      echo "Terminating the primary autoremove function, as over ninety minutes have elapsed since the script began"
       autoremove_three_min "$interface"
     fi
     received=$(wg show "$interface" transfer | awk -v pubkey="$remote_pubkey" '$1 == pubkey {print $2}')

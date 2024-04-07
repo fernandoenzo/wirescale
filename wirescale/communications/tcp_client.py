@@ -29,8 +29,7 @@ class TCPClient:
             pair.tcp_socket = cls.connect(uri=pair.peer_ip)
         except ConnectionRefusedError:
             error = ErrorMessages.REMOTE_MISSING_WIRESCALE.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
-            print(error, file=sys.stderr, flush=True)
-            ErrorMessages.send_error_message(pair.local_socket, error_message=error, error_code=ErrorCodes.REMOTE_MISSING_WIRESCALE)
+            ErrorMessages.send_error_message(local_message=error)
         with pair.remote_socket:
             upgrade_message = TCPMessages.build_upgrade(wgconfig)
             pair.remote_socket.send(json.dumps(upgrade_message))

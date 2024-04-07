@@ -80,7 +80,10 @@ class UnixServer:
     @staticmethod
     def discard_connections(websocket: ServerConnection):
         if SHUTDOWN.is_set():
-            ErrorMessages.send_error_message(websocket, ErrorMessages.CLOSED, ErrorCodes.CLOSED)
+            error = ErrorMessages.build_error_message(ErrorMessages.CLOSED, ErrorCodes.CLOSED)
+            websocket.send(json.dumps(error))
+            websocket.close()
+            sys.exit(1)
 
     @classmethod
     def stop(cls):

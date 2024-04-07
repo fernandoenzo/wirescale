@@ -10,7 +10,7 @@ from threading import get_ident
 from parallel_utils.thread import StaticMonitor
 from websockets.sync.server import ServerConnection, WebSocketServer, serve
 
-from wirescale.communications import ActionCodes, ErrorCodes, ErrorMessages, MessageFields, Messages, TCPMessages
+from wirescale.communications import ActionCodes, ErrorMessages, MessageFields, Messages, TCPMessages
 from wirescale.communications import SHUTDOWN
 from wirescale.communications.checkers import check_addresses_in_allowedips, check_configfile, check_interface, check_wgconfig, match_psk, match_pubkeys
 from wirescale.communications.common import CONNECTION_PAIRS, TCP_PORT
@@ -59,7 +59,7 @@ class TCPServer:
         if SHUTDOWN.is_set():
             pair = CONNECTION_PAIRS[get_ident()]
             remote_error = ErrorMessages.REMOTE_CLOSED.format(my_name=pair.my_name, my_ip=pair.my_ip)
-            ErrorMessages.send_error_message(pair.remote_socket, remote_error, ErrorCodes.REMOTE_CLOSED)
+            ErrorMessages.send_error_message(remote_message=remote_error)
 
     @classmethod
     def upgrade(cls, message: dict):

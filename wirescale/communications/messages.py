@@ -9,9 +9,6 @@ from subprocess import CompletedProcess
 from threading import get_ident
 from typing import TYPE_CHECKING
 
-from websockets.sync.client import ClientConnection
-from websockets.sync.server import ServerConnection
-
 from wirescale.communications.common import CONNECTION_PAIRS
 
 if TYPE_CHECKING:
@@ -48,32 +45,11 @@ class ActionCodes(IntEnum):
 
 
 class ErrorCodes(IntEnum):
-    ALLOWED_IPS_MISMATCH = auto()
-    BAD_FORMAT_PRIVKEY = auto()
-    BAD_FORMAT_PSK = auto()
-    BAD_FORMAT_PUBKEY = auto()
     CLOSED = auto()
-    CONFIG_ERROR = auto()
     CONFIG_PATH_ERROR = auto()
     GENERIC = auto()
     FINAL_ERROR = auto()
     INTERFACE_EXISTS = auto()
-    MISSING_ADDRESS = auto()
-    MISSING_ALLOWEDIPS = auto()
-    NO_ENDPOINT = auto()
-    PEER_OFFLINE = auto()
-    PSK_MISMATCH = auto()
-    PUBKEY_MISMATCH = auto()
-    REMOTE_BAD_FORMAT_PRIVKEY = auto()
-    REMOTE_BAD_FORMAT_PSK = auto()
-    REMOTE_BAD_FORMAT_PUBKEY = auto()
-    REMOTE_CLOSED = auto()
-    REMOTE_CONFIG_ERROR = auto()
-    REMOTE_CONFIG_PATH_ERROR = auto()
-    REMOTE_INTERFACE_EXISTS = auto()
-    REMOTE_MISSING_ADDRESS = auto()
-    REMOTE_MISSING_ALLOWEDIPS = auto()
-    REMOTE_MISSING_WIRESCALE = auto()
 
 
 class UnixMessages:
@@ -227,9 +203,19 @@ class ErrorMessages:
         return res
 
     @classmethod
-    def send_error_message(cls, websocket: ClientConnection | ServerConnection, error_message: str, error_code: ErrorCodes = ErrorCodes.GENERIC, exit_code: int | None = 1):
-        error = cls.build_error_message(error_message, error_code)
-        websocket.send(json.dumps(error))
-        websocket.close()
-        if exit_code is not None:
-            sys.exit(exit_code)
+    def send_error_message(cls, local_message: str = None, remote_message: str = None, error_code: ErrorCodes = ErrorCodes.GENERIC, always_send_to_remote: bool = True):
+        pair = CONNECTION_PAIRS.get(get_ident())
+        if local_message is not None:
+            print(local_message, file=sys.stderr, flush=True)
+        if pair is not None:
+            if pair.local_socket is not None and local_message is not None:
+                local_message = cls.build_error_message(local_message, error_code)
+                pair.local_socket.send(json.dumps(local_message))
+            if pair.remote_socket is not None and remote_message is not None and (always_send_to_remote or pair.running_in_remote):
+                remote_message = cls.build_error_message(remote_message, error_code)
+                pair.remote_socket.send(json.dumps(remote_message))
+            if pair.local_socket is not None:
+                pair.local_socket.close()
+            if pair.remote_socket is not None:
+                pair.remote_socket.close()
+        sys.exit(1)
