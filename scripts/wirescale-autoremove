@@ -46,7 +46,9 @@ ping_periodic() {
   interface=$1
   ip=$2
 
-  while { ip link show "$interface"; } > /dev/null 2>&1; do
+  start_time=$(date +%s)
+
+  while { ip link show "$interface"; } > /dev/null 2>&1 && [ $(($(date +%s) - start_time)) -lt 7200 ]; do
     ping -q -I "$interface" -c 1 -W 0.05 "$ip" > /dev/null 2>&1
     sleep 5
   done
@@ -79,9 +81,11 @@ ping_keepalive() {
   is_remote=$4
   start_time=$5
 
+  start_time_func=$(date +%s)
+
   ping_periodic "$interface" "$wg_ip" &
 
-  while { ip link show "$interface"; } > /dev/null 2>&1; do
+  while { ip link show "$interface"; } > /dev/null 2>&1 && [ $(($(date +%s) - start_time_func)) -lt 7200 ]; do
     if [ "$is_remote" -eq 1 ]; then
       sleep_times=$(get_sleep_times "$start_time")
       sleep "$(calculate_sleep_time "$sleep_times")"
@@ -103,24 +107,34 @@ autoremove() {
   is_remote=$4
   start_time=$5
 
-  sleep 10
+  start_time_func=$(date +%s)
+  last_received=0
+
+  sleep 10 # A brief pause to ensure both peers have sufficient time for proper setup
+
   ping_keepalive "$interface" "$remote_pubkey" "$is_remote" "$start_time" &
 
   dummy_file="/tmp/dummy-$interface.bin"
   dd if=/dev/urandom of="$dummy_file" bs=1K count=2 > /dev/null 2>&1
   if [ "$is_remote" -eq 0 ]; then
+    echo "Sending special package to assure connection"
     assure_connection "$interface" "$remote_pubkey" "$dummy_file"
     rm -rf "$dummy_file"
   else
     {
       sleep 360
+      echo "Sending special package to assure connection"
       assure_connection "$interface" "$remote_pubkey" "$dummy_file"
       rm -rf "$dummy_file"
     } &
   fi
-  last_received=0
 
   while { ip link show "$interface"; } > /dev/null 2>&1; do
+    if [ $(($(date +%s) - start_time_func)) -ge 7200 ]; then
+      autoremove_three_min "$interface" &
+      echo "Terminating the primary autoremove function, as over two hours have elapsed since the script began"
+      return 0
+    fi
     received=$(wg show "$interface" transfer | awk -v pubkey="$remote_pubkey" '$1 == pubkey {print $2}')
     if [ "$received" -gt "$last_received" ]; then
       last_received=$received
@@ -145,9 +159,23 @@ autoremove() {
     sleep 40
   done
 
-  echo "$(date) Removing interface $interface"
+  echo "Removing interface $interface"
   wg-quick down "/run/wirescale/$interface.conf"
   return 0
+}
+
+autoremove_three_min() {
+  interface=$1
+
+  echo "Launching autoremove function to check for handshakes older than 3 minutes"
+  while { ip link show "$interface"; } > /dev/null 2>&1; do
+    if ! latest_handshake_less_than "$interface" "$remote_pubkey" 180; then
+      echo "Connection broken. More than three minutes without handshake. Removing interface $interface"
+      wg-quick down "/run/wirescale/$interface.conf"
+      return 0
+    fi
+    sleep 30
+  done
 }
 
 # Ensure at least one argument (the function name) was provided
