@@ -99,12 +99,25 @@ ping_keepalive() {
 autoremove() {
   interface=$1
   remote_pubkey=$2
-  is_remote=$3
-  start_time=$4
+  wg_ip=$3
+  is_remote=$4
+  start_time=$5
 
   sleep 10
   ping_keepalive "$interface" "$remote_pubkey" "$is_remote" "$start_time" &
 
+  dummy_file="/tmp/dummy-$interface.bin"
+  dd if=/dev/urandom of="$dummy_file" bs=1K count=2 > /dev/null 2>&1
+  if [ "$is_remote" -eq 0 ]; then
+    assure_connection "$interface" "$remote_pubkey" "$dummy_file"
+    rm -rf "$dummy_file"
+  else
+    {
+      sleep 360
+      assure_connection "$interface" "$remote_pubkey" "$dummy_file"
+      rm -rf "$dummy_file"
+    } &
+  fi
   last_received=0
 
   while { ip link show "$interface"; } > /dev/null 2>&1; do
