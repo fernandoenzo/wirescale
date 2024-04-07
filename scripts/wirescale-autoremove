@@ -114,26 +114,33 @@ autoremove() {
 
   ping_keepalive "$interface" "$remote_pubkey" "$is_remote" "$start_time" &
 
-  dummy_file="/tmp/dummy-$interface.bin"
-  dd if=/dev/urandom of="$dummy_file" bs=1K count=2 > /dev/null 2>&1
+  dummy_file="/tmp/dummy-$interface.zip"
   if [ "$is_remote" -eq 0 ]; then
-    echo "Sending special package to assure connection"
-    assure_connection "$interface" "$remote_pubkey" "$dummy_file"
-    rm -rf "$dummy_file"
+    {
+      for i in 1 2; do
+        sleep 360
+        dd if=/dev/urandom of="$dummy_file" bs=1K count=$((i + 1)) > /dev/null 2>&1
+        echo "Sending special package to assure connection"
+        assure_connection "$interface" "$remote_pubkey" "$dummy_file"
+        rm -rf "$dummy_file"
+      done
+    } &
   else
     {
-      sleep 360
-      echo "Sending special package to assure connection"
-      assure_connection "$interface" "$remote_pubkey" "$dummy_file"
-      rm -rf "$dummy_file"
+      for i in 1 2; do
+        sleep 720
+        dd if=/dev/urandom of="$dummy_file" bs=1K count=$((i + 1)) > /dev/null 2>&1
+        echo "Sending special package to assure connection"
+        assure_connection "$interface" "$remote_pubkey" "$dummy_file"
+        rm -rf "$dummy_file"
+      done
     } &
   fi
 
   while { ip link show "$interface"; } > /dev/null 2>&1; do
     if [ $(($(date +%s) - start_time_func)) -ge 7200 ]; then
-      autoremove_three_min "$interface" &
       echo "Terminating the primary autoremove function, as over two hours have elapsed since the script began"
-      return 0
+      autoremove_three_min "$interface"
     fi
     received=$(wg show "$interface" transfer | awk -v pubkey="$remote_pubkey" '$1 == pubkey {print $2}')
     if [ "$received" -gt "$last_received" ]; then
@@ -172,7 +179,7 @@ autoremove_three_min() {
     if ! latest_handshake_less_than "$interface" "$remote_pubkey" 180; then
       echo "Connection broken. More than three minutes without handshake. Removing interface $interface"
       wg-quick down "/run/wirescale/$interface.conf"
-      return 0
+      exit 0
     fi
     sleep 30
   done
