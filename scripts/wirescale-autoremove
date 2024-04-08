@@ -48,7 +48,7 @@ ping_periodic() {
 
   start_time=$(date +%s)
 
-  while { ip link show "$interface"; } > /dev/null 2>&1 && [ $(($(date +%s) - start_time)) -lt 5400 ]; do
+  while { ip link show "$interface"; } > /dev/null 2>&1 && [ $(($(date +%s) - start_time)) -lt 4500 ]; do
     ping -q -I "$interface" -c 1 -W 0.05 "$ip" > /dev/null 2>&1
     sleep 5
   done
@@ -65,6 +65,29 @@ assure_connection() {
   wg set "$interface" listen-port 0
   { cat "$file" | socat UDP:"$endpoint",sourceport="$listen_port" -; } > /dev/null 2>&1
   wg set "$interface" listen-port "$listen_port"
+}
+
+assure_keepalive() {
+  interface=$1
+  remote_pubkey=$2
+  is_remote=$3
+
+  if [ "$is_remote" -eq 0 ]; then
+    start_time=15
+  else
+    start_time=45
+  fi
+
+  dummy_file="/tmp/dummy-$interface.zip"
+  counter=0
+  while [ "$counter" -lt 60 ]; do
+    dd if=/dev/urandom of="$dummy_file" bs=2K count=$((counter + 1)) > /dev/null 2>&1
+    sleep "$(calculate_sleep_time "$start_time")"
+    echo "Sending special package to assure connection, $((counter+1))/60"
+    assure_connection "$interface" "$remote_pubkey" "$dummy_file"
+    rm -rf "$dummy_file"
+    counter=$((counter + 1))
+  done
 }
 
 change_keepalive() {
@@ -85,7 +108,7 @@ ping_keepalive() {
 
   ping_periodic "$interface" "$wg_ip" &
 
-  while { ip link show "$interface"; } > /dev/null 2>&1 && [ $(($(date +%s) - start_time_func)) -lt 5400 ]; do
+  while { ip link show "$interface"; } > /dev/null 2>&1 && [ $(($(date +%s) - start_time_func)) -lt 4500 ]; do
     if [ "$is_remote" -eq 1 ]; then
       sleep_times=$(get_sleep_times "$start_time")
       sleep "$(calculate_sleep_time "$sleep_times")"
@@ -114,32 +137,11 @@ autoremove() {
 
   ping_keepalive "$interface" "$remote_pubkey" "$wg_ip" "$is_remote" "$start_time" &
 
-  dummy_file="/tmp/dummy-$interface.zip"
-  if [ "$is_remote" -eq 0 ]; then
-    {
-      for i in 1 2; do
-        sleep 360
-        dd if=/dev/urandom of="$dummy_file" bs=1K count=$((i + 1)) > /dev/null 2>&1
-        echo "Sending special package to assure connection"
-        assure_connection "$interface" "$remote_pubkey" "$dummy_file"
-        rm -rf "$dummy_file"
-      done
-    } &
-  else
-    {
-      for i in 1 2; do
-        sleep 720
-        dd if=/dev/urandom of="$dummy_file" bs=1K count=$((i + 1)) > /dev/null 2>&1
-        echo "Sending special package to assure connection"
-        assure_connection "$interface" "$remote_pubkey" "$dummy_file"
-        rm -rf "$dummy_file"
-      done
-    } &
-  fi
+  assure_keepalive "$interface" "$remote_pubkey" "$is_remote" &
 
   while { ip link show "$interface"; } > /dev/null 2>&1; do
-    if [ $(($(date +%s) - start_time_func)) -ge 5400 ]; then
-      echo "Terminating the primary autoremove function, as over ninety minutes have elapsed since the script began"
+    if [ $(($(date +%s) - start_time_func)) -ge 4500 ]; then
+      echo "Terminating the primary autoremove function, as over 75 minutes have elapsed since the script began"
       autoremove_three_min "$interface"
     fi
     received=$(wg show "$interface" transfer | awk -v pubkey="$remote_pubkey" '$1 == pubkey {print $2}')
