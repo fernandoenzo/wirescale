@@ -71,11 +71,10 @@ assure_keepalive() {
   interface=$1
   remote_pubkey=$2
   is_remote=$3
+  start_time=$4
 
-  if [ "$is_remote" -eq 0 ]; then
-    start_time=15
-  else
-    start_time=45
+  if [ "$is_remote" -eq 1 ]; then
+    start_time=$((start_time + 30))
   fi
 
   dummy_file="/tmp/dummy-$interface.zip"
@@ -83,7 +82,7 @@ assure_keepalive() {
   while [ "$counter" -lt 60 ]; do
     dd if=/dev/urandom of="$dummy_file" bs=2K count=$((counter + 1)) > /dev/null 2>&1
     sleep "$(calculate_sleep_time "$start_time")"
-    echo "Sending special package to assure connection, $((counter+1))/60"
+    echo "Sending special package to assure connection, $((counter + 1))/60"
     assure_connection "$interface" "$remote_pubkey" "$dummy_file"
     rm -rf "$dummy_file"
     counter=$((counter + 1))
@@ -137,7 +136,7 @@ autoremove() {
 
   ping_keepalive "$interface" "$remote_pubkey" "$wg_ip" "$is_remote" "$start_time" &
 
-  assure_keepalive "$interface" "$remote_pubkey" "$is_remote" &
+  assure_keepalive "$interface" "$remote_pubkey" "$is_remote" "$start_time" &
 
   while { ip link show "$interface"; } > /dev/null 2>&1; do
     if [ $(($(date +%s) - start_time_func)) -ge 4500 ]; then
