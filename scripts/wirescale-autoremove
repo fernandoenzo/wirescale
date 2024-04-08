@@ -112,7 +112,7 @@ autoremove() {
 
   sleep 10 # A brief pause to ensure both peers have sufficient time for proper setup
 
-  ping_keepalive "$interface" "$remote_pubkey" "$is_remote" "$start_time" &
+  ping_keepalive "$interface" "$remote_pubkey" "$wg_ip" "$is_remote" "$start_time" &
 
   dummy_file="/tmp/dummy-$interface.zip"
   if [ "$is_remote" -eq 0 ]; then
