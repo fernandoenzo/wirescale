@@ -8,7 +8,6 @@ import re
 import subprocess
 import sys
 import time
-from contextlib import ExitStack
 from functools import lru_cache
 from ipaddress import IPv4Address
 from subprocess import DEVNULL
@@ -16,10 +15,7 @@ from threading import get_ident
 from time import sleep
 from typing import Dict, Tuple
 
-from parallel_utils.thread import StaticMonitor
-
-from wirescale.communications import ActionCodes, CONNECTION_PAIRS, Messages
-from wirescale.communications.common import file_locker
+from wirescale.communications import CONNECTION_PAIRS, Messages
 from wirescale.communications.messages import ErrorMessages
 
 
@@ -63,16 +59,7 @@ class TSManager:
 
     @classmethod
     def check_service_running(cls):
-        systemd_running = False
-        with ExitStack() as stack:
-            stack.enter_context(StaticMonitor.synchronized(uid=ActionCodes.STOP))
-            stack.enter_context(file_locker())
-            for _ in range(3):
-                if cls.service_is_running():
-                    systemd_running = True
-                else:
-                    sleep(0.5)
-        if not systemd_running:
+        if not cls.service_is_running():
             ErrorMessages.send_error_message(local_message=ErrorMessages.TS_SYSTEMD_STOPPED)
 
     @classmethod

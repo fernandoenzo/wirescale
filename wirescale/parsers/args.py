@@ -10,7 +10,7 @@ from threading import get_ident
 from websockets.sync.client import ClientConnection
 from websockets.sync.server import ServerConnection
 
-from wirescale.communications.common import CONNECTION_PAIRS
+from wirescale.communications.common import CONNECTION_PAIRS, file_locker
 from wirescale.parsers.parsers import top_parser
 
 
@@ -18,7 +18,8 @@ class ConnectionPair:
     def __init__(self, caller: IPv4Address, receiver: IPv4Address):
         self.caller = caller
         self.receiver = receiver
-        self.caller_name, self.receiver_name
+        with file_locker() as _:
+            self.caller_name, self.receiver_name
         self.tcp_socket: ClientConnection | ServerConnection = None
         self.unix_socket: ServerConnection = None
         CONNECTION_PAIRS[get_ident()] = self
