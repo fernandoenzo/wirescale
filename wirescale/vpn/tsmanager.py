@@ -7,6 +7,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from contextlib import ExitStack
 from functools import lru_cache
 from ipaddress import IPv4Address
@@ -17,7 +18,7 @@ from typing import Dict, Tuple
 
 from parallel_utils.thread import StaticMonitor
 
-from wirescale.communications import ActionCodes, CONNECTION_PAIRS, ErrorCodes, Messages
+from wirescale.communications import ActionCodes, CONNECTION_PAIRS, Messages
 from wirescale.communications.common import file_locker
 from wirescale.communications.messages import ErrorMessages
 
@@ -131,6 +132,17 @@ class TSManager:
         #     return False
         check_ping = subprocess.run(['tailscale', 'ping', '-c', '5', '--timeout', '1s', str(ip)], stdout=DEVNULL, stderr=DEVNULL, text=True)
         return check_ping.returncode == 0
+
+    @classmethod
+    def wait_until_peer_is_online(cls, ip: IPv4Address, timeout: int = None) -> bool:
+        ts_recovered = None
+        start_time = time.time()
+        while ts_recovered != 0:
+            if timeout is not None and time.time() - start_time > timeout:
+                break
+            ts_recovered = subprocess.run(['tailscale', 'ping', '-c', '1', '--until-direct=false', str(ip)], stdout=DEVNULL, stderr=DEVNULL, text=True).returncode
+            sleep(0.5)
+        return ts_recovered == 0
 
     @classmethod
     def peer_endpoint(cls, ip: IPv4Address) -> Tuple[IPv4Address, int]:

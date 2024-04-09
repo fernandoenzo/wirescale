@@ -29,6 +29,7 @@ class MessageFields(StrEnum):
     PEER_IP = auto()
     PSK = auto()
     PUBKEY = auto()
+    RECOVER = auto()
     REMOTE_PUBKEY = auto()
     START_TIME = auto()
     SUFFIX = auto()
@@ -159,10 +160,7 @@ class ErrorMessages:
     BAD_FORMAT_PSK = "Error: The pre-shared key has not the correct length or format in file '{config_file}'"
     BAD_FORMAT_PUBKEY = "Error: The public key has not the correct length or format in file '{config_file}'"
     CLOSED = 'Error: Wirescale is shutting down and is no longer accepting new requests'
-    CONFIG_ERROR = None
-    CONFIG_PATH_ERROR = None
     FINAL_ERROR = 'Something went wrong and, finally, it was not possible to establish the P2P connection'
-    GENERIC = None
     INTERFACE_EXISTS = "Error: A network interface '{interface}' already exists and Wirescale was started with the --no-suffix option"
     MISSING_ADDRESS = "Error: 'Address' option missing in 'Interface' section of file '{config_file}'"
     MISSING_ALLOWEDIPS = "Error: 'AllowedIPs' option missing in 'Peer' section of file '{config_file}'"
@@ -190,6 +188,7 @@ class ErrorMessages:
     TS_NO_LOGGED = 'Error: Tailscale is logged out'
     TS_NO_PEER = "Error: No peer found matching the IP '{peer_ip}'"
     TS_NO_PORT = 'Error: No listening port for Tailscale was found'
+    TS_NOT_RECOVERED = "Error: Either this tailscale instance or the other peer's has not fully recovered and cannot reestablish the connection"
     TS_NOT_RUNNING = 'Error: Tailscale is not running'
     UNIX_SOCKET = "Error: Couldn't connect to the local UNIX socket"
 
@@ -203,7 +202,7 @@ class ErrorMessages:
         return res
 
     @classmethod
-    def send_error_message(cls, local_message: str = None, remote_message: str = None, error_code: ErrorCodes = ErrorCodes.GENERIC, always_send_to_remote: bool = True):
+    def send_error_message(cls, local_message: str = None, remote_message: str = None, error_code: ErrorCodes = ErrorCodes.GENERIC, always_send_to_remote: bool = True, exit_code: int | None = 1):
         pair = CONNECTION_PAIRS.get(get_ident())
         if local_message is not None:
             print(local_message, file=sys.stderr, flush=True)
@@ -218,4 +217,5 @@ class ErrorMessages:
                 pair.local_socket.close()
             if pair.remote_socket is not None:
                 pair.remote_socket.close()
-        sys.exit(1)
+        if exit_code is not None:
+            sys.exit(exit_code)

@@ -202,15 +202,28 @@ class WGConfig:
         with ExitStack() as stack:
             stack.enter_context(StaticMonitor.synchronized(uid=ActionCodes.STOP))
             stack.enter_context(file_locker())
+            Messages.send_info_message(local_message='Stopping tailscale...')
             TSManager.stop()
             wgquick = subprocess_run_tmpfile(['wg-quick', 'up', str(self.new_config_path)], stderr=STDOUT)
+            Messages.send_info_message(local_message='Restarting tailscale...')
             TSManager.start()
-        if wgquick.returncode == 0:
-            wgquick_messages = wgquick.stdout.split('\n')
-            systemd_messages = [m for m in wgquick_messages if "running as unit" in m.lower()]
-            collections.deque((Messages.send_info_message(local_message=m) for m in systemd_messages), maxlen=0)
-            print(Messages.SUCCESS.format(interface=self.interface), flush=True)
-        else:
-            self.new_config_path.unlink()
-            print(ErrorMessages.FINAL_ERROR, file=sys.stderr, flush=True)
+            if wgquick.returncode == 0:
+                wgquick_messages = wgquick.stdout.split('\n')
+                systemd_messages = [m for m in wgquick_messages if "running as unit" in m.lower()]
+                collections.deque((Messages.send_info_message(local_message=m) for m in systemd_messages), maxlen=0)
+                print(Messages.SUCCESS.format(interface=self.interface), flush=True)
+            else:
+                self.new_config_path.unlink()
+                print(ErrorMessages.FINAL_ERROR, file=sys.stderr, flush=True)
+            self.wait_tailscale_restarted()
         return wgquick
+
+    @staticmethod
+    def wait_tailscale_restarted():
+        pair = CONNECTION_PAIRS[get_ident()]
+        Messages.send_info_message(local_message='Waiting for tailscale to be fully operational again. This could take up to 30 seconds...')
+        res = TSManager.wait_until_peer_is_online(pair.peer_ip, timeout=30)
+        if not res:
+            ErrorMessages.send_error_message(local_message=ErrorMessages.TS_NOT_RECOVERED, exit_code=None)
+        else:
+            Messages.send_info_message(local_message='Tailscale fully working again!')
