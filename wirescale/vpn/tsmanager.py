@@ -130,7 +130,7 @@ class TSManager:
     def peer_is_online(cls, ip: IPv4Address) -> bool:
         # if not cls.peer(ip)['Online']:
         #     return False
-        check_ping = subprocess.run(['tailscale', 'ping', '-c', '5', '--timeout', '1s', str(ip)], stdout=DEVNULL, stderr=DEVNULL, text=True)
+        check_ping = subprocess.run(['tailscale', 'ping', '-c', '3', '--until-direct=false', '--timeout', '3s', str(ip)], stdout=DEVNULL, stderr=DEVNULL, text=True)
         return check_ping.returncode == 0
 
     @classmethod
