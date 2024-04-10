@@ -16,7 +16,7 @@ from websockets.sync.server import ServerConnection, WebSocketServer, unix_serve
 
 from wirescale.communications import Messages, SHUTDOWN, TCPServer
 from wirescale.communications.checkers import check_configfile, check_interface, check_wgconfig
-from wirescale.communications.common import CONNECTION_PAIRS, SOCKET_PATH
+from wirescale.communications.common import CONNECTION_PAIRS, SOCKET_PATH, file_locker
 from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, MessageFields
 from wirescale.communications.tcp_client import TCPClient
 from wirescale.communications.udp_server import UDPServer
@@ -103,6 +103,7 @@ class UnixServer:
         interface = check_interface(interface=message[MessageFields.INTERFACE], suffix=message[MessageFields.SUFFIX])
         config = check_configfile(config=message[MessageFields.CONFIG])
         wgconfig = check_wgconfig(config, interface)
-        wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)
+        with file_locker():
+            wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)
         wgconfig.autoremove = message[MessageFields.AUTOREMOVE]
         TCPClient.upgrade(wgconfig=wgconfig)

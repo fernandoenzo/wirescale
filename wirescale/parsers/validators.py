@@ -16,7 +16,7 @@ def check_peer(value) -> IPv4Address:
     if not value:
         raise ArgumentTypeError('you provided an empty peer')
     print(f"Checking peer '{value}' is correct. This might take some minutes...")
-    with file_locker() as _:
+    with file_locker():
         print(f"Start checking peer '{value}'")
         try:
             ip = IPv4Address(value)

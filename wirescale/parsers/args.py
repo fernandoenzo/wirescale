@@ -18,7 +18,7 @@ class ConnectionPair:
     def __init__(self, caller: IPv4Address, receiver: IPv4Address):
         self.caller = caller
         self.receiver = receiver
-        with file_locker() as _:
+        with file_locker():
             self.caller_name, self.receiver_name
         self.tcp_socket: ClientConnection | ServerConnection = None
         self.unix_socket: ServerConnection = None

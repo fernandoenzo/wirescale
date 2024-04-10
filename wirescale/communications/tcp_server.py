@@ -13,7 +13,7 @@ from websockets.sync.server import ServerConnection, WebSocketServer, serve
 from wirescale.communications import ActionCodes, ErrorMessages, MessageFields, Messages, TCPMessages
 from wirescale.communications import SHUTDOWN
 from wirescale.communications.checkers import check_addresses_in_allowedips, check_configfile, check_interface, check_wgconfig, match_psk, match_pubkeys
-from wirescale.communications.common import CONNECTION_PAIRS, TCP_PORT
+from wirescale.communications.common import CONNECTION_PAIRS, TCP_PORT, file_locker
 from wirescale.parsers import ARGS
 from wirescale.parsers.args import ConnectionPair
 from wirescale.vpn import TSManager
@@ -68,7 +68,8 @@ class TCPServer:
         config = check_configfile(config=f'/etc/wirescale/{pair.peer_name}.conf')
         wgconfig = check_wgconfig(config, interface)
         wgconfig.autoremove = ARGS.AUTOREMOVE
-        wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)
+        with file_locker():
+            wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)
         wgconfig.remote_addresses = frozenset(ip_address(ip) for ip in message[MessageFields.ADDRESSES])
         wgconfig.start_time = message[MessageFields.START_TIME]
         match_pubkeys(wgconfig, remote_pubkey=message[MessageFields.PUBKEY], my_pubkey=message[MessageFields.REMOTE_PUBKEY])
