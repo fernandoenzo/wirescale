@@ -75,6 +75,7 @@ class ARGS:
     DOWN: Path = None
     INTERFACE: str = None
     PAIR: ConnectionPair = None
+    RECOVER: bool = None
     START: bool = None
     STOP: bool = None
     SUFFIX: bool = None
@@ -87,6 +88,7 @@ def parse_args():
     ARGS.DAEMON = args.get('opt') == 'daemon'
     ARGS.UPGRADE = args.get('opt') == 'upgrade'
     ARGS.DOWN = args.get('opt') == 'down'
+    ARGS.RECOVER = args.get('opt') == 'recover'
     ARGS.START = args.get('command') == 'start'
     ARGS.STOP = args.get('command') == 'stop'
     ARGS.SUFFIX = not args.get('no_suffix')

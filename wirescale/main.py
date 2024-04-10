@@ -48,15 +48,19 @@ def main():
                 print('Error: Wirescale needs a UNIX socket supplied by systemd', file=sys.stderr, flush=True)
                 sys.exit(1)
             copy_script()
-            create_thread(TCPServer.run_server)
-            create_thread(UnixServer.run_server)
+            tcp_thread = create_thread(TCPServer.run_server)
+            unix_thread = create_thread(UnixServer.run_server)
+            tcp_thread.result(), unix_thread.result()
         elif ARGS.STOP:
             if systemd_exec_pid == -1 or os.getpgid(systemd_exec_pid) != os.getpgid(os.getpid()):
                 systemd = subprocess.run(['systemctl', 'stop', 'wirescaled.service'], text=True)
                 sys.exit(systemd.returncode)
             UnixClient.stop()
     elif ARGS.UPGRADE:
-        UnixClient.upgrade()
+        if ARGS.RECOVER:
+            pass
+        else:
+            UnixClient.upgrade()
     elif ARGS.DOWN:
         subprocess.run(['wg-quick', 'down', str(ARGS.CONFIGFILE)], text=True)
     else:

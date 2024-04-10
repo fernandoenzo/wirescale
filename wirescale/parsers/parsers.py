@@ -28,6 +28,7 @@ config_argument = upgrade_subparser.add_argument('--config', '-c', metavar='wgco
                                                  help='path to a WireGuard config template.\n'
                                                       'Defaults to /etc/wirescale/{peername}.conf\n')
 upgrade_subparser.add_argument('--no-suffix', action='store_true', help='prevent numeric suffix addition to existing interface names during new ones setup')
+upgrade_subparser.add_argument('--recover', action='store_true', help='recover a lost connection on the specified network interface by forcing a new hole punching')
 upgrade_subparser.add_argument('--disable-autoremove', action='store_true',
                                help='prevents automatic removal of the WireGuard interface if connection is permanently lost')
 interface_argument = upgrade_subparser.add_argument('--interface', '-i', metavar='iface', type=interface_name_validator,
