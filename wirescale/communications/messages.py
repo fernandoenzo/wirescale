@@ -188,7 +188,7 @@ class ErrorMessages:
     TS_NO_LOGGED = 'Error: Tailscale is logged out'
     TS_NO_PEER = "Error: No peer found matching the IP '{peer_ip}'"
     TS_NO_PORT = 'Error: No listening port for Tailscale was found'
-    TS_NOT_RECOVERED = "Error: Either this tailscale instance or `{peer_name}` ({peer_ip}) one has not fully recovered and cannot reestablish the connection"
+    TS_NOT_RECOVERED = "Error: Either this tailscale instance or '{peer_name}' ({peer_ip}) one has not fully recovered and cannot reestablish the connection"
     TS_NOT_RUNNING = 'Error: Tailscale is not running'
     UNIX_SOCKET = "Error: Couldn't connect to the local UNIX socket"
 

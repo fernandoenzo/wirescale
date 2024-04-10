@@ -223,8 +223,8 @@ class WGConfig:
     @staticmethod
     def wait_tailscale_restarted(pair: ConnectionPair, stack: ExitStack):
         with stack:
-            print('Waiting for tailscale to be fully operational again. This could take up to 30 seconds...', flush=True)
-            res = TSManager.wait_until_peer_is_online(pair.peer_ip, timeout=30)
+            print('Waiting for tailscale to be fully operational again. This could take up to 45 seconds...', flush=True)
+            res = TSManager.wait_until_peer_is_online(pair.peer_ip, timeout=45)
             if not res:
                 print(ErrorMessages.TS_NOT_RECOVERED.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip), file=sys.stderr, flush=True)
             else:
