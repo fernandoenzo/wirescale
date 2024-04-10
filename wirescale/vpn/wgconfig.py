@@ -103,12 +103,12 @@ class WGConfig:
 
     def add_iptables(self):
         port = TSManager.local_port()
-        preup_input_interface = 'iptables -I INPUT -i %i -j ACCEPT'
-        preup_input_port = f'iptables -I INPUT -p udp --dport {port} -j ACCEPT'
-        postdown_input_interface = 'iptables -D INPUT -i %i -j ACCEPT'
-        postdown_input_port = f'iptables -D INPUT -p udp --dport {port} -j ACCEPT'
-        self.add_script('preup', preup_input_interface, first_place=True)
-        self.add_script('preup', preup_input_port, first_place=True)
+        postup_input_interface = 'iptables -I INPUT -i %i -j ACCEPT'
+        postup_input_port = f'iptables -I INPUT -p udp --dport {port} -j ACCEPT'
+        postdown_input_interface = 'iptables -D INPUT -i %i -j ACCEPT || true'
+        postdown_input_port = f'iptables -D INPUT -p udp --dport {port} -j ACCEPT || true'
+        self.add_script('postup', postup_input_interface)
+        self.add_script('postup', postup_input_port)
         self.add_script('postdown', postdown_input_interface, first_place=True)
         self.add_script('postdown', postdown_input_port, first_place=True)
 
@@ -126,7 +126,7 @@ class WGConfig:
 
     def autoremove_configfile(self):
         remove_configfile = f'rm -f {self.configfile}'
-        self.add_script('postdown', remove_configfile)
+        self.add_script('postdown', remove_configfile, first_place=True)
 
     def set_metric(self, metric: int):
         metric = (r'/bin/bash -c "ip route | grep -w %i | while read -r line ; do sudo ip route del $line; if [[ ${line##* } == metric ]]; then line=${line% *}; line=${line% *}; fi; '
