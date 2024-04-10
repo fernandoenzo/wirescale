@@ -205,8 +205,9 @@ class WGConfig:
         stack.enter_context(file_locker())
         Messages.send_info_message(local_message='Stopping tailscale...')
         TSManager.stop()
+        Messages.send_info_message(local_message=f"Setting up WireGuard interface '{self.interface}'...")
         wgquick = subprocess_run_tmpfile(['wg-quick', 'up', str(self.new_config_path)], stderr=STDOUT)
-        Messages.send_info_message(local_message='Restarting tailscale...')
+        Messages.send_info_message(local_message='Starting tailscale...')
         TSManager.start()
         if wgquick.returncode == 0:
             wgquick_messages = wgquick.stdout.split('\n')
