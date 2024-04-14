@@ -11,7 +11,7 @@ from contextlib import ExitStack
 from datetime import datetime
 from functools import cached_property
 from io import StringIO
-from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network, ip_address, ip_network
+from ipaddress import ip_address, ip_network, IPv4Address, IPv4Network, IPv6Address, IPv6Network
 from pathlib import Path
 from subprocess import CompletedProcess, STDOUT
 from threading import get_ident
@@ -57,6 +57,7 @@ class WGConfig:
         with open(self.file_path, 'r') as f:
             text = f.read()
         for field in self.repeatable_fields:
+            field = field.lower()
             suffix = [1]  # We use a list so that the value is preserved between calls to the replace function
 
             def replace(match):
