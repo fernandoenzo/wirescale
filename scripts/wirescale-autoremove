@@ -70,10 +70,11 @@ assure_keepalive() {
 
   dummy_file="/tmp/dummy-$interface.zip"
   counter=0
-  while [ "$counter" -lt 60 ]; do
+  total=60
+  while [ "$counter" -lt "$total" ]; do
     dd if=/dev/urandom of="$dummy_file" bs=2K count=$((counter + 1)) > /dev/null 2>&1
     sleep "$(calculate_sleep_time "$start_time")"
-    echo "Sending special package to assure connection, $((counter + 1))/60"
+    echo "Sending special package to assure connection, $((counter + 1))/$total"
     (
       flock 9
       assure_connection "$interface" "$remote_pubkey" "$dummy_file"
@@ -127,11 +128,11 @@ autoremove() {
   start_time_func=$(date +%s)
   last_received=0
 
-  sleep 10 # A brief pause to ensure both peers have sufficient time for proper setup
-
   ping_keepalive "$interface" "$remote_pubkey" "$wg_ip" "$is_remote" "$start_time" &
 
   assure_keepalive "$interface" "$remote_pubkey" "$is_remote" "$start_time" &
+
+  sleep "$(calculate_sleep_time "$start_time")" # A pause to synchronize both peers and let them have sufficient time for proper setup
 
   while { ip link show "$interface"; } > /dev/null 2>&1; do
     if [ $(($(date +%s) - start_time_func)) -ge 4500 ]; then
