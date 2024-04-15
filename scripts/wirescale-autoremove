@@ -65,7 +65,7 @@ assure_keepalive() {
   lockfile="/run/wirescale/control/locker-$interface"
 
   if [ "$is_remote" -eq 1 ]; then
-    start_time=$((start_time + 30))
+    start_time=$(((start_time + 30) % 60))
   fi
 
   dummy_file="/tmp/dummy-$interface.zip"

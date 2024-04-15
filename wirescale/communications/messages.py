@@ -4,7 +4,7 @@
 
 import json
 import sys
-from enum import IntEnum, StrEnum, auto, unique
+from enum import auto, IntEnum, StrEnum, unique
 from subprocess import CompletedProcess
 from threading import get_ident
 from typing import TYPE_CHECKING
@@ -29,7 +29,6 @@ class MessageFields(StrEnum):
     PEER_IP = auto()
     PSK = auto()
     PUBKEY = auto()
-    RECOVER = auto()
     REMOTE_PUBKEY = auto()
     START_TIME = auto()
     SUFFIX = auto()
@@ -38,6 +37,7 @@ class MessageFields(StrEnum):
 class ActionCodes(IntEnum):
     ACK = auto()
     INFO = auto()
+    RECOVER = auto()
     STOP = auto()
     SUCCESS = auto()
     UPGRADE = auto()
@@ -48,8 +48,8 @@ class ActionCodes(IntEnum):
 class ErrorCodes(IntEnum):
     CLOSED = auto()
     CONFIG_PATH_ERROR = auto()
-    GENERIC = auto()
     FINAL_ERROR = auto()
+    GENERIC = auto()
     INTERFACE_EXISTS = auto()
 
 
@@ -95,7 +95,6 @@ class TCPMessages:
             MessageFields.REMOTE_PUBKEY: wgconfig.remote_pubkey,
             MessageFields.HAS_PSK: wgconfig.has_psk,
             MessageFields.PSK: wgconfig.psk if not wgconfig.has_psk else None,
-            MessageFields.START_TIME: wgconfig.start_time,
         }
         return res
 
@@ -106,6 +105,7 @@ class TCPMessages:
             MessageFields.ERROR_CODE: None,
             MessageFields.ADDRESSES: [str(ip) for ip in wgconfig.addresses],
             MessageFields.PUBKEY: wgconfig.public_key,
+            MessageFields.START_TIME: wgconfig.start_time,
         }
         return res
 

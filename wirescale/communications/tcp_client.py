@@ -4,12 +4,12 @@
 
 import json
 import sys
-from ipaddress import IPv4Address, ip_address
+from ipaddress import ip_address, IPv4Address
 from threading import get_ident
 
 from websockets.sync.client import ClientConnection, connect
 
-from wirescale.communications import ErrorCodes, ErrorMessages
+from wirescale.communications import ErrorMessages
 from wirescale.communications.checkers import check_addresses_in_allowedips, match_pubkeys
 from wirescale.communications.common import CONNECTION_PAIRS, TCP_PORT
 from wirescale.communications.messages import ActionCodes, MessageFields, TCPMessages, UnixMessages
@@ -49,6 +49,7 @@ class TCPClient:
                             match_pubkeys(wgconfig, remote_pubkey=message[MessageFields.PUBKEY], my_pubkey=None)
                             wgconfig.remote_addresses = frozenset(ip_address(ip) for ip in message[MessageFields.ADDRESSES])
                             check_addresses_in_allowedips(wgconfig)
+                            wgconfig.start_time = message[MessageFields.START_TIME]
                             wgconfig.generate_new_config()
                             pair.remote_socket.send(json.dumps(TCPMessages.build_upgrade_go()))
                             wgquick = wgconfig.upgrade()
