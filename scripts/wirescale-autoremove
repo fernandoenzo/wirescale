@@ -62,6 +62,7 @@ assure_keepalive() {
   remote_pubkey=$2
   is_remote=$3
   start_time=$4
+  lockfile="/run/wirescale/control/locker-$interface"
 
   if [ "$is_remote" -eq 1 ]; then
     start_time=$((start_time + 30))
@@ -73,7 +74,10 @@ assure_keepalive() {
     dd if=/dev/urandom of="$dummy_file" bs=2K count=$((counter + 1)) > /dev/null 2>&1
     sleep "$(calculate_sleep_time "$start_time")"
     echo "Sending special package to assure connection, $((counter + 1))/60"
-    assure_connection "$interface" "$remote_pubkey" "$dummy_file"
+    (
+      flock 9
+      assure_connection "$interface" "$remote_pubkey" "$dummy_file"
+    ) 9> "$lockfile"
     rm -rf "$dummy_file"
     counter=$((counter + 1))
   done
@@ -118,6 +122,7 @@ autoremove() {
   wg_ip=$3
   is_remote=$4
   start_time=$5
+  lockfile="/run/wirescale/control/locker-$interface"
 
   start_time_func=$(date +%s)
   last_received=0
@@ -148,18 +153,27 @@ autoremove() {
   done
 
   echo "Removing interface $interface"
-  wg-quick down "/run/wirescale/$interface.conf"
-  return 0
+  (
+    flock 9
+    wg-quick down "/run/wirescale/$interface.conf"
+  ) 9> "$lockfile"
+  rm -rf "$lockfile"
+  exit 0
 }
 
 autoremove_three_min() {
   interface=$1
+  lockfile="/run/wirescale/control/locker-$interface"
 
   echo "Launching autoremove function to check for handshakes older than 3 minutes"
   while { ip link show "$interface"; } > /dev/null 2>&1; do
     if ! latest_handshake_less_than "$interface" "$remote_pubkey" 180; then
       echo "Connection broken. More than three minutes without handshake. Removing interface $interface"
-      wg-quick down "/run/wirescale/$interface.conf"
+      (
+        flock 9
+        wg-quick down "/run/wirescale/$interface.conf"
+      ) 9> "$lockfile"
+      rm -rf "$lockfile"
       exit 0
     fi
     sleep 30
