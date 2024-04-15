@@ -32,16 +32,6 @@ latest_handshake_less_than() {
   return
 }
 
-force_handshake() {
-  interface=$1
-  remote_pubkey=$2
-  control="/run/wirescale/control/$interface.conf"
-  wg-quick strip "/run/wirescale/$interface.conf" > "$control"
-  wg set "$interface" peer "$remote_pubkey" remove
-  wg syncconf "$interface" "$control"
-  rm -rf "$control"
-}
-
 ping_periodic() {
   interface=$1
   ip=$2
@@ -147,21 +137,11 @@ autoremove() {
     if [ "$received" -gt "$last_received" ]; then
       last_received=$received
     else
-      echo "Connection appears to be broken. Trying to force a handshake..."
+      echo "Connection appears to be broken..."
       if latest_handshake_less_than "$interface" "$remote_pubkey" 10; then
         echo "...but the latest handshake was less than ten seconds ago, so won't do anything"
       else
-        force_handshake "$interface" "$remote_pubkey"
-        count=0
-        while [ $count -le 10 ]; do
-          sleep 0.5
-          count=$((count + 1))
-        done
-        if [ $count -le 10 ]; then
-          echo "Connection recovered!"
-        else
-          break
-        fi
+        break
       fi
     fi
     sleep 40
