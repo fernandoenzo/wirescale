@@ -2,9 +2,7 @@
 # encoding:utf-8
 
 
-import collections
 import subprocess
-import sys
 from _socket import if_nametoindex
 from configparser import ConfigParser
 from pathlib import Path

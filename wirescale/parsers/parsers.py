@@ -5,7 +5,7 @@
 from argparse import ArgumentParser
 
 from wirescale.parsers.utils import CustomArgumentFormatter
-from wirescale.parsers.validators import check_existing_conf, check_peer, interface_name_validator
+from wirescale.parsers.validators import check_existing_conf, check_existing_wg_interface, check_peer, interface_name_validator
 from wirescale.version import version_msg
 
 top_parser = ArgumentParser(prog='wirescale', description='Upgrade your existing Tailscale connection by transitioning to pure WireGuard', formatter_class=CustomArgumentFormatter)
@@ -28,10 +28,15 @@ config_argument = upgrade_subparser.add_argument('--config', '-c', metavar='wgco
                                                  help='path to a WireGuard config template.\n'
                                                       'Defaults to /etc/wirescale/{peername}.conf\n')
 upgrade_subparser.add_argument('--no-suffix', action='store_true', help='prevent numeric suffix addition to existing interface names during new ones setup')
-upgrade_subparser.add_argument('--recover', action='store_true', help='recover a lost connection on the specified network interface by forcing a new hole punching')
 upgrade_subparser.add_argument('--disable-autoremove', action='store_true',
                                help='prevents automatic removal of the WireGuard interface if connection is permanently lost')
 interface_argument = upgrade_subparser.add_argument('--interface', '-i', metavar='iface', type=interface_name_validator,
                                                     help='interface name that WireGuard will set up. Defaults to {peername}')
+
+recover_subparser = subparsers.add_parser('recover', help='recover a dropped connection by forcing a new hole punching', formatter_class=CustomArgumentFormatter)
+recover_subparser.add_argument('--interface', type=check_existing_wg_interface, required=True, help='local WireGuard interface to recover')
+port_argument = recover_subparser.add_argument('--port', type=int, required=True, help='local port of the WireGuard interface')
+recover_subparser.add_argument('--remote-interface', metavar='INTERFACE', required=True, help='name of the remote WireGuard interface as identified locally')
+recover_subparser.add_argument('--remote-port', metavar='PORT', type=int, required=True, help='local port of the remote WireGuard interface')
 
 top_parser.add_argument('--version', '-v', help='print version information and exit', action='version', version=version_msg)

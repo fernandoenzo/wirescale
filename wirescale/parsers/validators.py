@@ -3,9 +3,11 @@
 
 
 import re
-from argparse import ArgumentTypeError
+import subprocess
+from argparse import ArgumentError, ArgumentTypeError
 from ipaddress import IPv4Address
 from pathlib import Path
+from subprocess import DEVNULL, PIPE
 
 from wirescale.communications.common import file_locker
 from wirescale.vpn import TSManager
@@ -36,9 +38,28 @@ def check_existing_conf(value) -> Path:
     return res.resolve()
 
 
+def check_existing_wg_interface(value):
+    res = subprocess.run(['wg', 'show', value, 'listen-port'], stdout=DEVNULL, stderr=DEVNULL).returncode
+    if res != 0:
+        raise ArgumentTypeError(f"WireGuard interface '{value}' does not exist")
+    return value
+
+
 def interface_name_validator(value):
     regex = r'([a-zA-Z0-9_=+.-]{1,15})'
     if not re.fullmatch(regex, value):
         error = f"'{value}' is not a valid name for a WireGuard interface"
         raise ArgumentTypeError(error)
     return value
+
+
+def match_interface_port(interface: str, supplied_port: int):
+    from wirescale.parsers.parsers import recover_subparser, port_argument
+    try:
+        real_port = int(subprocess.run(['wg', 'show', interface, 'listen-port'], stdout=PIPE, stderr=DEVNULL, text=True).stdout)
+        if not 0 < real_port < 65536:
+            recover_subparser.error(str(ArgumentError(port_argument, f'supplied port {supplied_port} is out of range 1-65535')))
+    except:
+        real_port = -1
+    if real_port != supplied_port:
+        recover_subparser.error(str(ArgumentError(port_argument, f"Wireguard interface '{interface}' is not listening on supplied port {supplied_port}")))

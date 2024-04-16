@@ -75,7 +75,10 @@ class ARGS:
     DOWN: Path = None
     INTERFACE: str = None
     PAIR: ConnectionPair = None
+    PORT: int = None
     RECOVER: bool = None
+    REMOTE_INTERFACE: str = None
+    REMOTE_PORT: int = None
     START: bool = None
     STOP: bool = None
     SUFFIX: bool = None
@@ -98,5 +101,10 @@ def parse_args():
         ARGS.PAIR = ConnectionPair(caller=TSManager.my_ip(), receiver=peer_ip)
         ARGS.CONFIGFILE = args.get('config') if args.get('config') is not None and args.get('config').split() else f'/etc/wirescale/{ARGS.PAIR.peer_name}.conf'
         ARGS.INTERFACE = args.get('interface') or ARGS.PAIR.peer_name
+    if ARGS.RECOVER:
+        ARGS.INTERFACE = args.get('interface')
+        ARGS.PORT = args.get('port')
+        ARGS.REMOTE_INTERFACE = args.get('remote_interface')
+        ARGS.REMOTE_PORT = args.get('remote_port')
     elif ARGS.DOWN:
         ARGS.CONFIGFILE = args.get('interface')
