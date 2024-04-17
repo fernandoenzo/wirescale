@@ -20,6 +20,16 @@ get_sleep_times() {
   echo "$start_time $num1 $num2" | tr " " "\n" | sort -n | tr "\n" " "
 }
 
+check_interface_and_file() {
+  interface=$1
+  flag_file="/run/wirescale/control/$interface-stop"
+  if { ip link show "$interface"; } > /dev/null 2>&1 && [ ! -f "$flag_file" ]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
 latest_handshake_less_than() {
   interface=$1
   remote_pubkey=$2
@@ -38,7 +48,7 @@ ping_periodic() {
 
   start_time=$(date +%s)
 
-  while { ip link show "$interface"; } > /dev/null 2>&1 && [ $(($(date +%s) - start_time)) -lt 4500 ]; do
+  while check_interface_and_file "$interface" && [ $(($(date +%s) - start_time)) -lt 4500 ]; do
     ping -q -I "$interface" -c 1 -W 0.05 "$ip" > /dev/null 2>&1
     sleep 5
   done
@@ -71,7 +81,7 @@ assure_keepalive() {
   dummy_file="/tmp/dummy-$interface.zip"
   counter=0
   total=60
-  while [ "$counter" -lt "$total" ]; do
+  while check_interface_and_file "$interface" && [ "$counter" -lt "$total" ]; do
     dd if=/dev/urandom of="$dummy_file" bs=2K count=$((counter + 1)) > /dev/null 2>&1
     sleep "$(calculate_sleep_time "$start_time")"
     echo "Sending special package to assure connection, $((counter + 1))/$total"
@@ -82,6 +92,7 @@ assure_keepalive() {
     rm -rf "$dummy_file"
     counter=$((counter + 1))
   done
+  echo "Finalizing function assure_keepalive"
 }
 
 change_keepalive() {
@@ -102,7 +113,7 @@ ping_keepalive() {
 
   ping_periodic "$interface" "$wg_ip" &
 
-  while { ip link show "$interface"; } > /dev/null 2>&1 && [ $(($(date +%s) - start_time_func)) -lt 4500 ]; do
+  while check_interface_and_file "$interface" && [ $(($(date +%s) - start_time_func)) -lt 4500 ]; do
     if [ "$is_remote" -eq 1 ]; then
       sleep_times=$(get_sleep_times "$start_time")
       sleep "$(calculate_sleep_time "$sleep_times")"
@@ -115,18 +126,64 @@ ping_keepalive() {
     sleep 5
     change_keepalive "$interface" "$remote_pubkey" 10
   done
+  echo "Finalizing function ping_keepalive"
+}
+
+recover() {
+  interface=$1
+  ts_ip=$2
+  remote_interface=$3
+  remote_port=$4
+  local_port=$(wg show "$interface" listen-port)
+
+  wait_time=30
+  while { ip link show "$interface"; } > /dev/null 2>&1; do
+    echo "Trying to force a new endpoint..."
+    wirescale recover --peer "$ts_ip" --interface "$interface" --port "$local_port" --remote-interface "$remote_interface" --remote-port "$remote_port"
+    status=$?
+    if [ "$status" -eq 0 ]; then
+      echo "Success! Connection recovered. Restarting this unit..."
+      exit 0
+    elif [ "$status" -eq 1 ]; then
+      echo "Error: It was impossible to recover the connection"
+      return 1
+    elif [ "$status" -eq 2 ]; then
+      echo "Error: The other peer is unreachable for the moment. Will try again in $wait_time seconds..."
+    fi
+    sleep "$wait_time"
+  done
+}
+
+remove_interface() {
+  interface=$1
+  lockfile="/run/wirescale/control/locker-$interface"
+
+  echo "Removing interface $interface"
+  (
+    flock 9
+    wg-quick down "/run/wirescale/$interface.conf"
+  ) 9> "$lockfile"
+
+  rm -rf "$lockfile"
+  exit 0
 }
 
 autoremove() {
   interface=$1
-  remote_pubkey=$2
-  wg_ip=$3
-  is_remote=$4
-  start_time=$5
+  ts_ip=$2
+  remote_pubkey=$3
+  wg_ip=$4
+  is_remote=$5
+  start_time=$6
+  remote_interface=$7
+  remote_port=$8
+  local_port=$(wg show "$interface" listen-port)
   lockfile="/run/wirescale/control/locker-$interface"
 
   start_time_func=$(date +%s)
   last_received=0
+
+  rm -rf "/run/wirescale/control/$interface-stop"
 
   ping_keepalive "$interface" "$remote_pubkey" "$wg_ip" "$is_remote" "$start_time" &
 
@@ -139,27 +196,27 @@ autoremove() {
       echo "Terminating the primary autoremove function, as over 75 minutes have elapsed since the script began"
       autoremove_three_min "$interface"
     fi
+    if ! check_interface_and_file "$interface"; then
+      echo "Terminating the primary autoremove function, as flag file '/run/wirescale/control/$interface-stop' exists"
+      autoremove_three_min "$interface"
+    fi
     received=$(wg show "$interface" transfer | awk -v pubkey="$remote_pubkey" '$1 == pubkey {print $2}')
     if [ "$received" -gt "$last_received" ]; then
       last_received=$received
     else
       echo "Connection appears to be broken..."
       if latest_handshake_less_than "$interface" "$remote_pubkey" 10; then
-        echo "...but the latest handshake was less than ten seconds ago, so won't do anything"
+        echo "...but the latest handshake was less than ten seconds ago, so won't do anything for now"
       else
+        touch "/run/wirescale/control/$interface-stop"
         break
       fi
     fi
     sleep 40
   done
 
-  echo "Removing interface $interface"
-  (
-    flock 9
-    wg-quick down "/run/wirescale/$interface.conf"
-  ) 9> "$lockfile"
-  rm -rf "$lockfile"
-  exit 0
+  recover "$interface" "$ts_ip" "$remote_interface" "$remote_port"
+  remove_interface "$interface"
 }
 
 autoremove_three_min() {
@@ -169,13 +226,9 @@ autoremove_three_min() {
   echo "Launching autoremove function to check for handshakes older than 3 minutes"
   while { ip link show "$interface"; } > /dev/null 2>&1; do
     if ! latest_handshake_less_than "$interface" "$remote_pubkey" 180; then
-      echo "Connection broken. More than three minutes without handshake. Removing interface $interface"
-      (
-        flock 9
-        wg-quick down "/run/wirescale/$interface.conf"
-      ) 9> "$lockfile"
-      rm -rf "$lockfile"
-      exit 0
+      echo "Connection broken. More than three minutes without handshake."
+      recover "$interface" "$ts_ip" "$remote_interface" "$remote_port"
+      remove_interface "$interface"
     fi
     sleep 30
   done

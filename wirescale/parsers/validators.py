@@ -55,11 +55,19 @@ def interface_name_validator(value):
 
 def match_interface_port(interface: str, supplied_port: int):
     from wirescale.parsers.parsers import recover_subparser, port_argument
+    if not 0 < supplied_port < 65536:
+        recover_subparser.error(str(ArgumentError(port_argument, f'supplied port {supplied_port} is out of range 1-65535')))
     try:
         real_port = int(subprocess.run(['wg', 'show', interface, 'listen-port'], stdout=PIPE, stderr=DEVNULL, text=True).stdout)
-        if not 0 < real_port < 65536:
-            recover_subparser.error(str(ArgumentError(port_argument, f'supplied port {supplied_port} is out of range 1-65535')))
     except:
         real_port = -1
     if real_port != supplied_port:
-        recover_subparser.error(str(ArgumentError(port_argument, f"Wireguard interface '{interface}' is not listening on supplied port {supplied_port}")))
+        recover_subparser.error(str(ArgumentError(port_argument, f"WireGuard interface '{interface}' is not listening on supplied port {supplied_port}")))
+
+
+def get_latest_handshake(interface: str) -> int:
+    from wirescale.parsers.parsers import recover_subparser, interface_recover_argument
+    handshake = subprocess.run(['wg', 'show', interface, 'latest-handshakes'], stdout=PIPE, stderr=DEVNULL, text=True)
+    if handshake.returncode != 0:
+        recover_subparser.error(str(ArgumentError(interface_recover_argument, f"WireGuard interface '{interface}' does not exist")))
+    return int(handshake.stdout.strip().split('\n')[0].split('\t')[1])

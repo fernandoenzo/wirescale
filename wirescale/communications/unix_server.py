@@ -12,11 +12,11 @@ from threading import active_count, get_ident
 from time import sleep
 
 from parallel_utils.thread import StaticMonitor
-from websockets.sync.server import ServerConnection, WebSocketServer, unix_serve
+from websockets.sync.server import ServerConnection, unix_serve, WebSocketServer
 
 from wirescale.communications import Messages, SHUTDOWN, TCPServer
-from wirescale.communications.checkers import check_configfile, check_interface, check_wgconfig
-from wirescale.communications.common import CONNECTION_PAIRS, SOCKET_PATH, file_locker
+from wirescale.communications.checkers import check_configfile, check_interface, check_recover_config, check_wgconfig
+from wirescale.communications.common import CONNECTION_PAIRS, file_locker, SOCKET_PATH
 from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, MessageFields
 from wirescale.communications.tcp_client import TCPClient
 from wirescale.communications.udp_server import UDPServer
@@ -60,11 +60,11 @@ class UnixServer:
             cls.discard_connections(websocket)
             message: dict = json.loads(websocket.recv())
             if code := message[MessageFields.CODE]:
-                match code:
-                    case ActionCodes.STOP:
-                        cls.stop()
-                    case ActionCodes.UPGRADE:
-                        try:
+                try:
+                    match code:
+                        case ActionCodes.STOP:
+                            cls.stop()
+                        case ActionCodes.UPGRADE:
                             pair = ConnectionPair(caller=TSManager.my_ip(), receiver=IPv4Address(message[MessageFields.PEER_IP]))
                             pair.unix_socket = websocket
                             enqueueing = Messages.ENQUEUEING_TO.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
@@ -74,8 +74,18 @@ class UnixServer:
                                 start_processing = Messages.START_PROCESSING_TO.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
                                 Messages.send_info_message(local_message=start_processing)
                                 cls.upgrade(message)
-                        finally:
-                            CONNECTION_PAIRS.pop(get_ident(), None)
+                        case ActionCodes.RECOVER:
+                            pair = ConnectionPair(caller=TSManager.my_ip(), receiver=IPv4Address(message[MessageFields.PEER_IP]))
+                            pair.unix_socket = websocket
+                            enqueueing = Messages.ENQUEUEING_RECOVER.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=message[MessageFields.INTERFACE])
+                            Messages.send_info_message(local_message=enqueueing)
+                            with StaticMonitor.synchronized(uid=ActionCodes.UPGRADE):
+                                cls.discard_connections(websocket)
+                                start_processing = Messages.START_PROCESSING_RECOVER.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=message[MessageFields.INTERFACE])
+                                Messages.send_info_message(local_message=start_processing)
+                                cls.recover(message)
+                finally:
+                    CONNECTION_PAIRS.pop(get_ident(), None)
 
     @staticmethod
     def discard_connections(websocket: ServerConnection):
@@ -107,3 +117,16 @@ class UnixServer:
             wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)
         wgconfig.autoremove = message[MessageFields.AUTOREMOVE]
         TCPClient.upgrade(wgconfig=wgconfig)
+
+    @staticmethod
+    def recover(message: dict):
+        pair = CONNECTION_PAIRS[get_ident()]
+        interface = message[MessageFields.INTERFACE]
+        latest_handshake = message[MessageFields.LATEST_HANDSHAKE]
+        port = message[MessageFields.PORT]
+        remote_interface = message[MessageFields.REMOTE_INTERFACE]
+        remote_port = message[MessageFields.REMOTE_PORT]
+        recover_config = check_recover_config(interface, latest_handshake, port, remote_interface, remote_port)
+        with file_locker():
+            recover_config.endpoint = TSManager.peer_endpoint(pair.peer_ip)
+        TCPClient.recover(recover=recover_config)

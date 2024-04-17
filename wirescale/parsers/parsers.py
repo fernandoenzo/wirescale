@@ -23,18 +23,19 @@ down_subparser = subparsers.add_parser('down', help='deactivates a WireGuard int
 down_subparser.add_argument('interface', type=check_existing_conf, help="shortcut for 'wg-quick down /run/wirescale/interface.conf'")
 
 upgrade_subparser = subparsers.add_parser('upgrade', help='duplicates a Tailscale connection with pure WireGuard', formatter_class=CustomArgumentFormatter)
-upgrade_subparser.add_argument('peer', type=check_peer, help='either the IP address or the Tailscale name of the peer you want to connect to')
+upgrade_subparser.add_argument('peer', type=check_peer, help='either the Tailscale IP address or the name of the peer you want to connect to')
 config_argument = upgrade_subparser.add_argument('--config', '-c', metavar='wgconf',
                                                  help='path to a WireGuard config template.\n'
                                                       'Defaults to /etc/wirescale/{peername}.conf\n')
 upgrade_subparser.add_argument('--no-suffix', action='store_true', help='prevent numeric suffix addition to existing interface names during new ones setup')
 upgrade_subparser.add_argument('--disable-autoremove', action='store_true',
                                help='prevents automatic removal of the WireGuard interface if connection is permanently lost')
-interface_argument = upgrade_subparser.add_argument('--interface', '-i', metavar='iface', type=interface_name_validator,
-                                                    help='interface name that WireGuard will set up. Defaults to {peername}')
+interface_upgrade_argument = upgrade_subparser.add_argument('--interface', '-i', metavar='iface', type=interface_name_validator,
+                                                            help='interface name that WireGuard will set up. Defaults to {peername}')
 
 recover_subparser = subparsers.add_parser('recover', help='recover a dropped connection by forcing a new hole punching', formatter_class=CustomArgumentFormatter)
-recover_subparser.add_argument('--interface', type=check_existing_wg_interface, required=True, help='local WireGuard interface to recover')
+recover_subparser.add_argument('peer', type=check_peer, help='either the Tailscale IP address or the name of the peer holding the connection you need to recover')
+interface_recover_argument = recover_subparser.add_argument('--interface', type=check_existing_wg_interface, required=True, help='local WireGuard interface to recover')
 port_argument = recover_subparser.add_argument('--port', type=int, required=True, help='local port of the WireGuard interface')
 recover_subparser.add_argument('--remote-interface', metavar='INTERFACE', required=True, help='name of the remote WireGuard interface as identified locally')
 recover_subparser.add_argument('--remote-port', metavar='PORT', type=int, required=True, help='local port of the remote WireGuard interface')

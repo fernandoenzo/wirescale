@@ -9,9 +9,12 @@ from subprocess import CompletedProcess
 from threading import get_ident
 from typing import TYPE_CHECKING
 
-from wirescale.communications.common import CONNECTION_PAIRS
+from wirescale.communications.checkers import check_recover_config
+from wirescale.communications.common import CONNECTION_PAIRS, RawBytesStrConverter
+from wirescale.parsers.validators import check_existing_wg_interface
 
 if TYPE_CHECKING:
+    from wirescale.vpn.recover import RecoverConfig
     from wirescale.vpn.wgconfig import WGConfig
 
 
@@ -21,14 +24,20 @@ class MessageFields(StrEnum):
     AUTOREMOVE = auto()
     CODE = auto()
     CONFIG = auto()
+    ENCRYPTED = auto()
     ERROR_CODE = auto()
     ERROR_MESSAGE = auto()
     HAS_PSK = auto()
     INTERFACE = auto()
+    LATEST_HANDSHAKE = auto()
     MESSAGE = auto()
+    NONCE = auto()
     PEER_IP = auto()
+    PORT = auto()
     PSK = auto()
     PUBKEY = auto()
+    REMOTE_INTERFACE = auto()
+    REMOTE_PORT = auto()
     REMOTE_PUBKEY = auto()
     START_TIME = auto()
     SUFFIX = auto()
@@ -36,13 +45,13 @@ class MessageFields(StrEnum):
 
 class ActionCodes(IntEnum):
     ACK = auto()
+    GO = auto()
     INFO = auto()
     RECOVER = auto()
     STOP = auto()
     SUCCESS = auto()
     UPGRADE = auto()
     UPGRADE_RESPONSE = auto()
-    UPGRADE_GO = auto()
 
 
 class ErrorCodes(IntEnum):
@@ -50,7 +59,10 @@ class ErrorCodes(IntEnum):
     CONFIG_PATH_ERROR = auto()
     FINAL_ERROR = auto()
     GENERIC = auto()
+    HANDSHAKE_MISMATCH = auto()
     INTERFACE_EXISTS = auto()
+    PORT_MISMATCH = auto()
+    WG_INTERFACE_MISSING = auto()
 
 
 class UnixMessages:
@@ -82,6 +94,20 @@ class UnixMessages:
             res[MessageFields.ERROR_MESSAGE] = wgquick.stdout.strip()
         return res
 
+    @staticmethod
+    def build_recover(args) -> dict:
+        res = {
+            MessageFields.CODE: ActionCodes.RECOVER,
+            MessageFields.ERROR_CODE: None,
+            MessageFields.INTERFACE: args.INTERFACE,
+            MessageFields.LATEST_HANDSHAKE: args.LATEST_HANDSHAKE,
+            MessageFields.PEER_IP: str(args.PAIR.peer_ip),
+            MessageFields.PORT: args.PORT,
+            MessageFields.REMOTE_INTERFACE: args.REMOTE_INTERFACE,
+            MessageFields.REMOTE_PORT: args.REMOTE_PORT,
+        }
+        return res
+
 
 class TCPMessages:
 
@@ -91,10 +117,12 @@ class TCPMessages:
             MessageFields.CODE: ActionCodes.UPGRADE,
             MessageFields.ERROR_CODE: None,
             MessageFields.ADDRESSES: [str(ip) for ip in wgconfig.addresses],
+            MessageFields.HAS_PSK: wgconfig.has_psk,
+            MessageFields.INTERFACE: wgconfig.interface,
+            MessageFields.PORT: wgconfig.listen_port,
+            MessageFields.PSK: wgconfig.psk if not wgconfig.has_psk else None,
             MessageFields.PUBKEY: wgconfig.public_key,
             MessageFields.REMOTE_PUBKEY: wgconfig.remote_pubkey,
-            MessageFields.HAS_PSK: wgconfig.has_psk,
-            MessageFields.PSK: wgconfig.psk if not wgconfig.has_psk else None,
         }
         return res
 
@@ -104,18 +132,64 @@ class TCPMessages:
             MessageFields.CODE: ActionCodes.UPGRADE_RESPONSE,
             MessageFields.ERROR_CODE: None,
             MessageFields.ADDRESSES: [str(ip) for ip in wgconfig.addresses],
+            MessageFields.INTERFACE: wgconfig.interface,
+            MessageFields.PORT: wgconfig.listen_port,
             MessageFields.PUBKEY: wgconfig.public_key,
             MessageFields.START_TIME: wgconfig.start_time,
         }
         return res
 
     @staticmethod
-    def build_upgrade_go() -> dict:
+    def build_go() -> dict:
         res = {
-            MessageFields.CODE: ActionCodes.UPGRADE_GO,
+            MessageFields.CODE: ActionCodes.GO,
             MessageFields.ERROR_CODE: None,
         }
         return res
+
+    @staticmethod
+    def build_recover(recover: 'RecoverConfig') -> dict:
+        res = {
+            MessageFields.CODE: ActionCodes.RECOVER,
+            MessageFields.ERROR_CODE: None,
+            MessageFields.INTERFACE: recover.remote_interface,
+            MessageFields.NONCE: RawBytesStrConverter.raw_bytes_to_str64(recover.nonce),
+        }
+        encrypted = {
+            MessageFields.LATEST_HANDSHAKE: recover.latest_handshake,
+            MessageFields.PORT: recover.remote_port,
+            MessageFields.REMOTE_INTERFACE: recover.interface,
+            MessageFields.REMOTE_PORT: recover.current_port,
+        }
+        encrypted = json.dumps(encrypted)
+        res[MessageFields.ENCRYPTED] = recover.encrypt(encrypted)
+        return res
+
+    @staticmethod
+    def process_recover(message: dict) -> 'RecoverConfig':
+        pair = CONNECTION_PAIRS[get_ident()]
+        interface = message[MessageFields.INTERFACE]
+        try:
+            check_existing_wg_interface(interface)
+        except:
+            error = ErrorMessages.WG_INTERFACE_MISSING.format(interface=interface)
+            error_remote = ErrorMessages.REMOTE_WG_INTERFACE_MISSING.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
+            ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
+        recover = RecoverConfig(interface=interface, latest_handshake=0, current_port=0, remote_interface='', remote_port=0)
+        recover.nonce = RawBytesStrConverter.str64_to_raw_bytes(message[MessageFields.NONCE])
+        try:
+            decrypted = recover.decrypt(data=message[MessageFields.ENCRYPTED])
+        except:
+            error = ErrorMessages.CANT_DECRYPT.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+            error_remote = ErrorMessages.REMOTE_CANT_DECRYPT.format(peer_name=pair.my_name, peer_ip=pair.my_ip)
+            ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
+        decrypted = json.loads(decrypted)
+        message.update(decrypted)
+        current_port = message[MessageFields.PORT]
+        latest_handshake = message[MessageFields.LATEST_HANDSHAKE]
+        remote_port = message[MessageFields.REMOTE_PORT]
+        remote_interface = message[MessageFields.REMOTE_INTERFACE]
+        return check_recover_config(interface, latest_handshake, current_port, remote_interface, remote_port)
 
 
 class Messages:
@@ -125,12 +199,15 @@ class Messages:
     ENQUEUEING_FROM = "Enqueueing upgrade request coming from peer '{peer_name}' ({peer_ip})..."
     ENQUEUEING_REMOTE = "Remote peer '{sender_name}' ({sender_ip}) has enqueued our upgrade request"
     ENQUEUEING_TO = "Enqueueing upgrade request to peer '{peer_name}' ({peer_ip})..."
+    ENQUEUEING_RECOVER = "Enqueueing recover request to peer '{peer_name}' ({peer_ip}) for interface '{interface}'..."
     NEW_UNIX_INCOMING = 'New local UNIX connection incoming'
     REACHABLE = "Peer '{peer_name}' ({peer_ip}) is reachable"
+    RECOVER_SUCCES = "Success! WireGuard connection through interface '{interface}' is working again"
     SHUTDOWN_SET = 'The server has been set to shut down'
-    START_PROCESSING_FROM = "Starting to process the upgrade request coming from peer '{peer_name}' ({peer_ip})"
-    START_PROCESSING_REMOTE = "Remote peer '{sender_name}' ({sender_ip}) has started to process our upgrade request"
+    START_PROCESSING_FROM = "Starting to process the {action} request coming from peer '{peer_name}' ({peer_ip})"
+    START_PROCESSING_REMOTE = "Remote peer '{sender_name}' ({sender_ip}) has started to process our {action} request"
     START_PROCESSING_TO = "Starting to process the upgrade request for the peer '{peer_name}' ({peer_ip})"
+    START_PROCESSING_RECOVER = "Starting to process the recover request for the peer '{peer_name}' ({peer_ip}) for interface '{interface}'"
     SUCCESS = "Success! Now you have a new working P2P connection through interface '{interface}'"
 
     @staticmethod
@@ -159,25 +236,36 @@ class ErrorMessages:
     BAD_FORMAT_PRIVKEY = "Error: The private key has not the correct length or format in file '{config_file}'"
     BAD_FORMAT_PSK = "Error: The pre-shared key has not the correct length or format in file '{config_file}'"
     BAD_FORMAT_PUBKEY = "Error: The public key has not the correct length or format in file '{config_file}'"
+    CANT_DECRYPT = "Error: Couldn't decrypt the recover message sent by remote peer '{my_name}' ({my_ip})"
     CLOSED = 'Error: Wirescale is shutting down and is no longer accepting new requests'
     FINAL_ERROR = 'Something went wrong and, finally, it was not possible to establish the P2P connection'
+    HANDSHAKE_FAILED = "Handshake with interface '{interface}' failed after changing its endpoint. Interface will be removed"
     INTERFACE_EXISTS = "Error: A network interface '{interface}' already exists and Wirescale was started with the --no-suffix option"
+    LATEST_HANDSHAKE_MISMATCH = "Error: The latest handshake of interface '{interface}' has been updated since the recover request was made. Discarding request."
     MISSING_ADDRESS = "Error: 'Address' option missing in 'Interface' section of file '{config_file}'"
     MISSING_ALLOWEDIPS = "Error: 'AllowedIPs' option missing in 'Peer' section of file '{config_file}'"
+    PORT_MISMATCH = "Error: WireGuard interface '{interface}' is not listening on supplied port {port}"
     PSK_MISMATCH = ("Error: Peer '{name_without_psk}' ({ip_without_psk}) does not have a pre-shared key for '{name_with_psk}' ({ip_with_psk}), but '{name_with_psk}' has one configured for "
                     "'{name_without_psk}'. Ensure key consistency.")
     PUBKEY_MISMATCH = "Error: The public key provided by '{sender_name}' ({sender_ip}) is inconsistent with the one that '{receiver_name}' ({receiver_ip}) has on record for this peer."
     REMOTE_BAD_FORMAT_PRIVKEY = "Error: The private key has not the correct length or format in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'"
     REMOTE_BAD_FORMAT_PSK = "Error: The pre-shared key has not the correct length or format in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'"
     REMOTE_BAD_FORMAT_PUBKEY = "Error: The public key has not the correct length or format in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'"
+    REMOTE_CANT_DECRYPT = "Error: Remote peer '{my_name}' ({my_ip}) couldn't decrypt our recover message"
     REMOTE_CLOSED = "Error: Wirescale instance at '{my_name}' ({my_ip}) has been set to stop receiving requests"
     REMOTE_CONFIG_ERROR = "Error: Remote peer '{my_name}' ({my_ip}) has a syntax error in its configuration file for '{peer_name}'"
     REMOTE_CONFIG_PATH_ERROR = "Error: Remote peer '{my_name}' ({my_ip}) cannot locate a configuration file for '{peer_name}'"
     REMOTE_INTERFACE_EXISTS = "Error: A network interface '{interface}' already exists on peer '{my_name}' ({my_ip}) and its Wirescale was started with the --no-suffix option"
+    REMOTE_LATEST_HANDSHAKE_MISMATCH = ("Error: The latest handshake of remote interface '{interface}' from remote peer '{my_name}' ({my_ip}) has been updated since the recover "
+                                        "request was made. Discarding request.")
     REMOTE_MISSING_ADDRESS = "Error: 'Address' option missing in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'"
     REMOTE_MISSING_ALLOWEDIPS = "Error: 'AllowedIPs' option missing in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'"
     REMOTE_MISSING_WIRESCALE = "Error: Remote peer '{peer_name}' ({peer_ip}) does not have Wirescale running"
+    REMOTE_PORT_MISMATCH = "Error: WireGuard interface '{interface}' is not listening on local port {port} in remote peer '{peer_name}' ({peer_ip})"
+    REMOTE_RUNFILE_MISSING = "Error: File '/run/wirescale/{interface}.conf' does not exist or is not a regular file in remote peer '{peer_name}' ({peer_ip})"
     REMOTE_TAILSCALED_STOPPED = "Error: Tailscaled service is not running in remote peer `{peer_name}` ({peer_ip})"
+    REMOTE_WG_INTERFACE_MISSING = "Error: Remote peer '{peer_name}' ({peer_ip}) does not have a WireGuard interface named '{interface}'"
+    RUNFILE_MISSING = "Error: File '/run/wirescale/{interface}.conf' does not exist or is not a regular file"
     ROOT_SYSTEMD = "Error: Wirescale daemon must be managed by root's systemd"
     SUDO = 'Error: This program must be run as a superuser'
     TS_PEER_OFFLINE = "Error: Peer '{peer_name}' ({peer_ip}) is offline"
@@ -191,6 +279,7 @@ class ErrorMessages:
     TS_NOT_RECOVERED = "Error: Either this tailscale instance or '{peer_name}' ({peer_ip}) one has not fully recovered and cannot reestablish the connection"
     TS_NOT_RUNNING = 'Error: Tailscale is not running'
     UNIX_SOCKET = "Error: Couldn't connect to the local UNIX socket"
+    WG_INTERFACE_MISSING = "Error: WireGuard interface '{interface}' does not exist"
 
     @staticmethod
     def build_error_message(error_message: str, error_code: ErrorCodes = ErrorCodes.GENERIC) -> dict:

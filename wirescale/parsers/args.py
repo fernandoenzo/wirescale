@@ -12,6 +12,7 @@ from websockets.sync.server import ServerConnection
 
 from wirescale.communications.common import CONNECTION_PAIRS, file_locker
 from wirescale.parsers.parsers import top_parser
+from wirescale.parsers.validators import get_latest_handshake, match_interface_port
 
 
 class ConnectionPair:
@@ -74,6 +75,7 @@ class ARGS:
     DAEMON: bool = None
     DOWN: Path = None
     INTERFACE: str = None
+    LATEST_HANDSHAKE: int = None
     PAIR: ConnectionPair = None
     PORT: int = None
     RECOVER: bool = None
@@ -102,9 +104,13 @@ def parse_args():
         ARGS.CONFIGFILE = args.get('config') if args.get('config') is not None and args.get('config').split() else f'/etc/wirescale/{ARGS.PAIR.peer_name}.conf'
         ARGS.INTERFACE = args.get('interface') or ARGS.PAIR.peer_name
     if ARGS.RECOVER:
+        peer_ip = args.get('peer')
+        ARGS.PAIR = ConnectionPair(caller=TSManager.my_ip(), receiver=peer_ip)
         ARGS.INTERFACE = args.get('interface')
+        ARGS.LATEST_HANDSHAKE = get_latest_handshake(ARGS.INTERFACE)
         ARGS.PORT = args.get('port')
         ARGS.REMOTE_INTERFACE = args.get('remote_interface')
         ARGS.REMOTE_PORT = args.get('remote_port')
+        match_interface_port(ARGS.INTERFACE, ARGS.PORT)
     elif ARGS.DOWN:
         ARGS.CONFIGFILE = args.get('interface')

@@ -1,14 +1,18 @@
 # encoding:utf-8
 
 
+import base64
 import collections
 import fcntl
-from contextlib import ExitStack, contextmanager
+from contextlib import contextmanager, ExitStack
 from pathlib import Path
 from subprocess import CompletedProcess, run
 from tempfile import TemporaryFile
 from threading import Event
 from typing import Dict, TYPE_CHECKING
+
+from wirescale.communications import ErrorMessages
+from wirescale.vpn import TSManager
 
 if TYPE_CHECKING:
     from wirescale.parsers.args import ConnectionPair
@@ -31,6 +35,27 @@ def subprocess_run_tmpfile(*args, **kwargs) -> CompletedProcess[str]:
     return p
 
 
+class RawBytesStrConverter:
+
+    @classmethod
+    def raw_bytes_to_str64(cls, data: bytes) -> str:
+        data = base64.urlsafe_b64encode(data)
+        return cls.bytes_to_str(data)
+
+    @classmethod
+    def str64_to_raw_bytes(cls, data: str) -> bytes:
+        data = cls.str_to_bytes(data)
+        return base64.urlsafe_b64decode(data)
+
+    @staticmethod
+    def str_to_bytes(data: str) -> bytes:
+        return data.encode('utf-8')
+
+    @staticmethod
+    def bytes_to_str(data: bytes) -> str:
+        return data.decode('utf-8')
+
+
 @contextmanager
 def file_locker():
     lockfile = Path('/run/wirescale/control/locker').open(mode='w')
@@ -40,3 +65,13 @@ def file_locker():
     finally:
         fcntl.flock(lockfile, fcntl.LOCK_UN)
         lockfile.close()
+
+
+def wait_tailscale_restarted(pair: ConnectionPair, stack: ExitStack):
+    with stack:
+        print('Waiting for tailscale to be fully operational again. This could take up to 45 seconds...', flush=True)
+        res = TSManager.wait_until_peer_is_online(pair.peer_ip, timeout=45)
+        if not res:
+            print(ErrorMessages.TS_NOT_RECOVERED.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip), file=sys.stderr, flush=True)
+        else:
+            print('Tailscale is fully working again!', flush=True)

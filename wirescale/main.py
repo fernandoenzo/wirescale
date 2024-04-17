@@ -19,11 +19,14 @@ sys.tracebacklimit = 0
 os.umask(0o177)  # chmod 600
 
 
-def check_root():
+def check_root(systemd=False):
     try:
         os.setuid(0)
     except PermissionError:
-        print(ErrorMessages.ROOT_SYSTEMD, file=sys.stderr, flush=True)
+        if systemd:
+            print(ErrorMessages.ROOT_SYSTEMD, file=sys.stderr, flush=True)
+        else:
+            print(ErrorMessages.SUDO, file=sys.stderr, flush=True)
         sys.exit(1)
 
 
@@ -37,7 +40,7 @@ def copy_script():
 def main():
     parse_args()
     if ARGS.DAEMON:
-        check_root()
+        check_root(systemd=True)
         systemd_exec_pid = int(os.environ.get('SYSTEMD_EXEC_PID', default=-1))
         if ARGS.START:
             if systemd_exec_pid == -1 or os.getpgid(systemd_exec_pid) != os.getpgid(os.getpid()):
@@ -57,10 +60,10 @@ def main():
                 sys.exit(systemd.returncode)
             UnixClient.stop()
     elif ARGS.UPGRADE:
-        if ARGS.RECOVER:
-            pass
-        else:
-            UnixClient.upgrade()
+        UnixClient.upgrade()
+    elif ARGS.RECOVER:
+        check_root()
+        pass
     elif ARGS.DOWN:
         subprocess.run(['wg-quick', 'down', str(ARGS.CONFIGFILE)], text=True)
     else:

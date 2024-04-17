@@ -10,6 +10,8 @@ from threading import get_ident
 
 from wirescale.communications.common import CONNECTION_PAIRS
 from wirescale.communications.messages import ErrorCodes, ErrorMessages
+from wirescale.parsers.validators import get_latest_handshake, match_interface_port
+from wirescale.vpn.recover import RecoverConfig
 from wirescale.vpn.wgconfig import WGConfig
 
 
@@ -50,6 +52,33 @@ def check_configfile(config: str) -> Path:
     pair = CONNECTION_PAIRS[get_ident()]
     remote_error = ErrorMessages.REMOTE_CONFIG_PATH_ERROR.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
     ErrorMessages.send_error_message(local_message=error, remote_message=remote_error, error_code=ErrorCodes.CONFIG_PATH_ERROR, always_send_to_remote=False)
+
+
+def check_recover_config(interface: str, latest_handshake: int, port: int, remote_interface: str, remote_port: int) -> RecoverConfig:
+    pair = CONNECTION_PAIRS[get_ident()]
+    try:
+        handshake = get_latest_handshake(interface)
+        if handshake != latest_handshake:
+            error = ErrorMessages.LATEST_HANDSHAKE_MISMATCH.format(interface=interface)
+            error_remote = ErrorMessages.REMOTE_LATEST_HANDSHAKE_MISMATCH.format(peer_name=pair.my_name, peer_ip=pair.my_ip, interface=interface)
+            ErrorMessages.send_error_message(local_message=error, remote_message=error_remote, error_code=ErrorCodes.HANDSHAKE_MISMATCH, exit_code=2)
+    except:
+        error = ErrorMessages.WG_INTERFACE_MISSING.format(interface=interface)
+        error_remote = ErrorMessages.REMOTE_WG_INTERFACE_MISSING.format(peer_name=pair.my_name, peer_ip=pair.my_ip, interface=interface)
+        ErrorMessages.send_error_message(local_message=error, remote_message=error_remote, error_code=ErrorCodes.WG_INTERFACE_MISSING)
+    try:
+        match_interface_port(interface, port)
+    except:
+        error = ErrorMessages.PORT_MISMATCH.format(interface=interface, port=port)
+        error_remote = ErrorMessages.REMOTE_PORT_MISMATCH.format(peer_name=pair.my_name, peer_ip=pair.my_ip, interface=interface, port=port)
+        ErrorMessages.send_error_message(local_message=error, remote_message=error_remote, error_code=ErrorCodes.PORT_MISMATCH)
+    runfile = Path(f'/run/wirescale/{interface}.conf')
+    if not runfile.exists() or runfile.is_file():
+        error = ErrorMessages.RUNFILE_MISSING.format(interface=interface)
+        error_remote = ErrorMessages.REMOTE_RUNFILE_MISSING.format(peer_name=pair.my_name, peer_ip=pair.my_ip, interface=interface)
+        ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
+    res = RecoverConfig(interface, latest_handshake, port, remote_interface, remote_port)
+    return res
 
 
 def check_wgconfig(config: Path, inteface: str) -> WGConfig:

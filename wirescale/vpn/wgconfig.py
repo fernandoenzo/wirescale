@@ -20,8 +20,7 @@ from typing import Dict, FrozenSet, Tuple
 from parallel_utils.thread import create_thread
 
 from wirescale.communications import CONNECTION_PAIRS, ErrorMessages, Messages
-from wirescale.communications.common import file_locker, subprocess_run_tmpfile
-from wirescale.parsers.args import ConnectionPair
+from wirescale.communications.common import file_locker, subprocess_run_tmpfile, wait_tailscale_restarted
 from wirescale.vpn.tsmanager import TSManager
 
 
@@ -47,6 +46,8 @@ class WGConfig:
         self.fwmark = self.get_field('Interface', 'FwMark')
         self.allowed_ips = self.get_allowed_ips()
         self.public_key = self.generate_wg_pubkey(self.private_key)
+        self.remote_interface: str = None
+        self.remote_local_port: int = None
         self.remote_pubkey: str = self.get_field('Peer', 'PublicKey')
         self.psk = self.get_field('Peer', 'PresharedKey')
         self.has_psk: bool = self.psk is not None
@@ -119,11 +120,13 @@ class WGConfig:
         self.add_script('postup', handshake, first_place=True)
 
     def autoremove_interface(self):
-        running_in_remote = int(CONNECTION_PAIRS[get_ident()].running_in_remote)
-        remove_interface = ('echo -n "Launching autoremove subprocess. " ; systemctl reset-failed autoremove-%i > /dev/null 2>&1 || true ; '
-                            f'systemd-run -u autoremove-%i /bin/sh /run/wirescale/wirescale-autoremove autoremove '
-                            f'%i {self.remote_pubkey} {next(ip for ip in self.remote_addresses)} {running_in_remote} {self.start_time}')
-        self.add_script('postup', remove_interface, first_place=True)
+        pair = CONNECTION_PAIRS[get_ident()]
+        running_in_remote = int(pair.running_in_remote)
+        subprocess.run(['systemctl', 'reset-failed', f'autoremove-{self.interface}'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        systemd = subprocess.run(['systemd-run', '-u', f'autoremove-{self.interface}', '/bin/sh', '/run/wirescale/wirescale-autoremove', 'autoremove',
+                                  self.interface, str(pair.peer_ip), self.remote_pubkey, next(str(ip) for ip in self.remote_addresses), str(running_in_remote), str(self.start_time),
+                                  self.remote_interface, str(self.remote_local_port)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        Messages.send_info_message(local_message=f'Launching autoremove subprocess. {systemd.stdout}')
 
     def autoremove_configfile(self):
         remove_configfile = f'rm -f {self.configfile}'
@@ -159,8 +162,6 @@ class WGConfig:
         new_config.add_section(interface)
         new_config.add_section(peer)
         self.add_iptables()
-        if self.autoremove:
-            self.autoremove_interface()
         self.first_handshake()
         self.autoremove_configfile()
         repeatable_fields = [field for field in self.repeatable_fields if field != allowedips]
@@ -211,6 +212,7 @@ class WGConfig:
         Messages.send_info_message(local_message='Starting tailscale...')
         TSManager.start()
         if wgquick.returncode == 0:
+            self.autoremove_interface()
             wgquick_messages = wgquick.stdout.split('\n')
             systemd_messages = [m for m in wgquick_messages if "running as unit" in m.lower()]
             collections.deque((Messages.send_info_message(local_message=m) for m in systemd_messages), maxlen=0)
@@ -218,15 +220,5 @@ class WGConfig:
         else:
             self.new_config_path.unlink()
             print(ErrorMessages.FINAL_ERROR, file=sys.stderr, flush=True)
-        create_thread(self.wait_tailscale_restarted, pair, stack)
+        create_thread(wait_tailscale_restarted, pair, stack)
         return wgquick
-
-    @staticmethod
-    def wait_tailscale_restarted(pair: ConnectionPair, stack: ExitStack):
-        with stack:
-            print('Waiting for tailscale to be fully operational again. This could take up to 45 seconds...', flush=True)
-            res = TSManager.wait_until_peer_is_online(pair.peer_ip, timeout=45)
-            if not res:
-                print(ErrorMessages.TS_NOT_RECOVERED.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip), file=sys.stderr, flush=True)
-            else:
-                print('Tailscale is fully working again!', flush=True)
