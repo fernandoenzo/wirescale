@@ -22,6 +22,7 @@ from wirescale.communications.tcp_client import TCPClient
 from wirescale.communications.udp_server import UDPServer
 from wirescale.parsers.args import ConnectionPair
 from wirescale.vpn import TSManager
+from wirescale.vpn.recover import RecoverConfig
 
 
 class UnixServer:
@@ -77,11 +78,12 @@ class UnixServer:
                         case ActionCodes.RECOVER:
                             pair = ConnectionPair(caller=TSManager.my_ip(), receiver=IPv4Address(message[MessageFields.PEER_IP]))
                             pair.unix_socket = websocket
-                            enqueueing = Messages.ENQUEUEING_RECOVER.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=message[MessageFields.INTERFACE])
+                            interface = message[MessageFields.INTERFACE]
+                            enqueueing = Messages.ENQUEUEING_RECOVER.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
                             Messages.send_info_message(local_message=enqueueing)
                             with StaticMonitor.synchronized(uid=ActionCodes.UPGRADE):
                                 cls.discard_connections(websocket)
-                                start_processing = Messages.START_PROCESSING_RECOVER.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=message[MessageFields.INTERFACE])
+                                start_processing = Messages.START_PROCESSING_RECOVER.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
                                 Messages.send_info_message(local_message=start_processing)
                                 cls.recover(message)
                 finally:
@@ -123,10 +125,8 @@ class UnixServer:
         pair = CONNECTION_PAIRS[get_ident()]
         interface = message[MessageFields.INTERFACE]
         latest_handshake = message[MessageFields.LATEST_HANDSHAKE]
-        port = message[MessageFields.PORT]
-        remote_interface = message[MessageFields.REMOTE_INTERFACE]
-        remote_port = message[MessageFields.REMOTE_PORT]
-        recover_config = check_recover_config(interface, latest_handshake, port, remote_interface, remote_port)
+        recover = RecoverConfig.create_from_autoremove(interface=interface, latest_handshake=latest_handshake)
+        check_recover_config(recover)
         with file_locker():
-            recover_config.endpoint = TSManager.peer_endpoint(pair.peer_ip)
-        TCPClient.recover(recover=recover_config)
+            recover.endpoint = TSManager.peer_endpoint(pair.peer_ip)
+        TCPClient.recover(recover=recover)

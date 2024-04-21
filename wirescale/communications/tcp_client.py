@@ -55,8 +55,7 @@ class TCPClient:
                             pair.remote_socket.send(json.dumps(TCPMessages.build_go()))
                             wgquick = wgconfig.upgrade()
                             pair.local_socket.send(json.dumps(UnixMessages.build_upgrade_result(wgquick, wgconfig.interface)))
-                            pair.remote_socket.close()
-                            pair.local_socket.close()
+                            pair.close_sockets()
                             sys.exit(wgquick.returncode)
 
     @classmethod
@@ -80,5 +79,9 @@ class TCPClient:
                     match code:
                         case ActionCodes.INFO:
                             Messages.send_info_message(local_message=message[MessageFields.MESSAGE])
-                        case ActionCodes.UPGRADE_RESPONSE:
-                            match_pubkeys(wgconfig, remote_pubkey=message[MessageFields.PUBKEY], my_pubkey=None)
+                        case ActionCodes.RECOVER_RESPONSE:
+                            TCPMessages.process_recover_response(message, recover)
+                            pair.remote_socket.send(json.dumps(TCPMessages.build_go()))
+                            recover.recover()
+                            pair.close_sockets()
+                            sys.exit(0)

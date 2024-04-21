@@ -3,6 +3,7 @@
 
 
 import json
+import os
 import sys
 from enum import auto, IntEnum, StrEnum, unique
 from subprocess import CompletedProcess
@@ -10,8 +11,7 @@ from threading import get_ident
 from typing import TYPE_CHECKING
 
 from wirescale.communications.checkers import check_recover_config
-from wirescale.communications.common import CONNECTION_PAIRS, RawBytesStrConverter
-from wirescale.parsers.validators import check_existing_wg_interface
+from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS
 
 if TYPE_CHECKING:
     from wirescale.vpn.recover import RecoverConfig
@@ -41,6 +41,7 @@ class MessageFields(StrEnum):
     REMOTE_PUBKEY = auto()
     START_TIME = auto()
     SUFFIX = auto()
+    WG_IP = auto()
 
 
 class ActionCodes(IntEnum):
@@ -48,6 +49,7 @@ class ActionCodes(IntEnum):
     GO = auto()
     INFO = auto()
     RECOVER = auto()
+    RECOVER_RESPONSE = auto()
     STOP = auto()
     SUCCESS = auto()
     UPGRADE = auto()
@@ -61,8 +63,7 @@ class ErrorCodes(IntEnum):
     GENERIC = auto()
     HANDSHAKE_MISMATCH = auto()
     INTERFACE_EXISTS = auto()
-    PORT_MISMATCH = auto()
-    WG_INTERFACE_MISSING = auto()
+    TS_UNREACHABLE = auto()
 
 
 class UnixMessages:
@@ -95,16 +96,13 @@ class UnixMessages:
         return res
 
     @staticmethod
-    def build_recover(args) -> dict:
+    def build_recover(recover: 'RecoverConfig') -> dict:
         res = {
             MessageFields.CODE: ActionCodes.RECOVER,
             MessageFields.ERROR_CODE: None,
-            MessageFields.INTERFACE: args.INTERFACE,
-            MessageFields.LATEST_HANDSHAKE: args.LATEST_HANDSHAKE,
-            MessageFields.PEER_IP: str(args.PAIR.peer_ip),
-            MessageFields.PORT: args.PORT,
-            MessageFields.REMOTE_INTERFACE: args.REMOTE_INTERFACE,
-            MessageFields.REMOTE_PORT: args.REMOTE_PORT,
+            MessageFields.INTERFACE: recover.interface,
+            MessageFields.LATEST_HANDSHAKE: recover.latest_handshake,
+            MessageFields.PEER_IP: str(CONNECTION_PAIRS[get_ident()].peer_ip),
         }
         return res
 
@@ -153,13 +151,29 @@ class TCPMessages:
             MessageFields.CODE: ActionCodes.RECOVER,
             MessageFields.ERROR_CODE: None,
             MessageFields.INTERFACE: recover.remote_interface,
-            MessageFields.NONCE: RawBytesStrConverter.raw_bytes_to_str64(recover.nonce),
+            MessageFields.NONCE: BytesStrConverter.raw_bytes_to_str64(recover.nonce),
         }
         encrypted = {
             MessageFields.LATEST_HANDSHAKE: recover.latest_handshake,
             MessageFields.PORT: recover.remote_port,
             MessageFields.REMOTE_INTERFACE: recover.interface,
-            MessageFields.REMOTE_PORT: recover.current_port,
+            MessageFields.REMOTE_PORT: recover.new_port,
+        }
+        encrypted = json.dumps(encrypted)
+        res[MessageFields.ENCRYPTED] = recover.encrypt(encrypted)
+        return res
+
+    @staticmethod
+    def build_recover_response(recover: 'RecoverConfig') -> dict:
+        recover.nonce = os.urandom(12)
+        res = {
+            MessageFields.CODE: ActionCodes.RECOVER_RESPONSE,
+            MessageFields.ERROR_CODE: None,
+            MessageFields.NONCE: BytesStrConverter.raw_bytes_to_str64(recover.nonce),
+        }
+        encrypted = {
+            MessageFields.REMOTE_PORT: recover.new_port,
+            MessageFields.START_TIME: recover.start_time,
         }
         encrypted = json.dumps(encrypted)
         res[MessageFields.ENCRYPTED] = recover.encrypt(encrypted)
@@ -169,27 +183,37 @@ class TCPMessages:
     def process_recover(message: dict) -> 'RecoverConfig':
         pair = CONNECTION_PAIRS[get_ident()]
         interface = message[MessageFields.INTERFACE]
-        try:
-            check_existing_wg_interface(interface)
-        except:
-            error = ErrorMessages.WG_INTERFACE_MISSING.format(interface=interface)
-            error_remote = ErrorMessages.REMOTE_WG_INTERFACE_MISSING.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
-            ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
-        recover = RecoverConfig(interface=interface, latest_handshake=0, current_port=0, remote_interface='', remote_port=0)
-        recover.nonce = RawBytesStrConverter.str64_to_raw_bytes(message[MessageFields.NONCE])
+        latest_handshake = message[MessageFields.LATEST_HANDSHAKE]
+        recover = RecoverConfig.create_from_autoremove(interface=interface, latest_handshake=latest_handshake)
+        recover.nonce = BytesStrConverter.str64_to_raw_bytes(message[MessageFields.NONCE])
         try:
             decrypted = recover.decrypt(data=message[MessageFields.ENCRYPTED])
         except:
             error = ErrorMessages.CANT_DECRYPT.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
-            error_remote = ErrorMessages.REMOTE_CANT_DECRYPT.format(peer_name=pair.my_name, peer_ip=pair.my_ip)
+            error_remote = ErrorMessages.REMOTE_CANT_DECRYPT.format(my_name=pair.my_name, my_ip=pair.my_ip)
             ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
         decrypted = json.loads(decrypted)
         message.update(decrypted)
-        current_port = message[MessageFields.PORT]
-        latest_handshake = message[MessageFields.LATEST_HANDSHAKE]
-        remote_port = message[MessageFields.REMOTE_PORT]
-        remote_interface = message[MessageFields.REMOTE_INTERFACE]
-        return check_recover_config(interface, latest_handshake, current_port, remote_interface, remote_port)
+        recover.current_port = message[MessageFields.PORT]
+        recover.remote_port = message[MessageFields.REMOTE_PORT]
+        recover.remote_interface = message[MessageFields.REMOTE_INTERFACE]
+        check_recover_config(recover)
+        return recover
+
+    @staticmethod
+    def process_recover_response(message: dict, recover: 'RecoverConfig'):
+        pair = CONNECTION_PAIRS[get_ident()]
+        recover.nonce = BytesStrConverter.str64_to_raw_bytes(message[MessageFields.NONCE])
+        try:
+            decrypted = recover.decrypt(data=message[MessageFields.ENCRYPTED])
+        except:
+            error = ErrorMessages.CANT_DECRYPT.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+            error_remote = ErrorMessages.REMOTE_CANT_DECRYPT.format(my_name=pair.my_name, my_ip=pair.my_ip)
+            ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
+        decrypted = json.loads(decrypted)
+        message.update(decrypted)
+        recover.remote_port = message[MessageFields.REMOTE_PORT]
+        recover.start_time = message[MessageFields.START_TIME]
 
 
 class Messages:
@@ -211,24 +235,26 @@ class Messages:
     SUCCESS = "Success! Now you have a new working P2P connection through interface '{interface}'"
 
     @staticmethod
-    def build_info_message(info_message: str) -> dict:
+    def build_info_message(info_message: str, code: ActionCodes = ActionCodes.INFO) -> dict:
         res = {
-            MessageFields.CODE: ActionCodes.INFO,
+            MessageFields.CODE: code,
             MessageFields.ERROR_CODE: None,
             MessageFields.MESSAGE: info_message
         }
         return res
 
     @classmethod
-    def send_info_message(cls, local_message: str, remote_message: str = None):
-        pair = CONNECTION_PAIRS[get_ident()]
-        print(local_message, flush=True)
-        if pair.local_socket is not None:
-            local_message = cls.build_info_message(local_message)
-            pair.local_socket.send(json.dumps(local_message))
-        if remote_message is not None:
-            remote_message = cls.build_info_message(remote_message)
-            pair.remote_socket.send(json.dumps(remote_message))
+    def send_info_message(cls, local_message: str, remote_message: str = None, code: ActionCodes = ActionCodes.INFO, always_send_to_remote: bool = True):
+        pair = CONNECTION_PAIRS.get(get_ident())
+        if local_message is not None:
+            print(local_message, flush=True)
+        if pair is not None:
+            if pair.local_socket is not None and local_message is not None:
+                local_message = cls.build_info_message(local_message, code)
+                pair.local_socket.send(json.dumps(local_message))
+            if pair.remote_socket is not None and remote_message is not None and (always_send_to_remote or pair.running_in_remote):
+                remote_message = cls.build_info_message(remote_message, code)
+                pair.remote_socket.send(json.dumps(remote_message))
 
 
 class ErrorMessages:
@@ -236,18 +262,21 @@ class ErrorMessages:
     BAD_FORMAT_PRIVKEY = "Error: The private key has not the correct length or format in file '{config_file}'"
     BAD_FORMAT_PSK = "Error: The pre-shared key has not the correct length or format in file '{config_file}'"
     BAD_FORMAT_PUBKEY = "Error: The public key has not the correct length or format in file '{config_file}'"
-    CANT_DECRYPT = "Error: Couldn't decrypt the recover message sent by remote peer '{my_name}' ({my_ip})"
+    CANT_DECRYPT = "Error: Couldn't decrypt the recover message sent by remote peer '{peer_name}' ({peer_ip})"
     CLOSED = 'Error: Wirescale is shutting down and is no longer accepting new requests'
     FINAL_ERROR = 'Something went wrong and, finally, it was not possible to establish the P2P connection'
     HANDSHAKE_FAILED = "Handshake with interface '{interface}' failed after changing its endpoint. Interface will be removed"
     INTERFACE_EXISTS = "Error: A network interface '{interface}' already exists and Wirescale was started with the --no-suffix option"
-    LATEST_HANDSHAKE_MISMATCH = "Error: The latest handshake of interface '{interface}' has been updated since the recover request was made. Discarding request."
+    IP_MISMATCH = "Error: Remote peer '{peer_name}' ({peer_ip}) IP address mismatch with the 'autoremove-{interface}' systemd unit's registered IP ({autoremove_ip})"
+    LATEST_HANDSHAKE_MISMATCH = "Error: The latest handshake of interface '{interface}' has been updated since the recover request was made. Discarding request"
     MISSING_ADDRESS = "Error: 'Address' option missing in 'Interface' section of file '{config_file}'"
     MISSING_ALLOWEDIPS = "Error: 'AllowedIPs' option missing in 'Peer' section of file '{config_file}'"
-    PORT_MISMATCH = "Error: WireGuard interface '{interface}' is not listening on supplied port {port}"
+    MISSING_AUTOREMOVE = "Error: systemd unit 'autoremove-{interface}' is not active"
+    PORT_MISMATCH = "Error: WireGuard interface '{interface}' is not listening on port {port}"
     PSK_MISMATCH = ("Error: Peer '{name_without_psk}' ({ip_without_psk}) does not have a pre-shared key for '{name_with_psk}' ({ip_with_psk}), but '{name_with_psk}' has one configured for "
                     "'{name_without_psk}'. Ensure key consistency.")
     PUBKEY_MISMATCH = "Error: The public key provided by '{sender_name}' ({sender_ip}) is inconsistent with the one that '{receiver_name}' ({receiver_ip}) has on record for this peer."
+    RECOVER_SYSTEMD = "Error: The 'recover' option can only be invoked by the Wirescale shell script"
     REMOTE_BAD_FORMAT_PRIVKEY = "Error: The private key has not the correct length or format in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'"
     REMOTE_BAD_FORMAT_PSK = "Error: The pre-shared key has not the correct length or format in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'"
     REMOTE_BAD_FORMAT_PUBKEY = "Error: The public key has not the correct length or format in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'"
@@ -256,13 +285,15 @@ class ErrorMessages:
     REMOTE_CONFIG_ERROR = "Error: Remote peer '{my_name}' ({my_ip}) has a syntax error in its configuration file for '{peer_name}'"
     REMOTE_CONFIG_PATH_ERROR = "Error: Remote peer '{my_name}' ({my_ip}) cannot locate a configuration file for '{peer_name}'"
     REMOTE_INTERFACE_EXISTS = "Error: A network interface '{interface}' already exists on peer '{my_name}' ({my_ip}) and its Wirescale was started with the --no-suffix option"
+    REMOTE_IP_MISMATCH = "Error: Remote peer '{my_name}' ({my_ip}) has registered a different IP address in its 'autoremove-{interface}' systemd unit than ours ({peer_ip})"
     REMOTE_LATEST_HANDSHAKE_MISMATCH = ("Error: The latest handshake of remote interface '{interface}' from remote peer '{my_name}' ({my_ip}) has been updated since the recover "
                                         "request was made. Discarding request.")
     REMOTE_MISSING_ADDRESS = "Error: 'Address' option missing in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'"
     REMOTE_MISSING_ALLOWEDIPS = "Error: 'AllowedIPs' option missing in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'"
+    REMOTE_MISSING_AUTOREMOVE = "Error: systemd unit 'autoremove-{interface}' is not active in remote peer '{my_name}' ({my_ip})"
     REMOTE_MISSING_WIRESCALE = "Error: Remote peer '{peer_name}' ({peer_ip}) does not have Wirescale running"
     REMOTE_PORT_MISMATCH = "Error: WireGuard interface '{interface}' is not listening on local port {port} in remote peer '{peer_name}' ({peer_ip})"
-    REMOTE_RUNFILE_MISSING = "Error: File '/run/wirescale/{interface}.conf' does not exist or is not a regular file in remote peer '{peer_name}' ({peer_ip})"
+    REMOTE_RUNFILE_MISSING = "Error: File '/run/wirescale/{interface}.conf' does not exist or is not a regular file in remote peer '{my_name}' ({my_ip})"
     REMOTE_TAILSCALED_STOPPED = "Error: Tailscaled service is not running in remote peer `{peer_name}` ({peer_ip})"
     REMOTE_WG_INTERFACE_MISSING = "Error: Remote peer '{peer_name}' ({peer_ip}) does not have a WireGuard interface named '{interface}'"
     RUNFILE_MISSING = "Error: File '/run/wirescale/{interface}.conf' does not exist or is not a regular file"
@@ -302,9 +333,6 @@ class ErrorMessages:
             if pair.remote_socket is not None and remote_message is not None and (always_send_to_remote or pair.running_in_remote):
                 remote_message = cls.build_error_message(remote_message, error_code)
                 pair.remote_socket.send(json.dumps(remote_message))
-            if pair.local_socket is not None:
-                pair.local_socket.close()
-            if pair.remote_socket is not None:
-                pair.remote_socket.close()
+            pair.close_sockets()
         if exit_code is not None:
             sys.exit(exit_code)

@@ -10,7 +10,6 @@ from threading import get_ident
 
 from wirescale.communications.common import CONNECTION_PAIRS
 from wirescale.communications.messages import ErrorCodes, ErrorMessages
-from wirescale.parsers.validators import get_latest_handshake, match_interface_port
 from wirescale.vpn.recover import RecoverConfig
 from wirescale.vpn.wgconfig import WGConfig
 
@@ -54,31 +53,21 @@ def check_configfile(config: str) -> Path:
     ErrorMessages.send_error_message(local_message=error, remote_message=remote_error, error_code=ErrorCodes.CONFIG_PATH_ERROR, always_send_to_remote=False)
 
 
-def check_recover_config(interface: str, latest_handshake: int, port: int, remote_interface: str, remote_port: int) -> RecoverConfig:
+def check_recover_config(recover: RecoverConfig):
     pair = CONNECTION_PAIRS[get_ident()]
-    try:
-        handshake = get_latest_handshake(interface)
-        if handshake != latest_handshake:
-            error = ErrorMessages.LATEST_HANDSHAKE_MISMATCH.format(interface=interface)
-            error_remote = ErrorMessages.REMOTE_LATEST_HANDSHAKE_MISMATCH.format(peer_name=pair.my_name, peer_ip=pair.my_ip, interface=interface)
-            ErrorMessages.send_error_message(local_message=error, remote_message=error_remote, error_code=ErrorCodes.HANDSHAKE_MISMATCH, exit_code=2)
-    except:
-        error = ErrorMessages.WG_INTERFACE_MISSING.format(interface=interface)
-        error_remote = ErrorMessages.REMOTE_WG_INTERFACE_MISSING.format(peer_name=pair.my_name, peer_ip=pair.my_ip, interface=interface)
-        ErrorMessages.send_error_message(local_message=error, remote_message=error_remote, error_code=ErrorCodes.WG_INTERFACE_MISSING)
-    try:
-        match_interface_port(interface, port)
-    except:
-        error = ErrorMessages.PORT_MISMATCH.format(interface=interface, port=port)
-        error_remote = ErrorMessages.REMOTE_PORT_MISMATCH.format(peer_name=pair.my_name, peer_ip=pair.my_ip, interface=interface, port=port)
-        ErrorMessages.send_error_message(local_message=error, remote_message=error_remote, error_code=ErrorCodes.PORT_MISMATCH)
-    runfile = Path(f'/run/wirescale/{interface}.conf')
-    if not runfile.exists() or runfile.is_file():
-        error = ErrorMessages.RUNFILE_MISSING.format(interface=interface)
-        error_remote = ErrorMessages.REMOTE_RUNFILE_MISSING.format(peer_name=pair.my_name, peer_ip=pair.my_ip, interface=interface)
+    if recover.latest_handshake != get_latest_handshake(recover.interface):
+        error = ErrorMessages.LATEST_HANDSHAKE_MISMATCH.format(interface=recover.interface)
+        error_remote = ErrorMessages.REMOTE_LATEST_HANDSHAKE_MISMATCH.format(my_name=pair.my_name, my_ip=pair.my_ip, interface=recover.interface)
+        ErrorMessages.send_error_message(local_message=error, remote_message=error_remote, error_code=ErrorCodes.HANDSHAKE_MISMATCH, exit_code=3)
+    if not match_interface_port(recover.interface, recover.current_port):
+        error = ErrorMessages.PORT_MISMATCH.format(interface=recover.interface, port=recover.current_port)
+        error_remote = ErrorMessages.REMOTE_PORT_MISMATCH.format(peer_name=pair.my_name, peer_ip=pair.my_ip, interface=recover.interface, port=recover.current_port)
         ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
-    res = RecoverConfig(interface, latest_handshake, port, remote_interface, remote_port)
-    return res
+    runfile = Path(f'/run/wirescale/{recover.interface}.conf')
+    if not runfile.exists() or not runfile.is_file():
+        error = ErrorMessages.RUNFILE_MISSING.format(interface=recover.interface)
+        error_remote = ErrorMessages.REMOTE_RUNFILE_MISSING.format(my_name=pair.my_name, my_ip=pair.my_ip, interface=recover.interface)
+        ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
 
 
 def check_wgconfig(config: Path, inteface: str) -> WGConfig:
@@ -175,3 +164,27 @@ def check_addresses_in_allowedips(wgconfig: WGConfig):
     pair = CONNECTION_PAIRS[get_ident()]
     error = ErrorMessages.ALLOWED_IPS_MISMATCH.format(my_name=pair.my_name, my_ip=pair.my_ip, sender_name=pair.peer_name, sender_ip=pair.peer_ip)
     ErrorMessages.send_error_message(local_message=error, remote_message=error)
+
+
+def match_interface_port(interface: str, port: int) -> bool:
+    pair = CONNECTION_PAIRS[get_ident()]
+    try:
+        real_port = int(subprocess.run(['wg', 'show', interface, 'listen-port'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True).stdout.strip())
+        return real_port == port
+    except:
+        error = ErrorMessages.WG_INTERFACE_MISSING.format(interface=interface)
+        remote_error = ErrorMessages.REMOTE_WG_INTERFACE_MISSING.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
+        ErrorMessages.send_error_message(local_message=error, remote_message=remote_error)
+
+
+def get_latest_handshake(interface: str) -> int:
+    pair = CONNECTION_PAIRS.get(get_ident())
+    try:
+        handshake = subprocess.run(['wg', 'show', interface, 'latest-handshakes'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True).stdout.strip()
+        return int(handshake.split('\n')[0].split('\t')[1])
+    except:
+        error = ErrorMessages.WG_INTERFACE_MISSING.format(interface=interface)
+        remote_error = None
+        if pair is not None:
+            remote_error = ErrorMessages.REMOTE_WG_INTERFACE_MISSING.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
+        ErrorMessages.send_error_message(local_message=error, remote_message=remote_error)

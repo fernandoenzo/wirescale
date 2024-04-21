@@ -4,6 +4,7 @@
 import base64
 import collections
 import fcntl
+import sys
 from contextlib import contextmanager, ExitStack
 from pathlib import Path
 from subprocess import CompletedProcess, run
@@ -11,11 +12,10 @@ from tempfile import TemporaryFile
 from threading import Event
 from typing import Dict, TYPE_CHECKING
 
-from wirescale.communications import ErrorMessages
-from wirescale.vpn import TSManager
-
 if TYPE_CHECKING:
+    from wirescale.communications import ErrorMessages
     from wirescale.parsers.args import ConnectionPair
+    from wirescale.vpn import TSManager
 
 SHUTDOWN = Event()
 TCP_PORT = 41642
@@ -35,7 +35,7 @@ def subprocess_run_tmpfile(*args, **kwargs) -> CompletedProcess[str]:
     return p
 
 
-class RawBytesStrConverter:
+class BytesStrConverter:
 
     @classmethod
     def raw_bytes_to_str64(cls, data: bytes) -> str:
@@ -67,7 +67,7 @@ def file_locker():
         lockfile.close()
 
 
-def wait_tailscale_restarted(pair: ConnectionPair, stack: ExitStack):
+def wait_tailscale_restarted(pair: 'ConnectionPair', stack: ExitStack):
     with stack:
         print('Waiting for tailscale to be fully operational again. This could take up to 45 seconds...', flush=True)
         res = TSManager.wait_until_peer_is_online(pair.peer_ip, timeout=45)

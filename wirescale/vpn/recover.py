@@ -8,6 +8,7 @@ import re
 import subprocess
 import time
 from contextlib import ExitStack
+from datetime import datetime
 from ipaddress import IPv4Address
 from pathlib import Path
 from threading import get_ident
@@ -20,20 +21,22 @@ from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from parallel_utils.thread import create_thread
 
-from wirescale.communications import CONNECTION_PAIRS, ErrorMessages, Messages, RawBytesStrConverter
+from wirescale.communications import ActionCodes, BytesStrConverter, check_recover_config, CONNECTION_PAIRS, ErrorMessages, Messages
+from wirescale.communications.checkers import get_latest_handshake
 from wirescale.communications.common import file_locker, wait_tailscale_restarted
-from wirescale.parsers.validators import get_latest_handshake
+from wirescale.parsers.args import ConnectionPair
 from wirescale.vpn import TSManager
 
 
 class RecoverConfig:
 
-    def __init__(self, interface: str, latest_handshake: int, current_port: int, remote_interface: str, remote_port: int):
+    def __init__(self, interface: str, is_remote: int, latest_handshake: int, current_port: int, remote_interface: str, remote_port: int, wg_ip: IPv4Address):
         self.current_port: int = current_port
         self.derived_key: bytes = None
         self.endpoint: Tuple[IPv4Address, int] = None
         self.chacha: ChaCha20Poly1305 = None
         self.interface: str = interface
+        self.is_remote: int = is_remote
         self.latest_handshake: int = latest_handshake
         self.nonce: bytes = os.urandom(12)
         self.new_port: int = TSManager.local_port()
@@ -44,7 +47,33 @@ class RecoverConfig:
         self.runfile = Path(f'/run/wirescale/{interface}.conf')
         self.psk: bytes = None
         self.shared_key: bytes = None
-        self.load_keys()
+        self.start_time: int = datetime.now().second
+        self.wg_ip: IPv4Address = wg_ip
+
+    @classmethod
+    def create_from_autoremove(cls, interface: str, latest_handshake: int):
+        pair = CONNECTION_PAIRS.get(get_ident())
+        exec_start = subprocess.run(['systemctl', 'show', '-p', 'ExecStart', f'autoremove-{interface}'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True).stdout.strip()
+        if not exec_start:
+            error = ErrorMessages.MISSING_AUTOREMOVE.format(interface=interface)
+            error_remote = None
+            if pair is not None:
+                error_remote = ErrorMessages.REMOTE_MISSING_AUTOREMOVE.format(my_name=pair.my_name, my_ip=pair.my_ip, interface=interface)
+            ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
+        args = re.search(r'(\sautoremove.*?);', exec_start).group(1).strip().split()
+        autoremove_ip_receiver = IPv4Address(args[2])
+        pair = pair or ConnectionPair(caller=TSManager.my_ip(), receiver=autoremove_ip_receiver)
+        if autoremove_ip_receiver != pair.peer_ip:
+            error = ErrorMessages.IP_MISMATCH.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface, autoremove_ip=autoremove_ip_receiver)
+            error_remote = ErrorMessages.REMOTE_IP_MISMATCH.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_ip=pair.peer_ip, interface=interface)
+            ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
+        recover = RecoverConfig(interface=interface, latest_handshake=latest_handshake, is_remote=args[5], wg_ip=IPv4Address(args[4]), current_port=int(args[7]), remote_interface=args[8],
+                                remote_port=int(args[9]))
+        check_recover_config(recover)
+        recover.load_keys()
+        with file_locker():
+            recover.endpoint = TSManager.peer_endpoint(pair.peer_ip)
+        return recover
 
     def fix_iptables(self):
         iptables = 'iptables -{action} INPUT -p udp --dport {port} -j ACCEPT'
@@ -68,8 +97,8 @@ class RecoverConfig:
             f.write(text)
 
     def load_keys(self):
-        privkey = subprocess.run(['wg', 'show', self.interface, 'private-key'], capture_output=True, encoding='utf-8', text=True).stdout.strip()
-        pubkey_psk = subprocess.run(['wg', 'show', self.interface, 'preshared-keys'], capture_output=True, encoding='utf-8', text=True).stdout.strip()
+        privkey = subprocess.run(['wg', 'show', self.interface, 'private-key'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='utf-8').stdout.strip()
+        pubkey_psk = subprocess.run(['wg', 'show', self.interface, 'preshared-keys'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='utf-8').stdout.strip()
         pubkey, psk = pubkey_psk.split('\n')[0].split('\t')
         privkey = base64.urlsafe_b64decode(privkey)
         pubkey = base64.urlsafe_b64decode(pubkey)
@@ -81,15 +110,15 @@ class RecoverConfig:
         self.chacha = ChaCha20Poly1305(self.derived_key)
 
     def encrypt(self, data: str) -> str:
-        data = RawBytesStrConverter.str_to_bytes(data)
+        data = BytesStrConverter.str_to_bytes(data)
         encrypted = self.chacha.encrypt(nonce=self.nonce, data=data, associated_data=None)
-        encrypted = RawBytesStrConverter.raw_bytes_to_str64(encrypted)
+        encrypted = BytesStrConverter.raw_bytes_to_str64(encrypted)
         return encrypted
 
     def decrypt(self, data: str) -> str:
-        data = RawBytesStrConverter.str64_to_raw_bytes(data)
+        data = BytesStrConverter.str64_to_raw_bytes(data)
         decrypted = self.chacha.decrypt(nonce=self.nonce, data=data, associated_data=None)
-        decrypted = RawBytesStrConverter.bytes_to_str(decrypted)
+        decrypted = BytesStrConverter.bytes_to_str(decrypted)
         return decrypted
 
     def check_updated_handshake(self, timeout: int = 10) -> bool:
@@ -100,7 +129,7 @@ class RecoverConfig:
             sleep(0.5)
         return False
 
-    def recover(self) -> bool:
+    def recover(self):
         self.modify_wgconfig()
         self.fix_iptables()
         pair = CONNECTION_PAIRS[get_ident()]
@@ -119,18 +148,16 @@ class RecoverConfig:
         if not updated:
             error = ErrorMessages.HANDSHAKE_FAILED.format(interface=self.interface)
             ErrorMessages.send_error_message(local_message=error)
-        create_thread(self.autoremove_interface)
-        # Subprocess run systemd con el nuevo endpoint
-        # IMPORTANTE
-        # IMPORTANTE
-        # IMPORTANTE
-        return updated
+        if pair.running_in_remote:
+            subprocess.run(['systemctl', 'stop', f'autoremove-{self.interface}.service'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        success_message = Messages.RECOVER_SUCCES.format(interface=self.interface)
+        Messages.send_info_message(local_message=success_message, code=ActionCodes.SUCCESS)
+        create_thread(self.autoremove_interface, pair)
 
-    def autoremove_interface(self):
-        pair = CONNECTION_PAIRS[get_ident()]
-        running_in_remote = int(pair.running_in_remote)
+    def autoremove_interface(self, pair: ConnectionPair):
+        sleep(20)
         subprocess.run(['systemctl', 'reset-failed', f'autoremove-{self.interface}'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         systemd = subprocess.run(['systemd-run', '-u', f'autoremove-{self.interface}', '/bin/sh', '/run/wirescale/wirescale-autoremove', 'autoremove',
-                                  self.interface, str(pair.peer_ip), self.remote_pubkey, next(str(ip) for ip in self.remote_addresses), str(running_in_remote), str(self.start_time),
-                                  self.remote_interface, str(self.remote_local_port)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-        Messages.send_info_message(local_message=f'Launching autoremove subprocess. {systemd.stdout}')
+                                  self.interface, str(pair.peer_ip), self.remote_pubkey, self.wg_ip, str(self.is_remote), str(self.start_time),
+                                  int(self.new_port), self.remote_interface, str(self.remote_port)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        Messages.send_info_message(local_message=f'Launching autoremove subprocess. {systemd.stdout.strip()}')

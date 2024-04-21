@@ -12,7 +12,8 @@ from websockets.sync.client import ClientConnection, unix_connect
 from wirescale.communications import ActionCodes, ErrorCodes, ErrorMessages, MessageFields, Messages, UnixMessages
 from wirescale.communications.common import SOCKET_PATH
 from wirescale.parsers import ARGS, upgrade_subparser
-from wirescale.parsers.parsers import config_argument, interface_recover_argument, interface_upgrade_argument, port_argument, recover_subparser
+from wirescale.parsers.parsers import config_argument, interface_argument
+from wirescale.vpn.recover import RecoverConfig
 
 
 class UnixClient:
@@ -58,7 +59,7 @@ class UnixClient:
                     error = message[MessageFields.ERROR_MESSAGE]
                     match error_code:
                         case ErrorCodes.INTERFACE_EXISTS:
-                            upgrade_subparser.error(str(ArgumentError(interface_upgrade_argument, error)))
+                            upgrade_subparser.error(str(ArgumentError(interface_argument, error)))
                         case ErrorCodes.CONFIG_PATH_ERROR:
                             upgrade_subparser.error(str(ArgumentError(config_argument, error)))
                         case ErrorCodes.FINAL_ERROR:
@@ -79,9 +80,10 @@ class UnixClient:
 
     @classmethod
     def recover(cls):
+        recover = RecoverConfig.create_from_autoremove(interface=ARGS.INTERFACE, latest_handshake=ARGS.LATEST_HANDSHAKE)
         cls.connect()
         with cls.CLIENT:
-            message: dict = UnixMessages.build_recover(ARGS)
+            message: dict = UnixMessages.build_recover(recover)
             cls.CLIENT.send(json.dumps(message))
             for message in cls.CLIENT:
                 message = json.loads(message)
@@ -89,10 +91,12 @@ class UnixClient:
                     cls.CLIENT.close()
                     error = message[MessageFields.ERROR_MESSAGE]
                     match error_code:
-                        case ErrorCodes.WG_INTERFACE_MISSING:
-                            recover_subparser.error(str(ArgumentError(interface_recover_argument, error)))
-                        case ErrorCodes.PORT_MISMATCH:
-                            recover_subparser.error(str(ArgumentError(port_argument, error)))
+                        case ErrorCodes.TS_UNREACHABLE:
+                            print(error, file=sys.stderr, flush=True)
+                            sys.exit(2)
+                        case ErrorCodes.HANDSHAKE_MISMATCH:
+                            print(error, file=sys.stderr, flush=True)
+                            sys.exit(3)
                         case _:
                             print(error, file=sys.stderr, flush=True)
                             sys.exit(1)
@@ -101,6 +105,6 @@ class UnixClient:
                         case ActionCodes.INFO:
                             print(message[MessageFields.MESSAGE], flush=True)
                         case ActionCodes.SUCCESS:
-                            print(Messages.RECOVER_SUCCES.format(interface=ARGS.INTERFACE), flush=True)
+                            print(message[MessageFields.MESSAGE], flush=True)
                             cls.CLIENT.close()
                             sys.exit(0)

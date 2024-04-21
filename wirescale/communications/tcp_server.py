@@ -88,7 +88,7 @@ class TCPServer:
             message = json.loads(message)
             if message[MessageFields.ERROR_CODE]:
                 print(message[MessageFields.ERROR_MESSAGE], file=sys.stderr, flush=True)
-                pair.remote_socket.close()
+                pair.close_sockets()
                 sys.exit(1)
             elif code := message[MessageFields.CODE]:
                 match code:
@@ -96,16 +96,26 @@ class TCPServer:
                         print(message[MessageFields.MESSAGE], flush=True)
                     case ActionCodes.GO:
                         wgquick = wgconfig.upgrade()
-                        pair.remote_socket.close()
+                        pair.close_sockets()
                         sys.exit(wgquick.returncode)
 
     @classmethod
     def recover(cls, message: dict):
         pair = CONNECTION_PAIRS[get_ident()]
         recover = TCPMessages.process_recover(message)
-        with file_locker():
-            recover.endpoint = TSManager.peer_endpoint(pair.peer_ip)
-        pair.remote_socket.send(json.dumps(TCPMessages.build_go()))
-        recover.recover()
-        pair.remote_socket.close()
-        sys.exit(0)
+        recover_response = TCPMessages.build_recover_response(recover)
+        pair.remote_socket.send(json.dumps(recover_response))
+        for message in pair.remote_socket:
+            message = json.loads(message)
+            if message[MessageFields.ERROR_CODE]:
+                print(message[MessageFields.ERROR_MESSAGE], file=sys.stderr, flush=True)
+                pair.close_sockets()
+                sys.exit(1)
+            elif code := message[MessageFields.CODE]:
+                match code:
+                    case ActionCodes.INFO:
+                        print(message[MessageFields.MESSAGE], flush=True)
+                    case ActionCodes.GO:
+                        recover.recover()
+                        pair.close_sockets()
+                        sys.exit(0)

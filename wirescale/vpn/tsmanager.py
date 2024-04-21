@@ -10,12 +10,11 @@ import sys
 import time
 from functools import lru_cache
 from ipaddress import IPv4Address
-from subprocess import DEVNULL
 from threading import get_ident
 from time import sleep
 from typing import Dict, Tuple
 
-from wirescale.communications import CONNECTION_PAIRS, Messages
+from wirescale.communications import CONNECTION_PAIRS, ErrorCodes, Messages
 from wirescale.communications.messages import ErrorMessages
 
 
@@ -38,7 +37,7 @@ class TSManager:
 
     @staticmethod
     def service_is_running() -> bool:
-        is_active = subprocess.run(['systemctl', 'is-active', 'tailscaled.service'], stdout=DEVNULL, stderr=DEVNULL)
+        is_active = subprocess.run(['systemctl', 'is-active', 'tailscaled.service'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return is_active.returncode == 0
 
     @classmethod
@@ -117,7 +116,7 @@ class TSManager:
     def peer_is_online(cls, ip: IPv4Address) -> bool:
         # if not cls.peer(ip)['Online']:
         #     return False
-        check_ping = subprocess.run(['tailscale', 'ping', '-c', '3', '--until-direct=false', '--timeout', '3s', str(ip)], stdout=DEVNULL, stderr=DEVNULL, text=True)
+        check_ping = subprocess.run(['tailscale', 'ping', '-c', '3', '--until-direct=false', '--timeout', '3s', str(ip)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, text=True)
         return check_ping.returncode == 0
 
     @classmethod
@@ -127,7 +126,7 @@ class TSManager:
         while ts_recovered != 0:
             if timeout is not None and time.time() - start_time > timeout:
                 break
-            ts_recovered = subprocess.run(['tailscale', 'ping', '-c', '1', '--until-direct=false', str(ip)], stdout=DEVNULL, stderr=DEVNULL, text=True).returncode
+            ts_recovered = subprocess.run(['tailscale', 'ping', '-c', '1', '--until-direct=false', str(ip)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, text=True).returncode
             sleep(0.5)
         return ts_recovered == 0
 
@@ -139,11 +138,11 @@ class TSManager:
         print(Messages.CHECKING_ENDPOINT.format(peer_name=peer_name, peer_ip=ip), flush=True)
         if not cls.peer_is_online(ip):
             peer_is_offline = ErrorMessages.TS_PEER_OFFLINE.format(peer_name=peer_name, peer_ip=ip)
-            ErrorMessages.send_error_message(local_message=peer_is_offline)
+            ErrorMessages.send_error_message(local_message=peer_is_offline, error_code=ErrorCodes.TS_UNREACHABLE, exit_code=2)
         force_endpoint = subprocess.run(['tailscale', 'ping', '-c', '30', str(ip)], capture_output=True, text=True)
         if force_endpoint.returncode != 0:
             no_endpoint = ErrorMessages.TS_NO_ENDPOINT.format(peer_name=peer_name, peer_ip=ip)
-            ErrorMessages.send_error_message(local_message=no_endpoint)
+            ErrorMessages.send_error_message(local_message=no_endpoint, error_code=ErrorCodes.TS_UNREACHABLE, exit_code=2)
         else:
             print(Messages.REACHABLE.format(peer_name=peer_name, peer_ip=ip), flush=True)
             endpoint = force_endpoint.stdout.split()[-3]

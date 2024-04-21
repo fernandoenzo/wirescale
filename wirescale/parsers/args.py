@@ -10,9 +10,9 @@ from threading import get_ident
 from websockets.sync.client import ClientConnection
 from websockets.sync.server import ServerConnection
 
+from wirescale.communications.checkers import get_latest_handshake
 from wirescale.communications.common import CONNECTION_PAIRS, file_locker
 from wirescale.parsers.parsers import top_parser
-from wirescale.parsers.validators import get_latest_handshake, match_interface_port
 
 
 class ConnectionPair:
@@ -24,6 +24,12 @@ class ConnectionPair:
         self.tcp_socket: ClientConnection | ServerConnection = None
         self.unix_socket: ServerConnection = None
         CONNECTION_PAIRS[get_ident()] = self
+
+    def close_sockets(self):
+        if self.local_socket is not None:
+            self.local_socket.close()
+        if self.remote_socket is not None:
+            self.remote_socket.close()
 
     @cached_property
     def my_ip(self) -> IPv4Address:
@@ -79,8 +85,6 @@ class ARGS:
     PAIR: ConnectionPair = None
     PORT: int = None
     RECOVER: bool = None
-    REMOTE_INTERFACE: str = None
-    REMOTE_PORT: int = None
     START: bool = None
     STOP: bool = None
     SUFFIX: bool = None
@@ -104,13 +108,7 @@ def parse_args():
         ARGS.CONFIGFILE = args.get('config') if args.get('config') is not None and args.get('config').split() else f'/etc/wirescale/{ARGS.PAIR.peer_name}.conf'
         ARGS.INTERFACE = args.get('interface') or ARGS.PAIR.peer_name
     if ARGS.RECOVER:
-        peer_ip = args.get('peer')
-        ARGS.PAIR = ConnectionPair(caller=TSManager.my_ip(), receiver=peer_ip)
         ARGS.INTERFACE = args.get('interface')
         ARGS.LATEST_HANDSHAKE = get_latest_handshake(ARGS.INTERFACE)
-        ARGS.PORT = args.get('port')
-        ARGS.REMOTE_INTERFACE = args.get('remote_interface')
-        ARGS.REMOTE_PORT = args.get('remote_port')
-        match_interface_port(ARGS.INTERFACE, ARGS.PORT)
     elif ARGS.DOWN:
         ARGS.CONFIGFILE = args.get('interface')
