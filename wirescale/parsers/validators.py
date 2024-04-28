@@ -8,9 +8,9 @@ from argparse import ArgumentTypeError
 from ipaddress import IPv4Address
 from pathlib import Path
 
-from wirescale.communications import ErrorMessages
 from wirescale.communications.common import file_locker
-from wirescale.vpn import TSManager
+from wirescale.communications.messages import ErrorMessages
+from wirescale.vpn.tsmanager import TSManager
 
 
 def check_peer(value) -> IPv4Address:

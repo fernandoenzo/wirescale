@@ -8,14 +8,18 @@ import re
 import subprocess
 import sys
 import time
+from contextlib import ExitStack
 from functools import lru_cache
 from ipaddress import IPv4Address
 from threading import get_ident
 from time import sleep
-from typing import Dict, Tuple
+from typing import Dict, Tuple, TYPE_CHECKING
 
-from wirescale.communications import CONNECTION_PAIRS, ErrorCodes, Messages
-from wirescale.communications.messages import ErrorMessages
+from wirescale.communications.common import CONNECTION_PAIRS
+from wirescale.communications.messages import ErrorCodes, ErrorMessages, Messages
+
+if TYPE_CHECKING:
+    from wirescale.parsers.args import ConnectionPair
 
 
 class TSManager:
@@ -129,6 +133,16 @@ class TSManager:
             ts_recovered = subprocess.run(['tailscale', 'ping', '-c', '1', '--until-direct=false', str(ip)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, text=True).returncode
             sleep(0.5)
         return ts_recovered == 0
+
+    @classmethod
+    def wait_tailscale_restarted(cls, pair: 'ConnectionPair', stack: ExitStack):
+        with stack:
+            print('Waiting for tailscale to be fully operational again. This could take up to 45 seconds...', flush=True)
+            res = cls.wait_until_peer_is_online(pair.peer_ip, timeout=45)
+            if not res:
+                print(ErrorMessages.TS_NOT_RECOVERED.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip), file=sys.stderr, flush=True)
+            else:
+                print('Tailscale is fully working again!', flush=True)
 
     @classmethod
     def peer_endpoint(cls, ip: IPv4Address) -> Tuple[IPv4Address, int]:

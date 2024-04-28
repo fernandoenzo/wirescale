@@ -6,7 +6,7 @@ import sys
 from socket import AF_INET, SOCK_DGRAM, socket
 from time import sleep
 
-from wirescale.vpn import TSManager
+from wirescale.vpn.tsmanager import TSManager
 
 
 class UDPServer:

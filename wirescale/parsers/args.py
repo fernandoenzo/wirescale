@@ -12,7 +12,8 @@ from websockets.sync.server import ServerConnection
 
 from wirescale.communications.checkers import get_latest_handshake
 from wirescale.communications.common import CONNECTION_PAIRS, file_locker
-from wirescale.parsers.parsers import top_parser
+from wirescale.parsers import top_parser
+from wirescale.vpn.tsmanager import TSManager
 
 
 class ConnectionPair:
@@ -33,12 +34,10 @@ class ConnectionPair:
 
     @cached_property
     def my_ip(self) -> IPv4Address:
-        from wirescale.vpn import TSManager
         return TSManager.my_ip()
 
     @cached_property
     def my_name(self) -> str:
-        from wirescale.vpn import TSManager
         return TSManager.my_name()
 
     @cached_property
@@ -47,7 +46,6 @@ class ConnectionPair:
 
     @cached_property
     def peer_name(self) -> str:
-        from wirescale.vpn import TSManager
         return TSManager.peer_name(self.peer_ip)
 
     @cached_property
@@ -92,7 +90,6 @@ class ARGS:
 
 
 def parse_args():
-    from wirescale.vpn import TSManager
     args = vars(top_parser.parse_args())
     ARGS.DAEMON = args.get('opt') == 'daemon'
     ARGS.UPGRADE = args.get('opt') == 'upgrade'

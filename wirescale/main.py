@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # encoding:utf-8
 
-
 import os
 import shutil
 import subprocess
@@ -11,8 +10,12 @@ from pathlib import Path
 from parallel_utils.thread import create_thread
 
 from wirescale.__main__ import SCRIPT_PATH
-from wirescale.communications import ErrorMessages, TCPServer, UnixClient, UnixServer
-from wirescale.parsers import ARGS, parse_args, top_parser
+from wirescale.communications.messages import ErrorMessages
+from wirescale.communications.tcp_server import TCPServer
+from wirescale.communications.unix_client import UnixClient
+from wirescale.communications.unix_server import UnixServer
+from wirescale.parsers import top_parser
+from wirescale.parsers.args import ARGS, parse_args
 
 sys.tracebacklimit = 0
 

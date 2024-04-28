@@ -10,13 +10,11 @@ from threading import get_ident
 from parallel_utils.thread import StaticMonitor
 from websockets.sync.server import serve, ServerConnection, WebSocketServer
 
-from wirescale.communications import ActionCodes, ErrorMessages, MessageFields, Messages, TCPMessages
-from wirescale.communications import SHUTDOWN
 from wirescale.communications.checkers import check_addresses_in_allowedips, check_configfile, check_interface, check_wgconfig, match_psk, match_pubkeys
-from wirescale.communications.common import CONNECTION_PAIRS, file_locker, TCP_PORT
-from wirescale.parsers import ARGS
-from wirescale.parsers.args import ConnectionPair
-from wirescale.vpn import TSManager
+from wirescale.communications.common import CONNECTION_PAIRS, file_locker, SHUTDOWN, TCP_PORT
+from wirescale.communications.messages import ActionCodes, ErrorMessages, MessageFields, Messages, TCPMessages
+from wirescale.parsers.args import ARGS, ConnectionPair
+from wirescale.vpn.tsmanager import TSManager
 
 
 class TCPServer:

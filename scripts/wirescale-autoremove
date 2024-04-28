@@ -42,7 +42,7 @@ latest_handshake_less_than() {
 
 ping_periodic() {
   start_time=$(date +%s)
-  while check_interface_and_file && [ $(($(date +%s) - start_time)) -lt 4500 ]; do
+  while check_interface_and_file && [ $(($(date +%s) - start_time)) -lt "$stop_after" ]; do
     ping -q -I "$interface" -c 1 -W 0.05 "$wg_ip" > /dev/null 2>&1
     sleep 5
   done
@@ -94,7 +94,7 @@ ping_keepalive() {
 
   ping_periodic &
 
-  while check_interface_and_file && [ $(($(date +%s) - start_time_func)) -lt 4500 ]; do
+  while check_interface_and_file && [ $(($(date +%s) - start_time_func)) -lt "$stop_after" ]; do
     if [ "$is_remote" -eq 1 ]; then
       sleep_times=$(get_sleep_times "$start_time")
       sleep "$(calculate_sleep_time "$sleep_times")"
@@ -103,9 +103,9 @@ ping_keepalive() {
       sleep_times=$(get_sleep_times "$start_time")
       sleep "$(calculate_sleep_time "$sleep_times")"
     fi
-    change_keepalive "$interface" "$remote_pubkey" 1
+    change_keepalive 1
     sleep 5
-    change_keepalive "$interface" "$remote_pubkey" 10
+    change_keepalive 10
   done
   echo "Finalizing function ping_keepalive"
 }
@@ -153,9 +153,10 @@ autoremove() {
   local_port=$7
   remote_interface=$8
   remote_port=$9
+  stop_after=$((60 * 75))
   lockfile="/run/wirescale/control/locker-$interface"
   flag_file="/run/wirescale/control/$interface-stop"
-  export interface ts_ip remote_pubkey wg_ip is_remote local_port remove_interface remote_port lockfile flag_file
+  export interface ts_ip remote_pubkey wg_ip is_remote local_port remove_interface remote_port stop_after lockfile flag_file
 
   start_time_func=$(date +%s)
   last_received=0
@@ -169,7 +170,7 @@ autoremove() {
   sleep "$(calculate_sleep_time "$start_time")" # A pause to synchronize both peers and let them have sufficient time for proper setup
 
   while { ip link show "$interface"; } > /dev/null 2>&1; do
-    if [ $(($(date +%s) - start_time_func)) -ge 4500 ]; then
+    if [ $(($(date +%s) - start_time_func)) -ge "$stop_after" ]; then
       echo "Terminating the primary autoremove function, as over 75 minutes have elapsed since the script began"
       autoremove_three_min
     fi
@@ -189,7 +190,7 @@ autoremove() {
         break
       fi
     fi
-    sleep 40
+    sleep 30
   done
 
   recover

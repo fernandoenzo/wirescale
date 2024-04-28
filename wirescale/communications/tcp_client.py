@@ -6,15 +6,17 @@ import json
 import sys
 from ipaddress import ip_address, IPv4Address
 from threading import get_ident
+from typing import TYPE_CHECKING
 
 from websockets.sync.client import ClientConnection, connect
 
-from wirescale.communications import ErrorMessages, Messages
 from wirescale.communications.checkers import check_addresses_in_allowedips, match_pubkeys
 from wirescale.communications.common import CONNECTION_PAIRS, TCP_PORT
-from wirescale.communications.messages import ActionCodes, MessageFields, TCPMessages, UnixMessages
-from wirescale.vpn.recover import RecoverConfig
-from wirescale.vpn.wgconfig import WGConfig
+from wirescale.communications.messages import ActionCodes, ErrorMessages, MessageFields, Messages, TCPMessages, UnixMessages
+
+if TYPE_CHECKING:
+    from wirescale.vpn.recover import RecoverConfig
+    from wirescale.vpn.wgconfig import WGConfig
 
 
 class TCPClient:
@@ -24,7 +26,7 @@ class TCPClient:
         return connect(uri=f'ws://{uri}:{TCP_PORT}')
 
     @classmethod
-    def upgrade(cls, wgconfig: WGConfig):
+    def upgrade(cls, wgconfig: 'WGConfig'):
         pair = CONNECTION_PAIRS[get_ident()]
         try:
             pair.tcp_socket = cls.connect(uri=pair.peer_ip)
@@ -59,7 +61,7 @@ class TCPClient:
                             sys.exit(wgquick.returncode)
 
     @classmethod
-    def recover(cls, recover: RecoverConfig):
+    def recover(cls, recover: 'RecoverConfig'):
         pair = CONNECTION_PAIRS[get_ident()]
         try:
             pair.tcp_socket = cls.connect(uri=pair.peer_ip)

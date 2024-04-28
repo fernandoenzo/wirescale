@@ -3,7 +3,7 @@
 
 
 import textwrap
-from argparse import ArgumentParser, RawTextHelpFormatter, _SubParsersAction
+from argparse import _SubParsersAction, ArgumentParser, RawTextHelpFormatter
 from typing import Union
 
 

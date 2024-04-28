@@ -21,11 +21,11 @@ from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from parallel_utils.thread import create_thread
 
-from wirescale.communications import ActionCodes, BytesStrConverter, check_recover_config, CONNECTION_PAIRS, ErrorMessages, Messages
-from wirescale.communications.checkers import get_latest_handshake
-from wirescale.communications.common import file_locker, wait_tailscale_restarted
+from wirescale.communications.checkers import check_recover_config, get_latest_handshake
+from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS, file_locker
+from wirescale.communications.messages import ActionCodes, ErrorMessages, Messages
 from wirescale.parsers.args import ConnectionPair
-from wirescale.vpn import TSManager
+from wirescale.vpn.tsmanager import TSManager
 
 
 class RecoverConfig:
@@ -44,6 +44,7 @@ class RecoverConfig:
         self.remote_interface: str = remote_interface
         self.remote_port: int = remote_port
         self.remote_pubkey: X25519PublicKey = None
+        self.remote_pubkey_str: str = None
         self.runfile = Path(f'/run/wirescale/{interface}.conf')
         self.psk: bytes = None
         self.shared_key: bytes = None
@@ -100,6 +101,7 @@ class RecoverConfig:
         privkey = subprocess.run(['wg', 'show', self.interface, 'private-key'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='utf-8').stdout.strip()
         pubkey_psk = subprocess.run(['wg', 'show', self.interface, 'preshared-keys'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='utf-8').stdout.strip()
         pubkey, psk = pubkey_psk.split('\n')[0].split('\t')
+        self.remote_pubkey_str = pubkey.strip()
         privkey = base64.urlsafe_b64decode(privkey)
         pubkey = base64.urlsafe_b64decode(pubkey)
         self.psk = base64.urlsafe_b64decode(psk)
@@ -139,10 +141,10 @@ class RecoverConfig:
         TSManager.stop()
         Messages.send_info_message(local_message=f"Modifying WireGuard interface '{self.interface}'...")
         subprocess.run(['wg', 'set', self.interface, 'listen-port', str(self.new_port)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.run(['wg', 'set', self.interface, 'peer', self.remote_pubkey, 'endpoint', f'{self.endpoint[0]}:{self.endpoint[1]}'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(['wg', 'set', self.interface, 'peer', self.remote_pubkey_str, 'endpoint', f'{self.endpoint[0]}:{self.endpoint[1]}'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         Messages.send_info_message(local_message='Starting tailscale...')
         TSManager.start()
-        create_thread(wait_tailscale_restarted, pair, stack)
+        create_thread(TSManager.wait_tailscale_restarted, pair, stack)
         Messages.send_info_message(local_message=f"Checking latest handshake of interface '{self.interface}' after changing the endpoint...")
         updated = self.check_updated_handshake()
         if not updated:
@@ -154,10 +156,10 @@ class RecoverConfig:
         Messages.send_info_message(local_message=success_message, code=ActionCodes.SUCCESS)
         create_thread(self.autoremove_interface, pair)
 
-    def autoremove_interface(self, pair: ConnectionPair):
+    def autoremove_interface(self, pair: 'ConnectionPair'):
         sleep(20)
         subprocess.run(['systemctl', 'reset-failed', f'autoremove-{self.interface}'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         systemd = subprocess.run(['systemd-run', '-u', f'autoremove-{self.interface}', '/bin/sh', '/run/wirescale/wirescale-autoremove', 'autoremove',
-                                  self.interface, str(pair.peer_ip), self.remote_pubkey, self.wg_ip, str(self.is_remote), str(self.start_time),
-                                  int(self.new_port), self.remote_interface, str(self.remote_port)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                                  self.interface, str(pair.peer_ip), self.remote_pubkey_str, str(self.wg_ip), str(self.is_remote), str(self.start_time),
+                                  str(self.new_port), self.remote_interface, str(self.remote_port)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         Messages.send_info_message(local_message=f'Launching autoremove subprocess. {systemd.stdout.strip()}')

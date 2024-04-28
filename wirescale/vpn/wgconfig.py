@@ -19,8 +19,8 @@ from typing import Dict, FrozenSet, Tuple
 
 from parallel_utils.thread import create_thread
 
-from wirescale.communications import CONNECTION_PAIRS, ErrorMessages, Messages
-from wirescale.communications.common import file_locker, subprocess_run_tmpfile, wait_tailscale_restarted
+from wirescale.communications.common import CONNECTION_PAIRS, file_locker, subprocess_run_tmpfile
+from wirescale.communications.messages import ErrorMessages, Messages
 from wirescale.vpn.tsmanager import TSManager
 
 
@@ -126,7 +126,7 @@ class WGConfig:
         systemd = subprocess.run(['systemd-run', '-u', f'autoremove-{self.interface}', '/bin/sh', '/run/wirescale/wirescale-autoremove', 'autoremove',
                                   self.interface, str(pair.peer_ip), self.remote_pubkey, next(str(ip) for ip in self.remote_addresses), str(running_in_remote), str(self.start_time),
                                   str(self.listen_port), self.remote_interface, str(self.remote_local_port)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-        Messages.send_info_message(local_message=f'Launching autoremove subprocess. {systemd.stdout}')
+        Messages.send_info_message(local_message=f'Launching autoremove subprocess. {systemd.stdout.strip()}')
 
     def autoremove_configfile(self):
         remove_configfile = f'rm -f {self.configfile}'
@@ -220,5 +220,5 @@ class WGConfig:
         else:
             self.new_config_path.unlink()
             print(ErrorMessages.FINAL_ERROR, file=sys.stderr, flush=True)
-        create_thread(wait_tailscale_restarted, pair, stack)
+        create_thread(TSManager.wait_tailscale_restarted, pair, stack)
         return wgquick

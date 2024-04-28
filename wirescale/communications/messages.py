@@ -10,7 +10,6 @@ from subprocess import CompletedProcess
 from threading import get_ident
 from typing import TYPE_CHECKING
 
-from wirescale.communications.checkers import check_recover_config
 from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS
 
 if TYPE_CHECKING:
@@ -181,9 +180,11 @@ class TCPMessages:
 
     @staticmethod
     def process_recover(message: dict) -> 'RecoverConfig':
+        from wirescale.communications.checkers import check_recover_config, get_latest_handshake
+        from wirescale.vpn.recover import RecoverConfig
         pair = CONNECTION_PAIRS[get_ident()]
         interface = message[MessageFields.INTERFACE]
-        latest_handshake = message[MessageFields.LATEST_HANDSHAKE]
+        latest_handshake = get_latest_handshake(interface)
         recover = RecoverConfig.create_from_autoremove(interface=interface, latest_handshake=latest_handshake)
         recover.nonce = BytesStrConverter.str64_to_raw_bytes(message[MessageFields.NONCE])
         try:
@@ -220,16 +221,16 @@ class Messages:
     CHECKING_ENDPOINT = "Checking that an endpoint is available for peer '{peer_name}' ({peer_ip})..."
     CONNECTING_UNIX = 'Connecting to local UNIX socket...'
     CONNECTED_UNIX = 'Connection to local UNIX socket established'
-    ENQUEUEING_FROM = "Enqueueing upgrade request coming from peer '{peer_name}' ({peer_ip})..."
-    ENQUEUEING_REMOTE = "Remote peer '{sender_name}' ({sender_ip}) has enqueued our upgrade request"
+    ENQUEUEING_FROM = "Enqueueing request coming from peer '{peer_name}' ({peer_ip})..."
+    ENQUEUEING_REMOTE = "Remote peer '{sender_name}' ({sender_ip}) has enqueued our request"
     ENQUEUEING_TO = "Enqueueing upgrade request to peer '{peer_name}' ({peer_ip})..."
     ENQUEUEING_RECOVER = "Enqueueing recover request to peer '{peer_name}' ({peer_ip}) for interface '{interface}'..."
     NEW_UNIX_INCOMING = 'New local UNIX connection incoming'
     REACHABLE = "Peer '{peer_name}' ({peer_ip}) is reachable"
     RECOVER_SUCCES = "Success! WireGuard connection through interface '{interface}' is working again"
     SHUTDOWN_SET = 'The server has been set to shut down'
-    START_PROCESSING_FROM = "Starting to process the {action} request coming from peer '{peer_name}' ({peer_ip})"
-    START_PROCESSING_REMOTE = "Remote peer '{sender_name}' ({sender_ip}) has started to process our {action} request"
+    START_PROCESSING_FROM = "Starting to process the {{action}} request coming from peer '{peer_name}' ({peer_ip})"
+    START_PROCESSING_REMOTE = "Remote peer '{sender_name}' ({sender_ip}) has started to process our {{action}} request"
     START_PROCESSING_TO = "Starting to process the upgrade request for the peer '{peer_name}' ({peer_ip})"
     START_PROCESSING_RECOVER = "Starting to process the recover request for the peer '{peer_name}' ({peer_ip}) for interface '{interface}'"
     SUCCESS = "Success! Now you have a new working P2P connection through interface '{interface}'"
@@ -295,7 +296,7 @@ class ErrorMessages:
     REMOTE_PORT_MISMATCH = "Error: WireGuard interface '{interface}' is not listening on local port {port} in remote peer '{peer_name}' ({peer_ip})"
     REMOTE_RUNFILE_MISSING = "Error: File '/run/wirescale/{interface}.conf' does not exist or is not a regular file in remote peer '{my_name}' ({my_ip})"
     REMOTE_TAILSCALED_STOPPED = "Error: Tailscaled service is not running in remote peer `{peer_name}` ({peer_ip})"
-    REMOTE_WG_INTERFACE_MISSING = "Error: Remote peer '{peer_name}' ({peer_ip}) does not have a WireGuard interface named '{interface}'"
+    REMOTE_WG_INTERFACE_MISSING = "Error: Remote peer '{my_name}' ({my_ip}) does not have a WireGuard interface named '{interface}'"
     RUNFILE_MISSING = "Error: File '/run/wirescale/{interface}.conf' does not exist or is not a regular file"
     ROOT_SYSTEMD = "Error: Wirescale daemon must be managed by root's systemd"
     SUDO = 'Error: This program must be run as a superuser'
