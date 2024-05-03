@@ -44,7 +44,6 @@ class MessageFields(StrEnum):
 
 
 class ActionCodes(IntEnum):
-    ACK = auto()
     GO = auto()
     INFO = auto()
     RECOVER = auto()
