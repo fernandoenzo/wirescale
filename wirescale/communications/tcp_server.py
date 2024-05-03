@@ -4,6 +4,7 @@
 
 import json
 import sys
+from contextlib import ExitStack
 from ipaddress import ip_address, IPv4Address
 from threading import get_ident
 
@@ -11,10 +12,11 @@ from parallel_utils.thread import StaticMonitor
 from websockets.sync.server import serve, ServerConnection, WebSocketServer
 
 from wirescale.communications.checkers import check_addresses_in_allowedips, check_configfile, check_interface, check_wgconfig, match_psk, match_pubkeys
-from wirescale.communications.common import CONNECTION_PAIRS, file_locker, SHUTDOWN, TCP_PORT
+from wirescale.communications.common import CONNECTION_PAIRS, file_locker, Semaphores, SHUTDOWN, TCP_PORT
 from wirescale.communications.messages import ActionCodes, ErrorMessages, MessageFields, Messages, TCPMessages
 from wirescale.parsers.args import ARGS, ConnectionPair
 from wirescale.vpn.tsmanager import TSManager
+from wirescale.vpn.watch import ACTIVE_SOCKETS
 
 
 class TCPServer:
@@ -41,18 +43,32 @@ class TCPServer:
                 enqueueing = Messages.ENQUEUEING_FROM.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
                 enqueueing_remote = Messages.ENQUEUEING_REMOTE.format(sender_name=pair.my_name, sender_ip=pair.my_ip)
                 Messages.send_info_message(local_message=enqueueing, remote_message=enqueueing_remote)
-                with StaticMonitor.synchronized(uid=ActionCodes.UPGRADE), websocket:
+                with ExitStack() as stack:
+                    stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.SERVER))
+                    ACTIVE_SOCKETS.server_thread = get_ident()
+                    ACTIVE_SOCKETS.waiter_switched.wait()
+                    cls.discard_connections()
+                    token = TCPMessages.build_token()
+                    pair.remote_socket.send(json.dumps(token))
+                    stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.EXCLUSIVE))
+                    ACTIVE_SOCKETS.exclusive_socket = pair
+                    ACTIVE_SOCKETS.waiter_server_switched.set()
+                    stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.WAIT_IF_SWITCHED))
                     cls.discard_connections()
                     start_processing = Messages.START_PROCESSING_FROM.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
                     start_processing_remote = Messages.START_PROCESSING_REMOTE.format(sender_name=pair.my_name, sender_ip=pair.my_ip)
-                    message: dict = json.loads(pair.remote_socket.recv())
-                    match message[MessageFields.CODE]:
-                        case ActionCodes.UPGRADE:
-                            Messages.send_info_message(local_message=start_processing.format(action='upgrade'), remote_message=start_processing_remote.format(action='upgrade'))
-                            cls.upgrade(message)
-                        case ActionCodes.RECOVER:
-                            Messages.send_info_message(local_message=start_processing.format(action='recover'), remote_message=start_processing_remote.format(action='recover'))
-                            cls.recover(message)
+                    for message in pair.remote_socket:
+                        message = json.loads(message)
+                        match message[MessageFields.CODE]:
+                            case ActionCodes.HELLO:
+                                ack = TCPMessages.build_ack()
+                                pair.remote_socket.send(json.dumps(ack))
+                            case ActionCodes.UPGRADE:
+                                Messages.send_info_message(local_message=start_processing.format(action='upgrade'), remote_message=start_processing_remote.format(action='upgrade'))
+                                cls.upgrade(message)
+                            case ActionCodes.RECOVER:
+                                Messages.send_info_message(local_message=start_processing.format(action='recover'), remote_message=start_processing_remote.format(action='recover'))
+                                cls.recover(message)
 
             finally:
                 CONNECTION_PAIRS.pop(get_ident(), None)

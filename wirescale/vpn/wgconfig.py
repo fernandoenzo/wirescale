@@ -9,7 +9,6 @@ import sys
 from configparser import ConfigParser
 from contextlib import ExitStack
 from datetime import datetime
-from functools import cached_property
 from io import StringIO
 from ipaddress import ip_address, ip_network, IPv4Address, IPv4Network, IPv6Address, IPv6Network
 from pathlib import Path
@@ -182,7 +181,7 @@ class WGConfig:
         new_config = self.write_config(new_config)
         self.new_config_path.write_text(new_config, encoding='utf-8')
 
-    @cached_property
+    @property
     def new_config_path(self):
         return Path('/run/wirescale/').joinpath(f'{self.interface}.conf')
 

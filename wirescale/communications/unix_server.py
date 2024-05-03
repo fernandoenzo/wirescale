@@ -5,7 +5,7 @@
 import json
 import socket
 import sys
-from contextlib import suppress
+from contextlib import ExitStack, suppress
 from ipaddress import IPv4Address
 from pathlib import Path
 from threading import active_count, get_ident
@@ -15,7 +15,7 @@ from parallel_utils.thread import StaticMonitor
 from websockets.sync.server import ServerConnection, unix_serve, WebSocketServer
 
 from wirescale.communications.checkers import check_configfile, check_interface, check_recover_config, check_wgconfig
-from wirescale.communications.common import CONNECTION_PAIRS, file_locker, SHUTDOWN, SOCKET_PATH
+from wirescale.communications.common import CONNECTION_PAIRS, Semaphores, SHUTDOWN, SOCKET_PATH
 from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, MessageFields, Messages
 from wirescale.communications.tcp_client import TCPClient
 from wirescale.communications.tcp_server import TCPServer
@@ -23,6 +23,7 @@ from wirescale.communications.udp_server import UDPServer
 from wirescale.parsers.args import ConnectionPair
 from wirescale.vpn.recover import RecoverConfig
 from wirescale.vpn.tsmanager import TSManager
+from wirescale.vpn.watch import ACTIVE_SOCKETS
 
 
 class UnixServer:
@@ -70,22 +71,32 @@ class UnixServer:
                             pair.unix_socket = websocket
                             enqueueing = Messages.ENQUEUEING_TO.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
                             Messages.send_info_message(local_message=enqueueing)
-                            with StaticMonitor.synchronized(uid=ActionCodes.UPGRADE):
+                            with ExitStack() as stack:
+                                stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.CLIENT))
+                                ACTIVE_SOCKETS.client_thread = get_ident()
+                                ACTIVE_SOCKETS.waiter_switched.wait()
+                                stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.EXCLUSIVE))
+                                ACTIVE_SOCKETS.exclusive_socket = pair
                                 cls.discard_connections(websocket)
                                 start_processing = Messages.START_PROCESSING_TO.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
                                 Messages.send_info_message(local_message=start_processing)
-                                cls.upgrade(message)
+                                cls.upgrade(message, stack)
                         case ActionCodes.RECOVER:
                             pair = ConnectionPair(caller=TSManager.my_ip(), receiver=IPv4Address(message[MessageFields.PEER_IP]))
                             pair.unix_socket = websocket
                             interface = message[MessageFields.INTERFACE]
                             enqueueing = Messages.ENQUEUEING_RECOVER.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
                             Messages.send_info_message(local_message=enqueueing)
-                            with StaticMonitor.synchronized(uid=ActionCodes.UPGRADE):
+                            with ExitStack() as stack:
+                                stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.CLIENT))
+                                ACTIVE_SOCKETS.client_thread = get_ident()
+                                ACTIVE_SOCKETS.waiter_switched.wait()
+                                stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.EXCLUSIVE))
+                                ACTIVE_SOCKETS.exclusive_socket = pair
                                 cls.discard_connections(websocket)
                                 start_processing = Messages.START_PROCESSING_RECOVER.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
                                 Messages.send_info_message(local_message=start_processing)
-                                cls.recover(message)
+                                cls.recover(message, stack)
                 finally:
                     CONNECTION_PAIRS.pop(get_ident(), None)
 
@@ -110,23 +121,18 @@ class UnixServer:
         UDPServer.UDPDummy.close()
 
     @staticmethod
-    def upgrade(message: dict):
-        pair = CONNECTION_PAIRS[get_ident()]
-        interface = check_interface(interface=message[MessageFields.INTERFACE], suffix=message[MessageFields.SUFFIX])
+    def upgrade(message: dict, stack: ExitStack):
+        interface, suffix = message[MessageFields.INTERFACE], message[MessageFields.SUFFIX]
+        wg_interface = check_interface(interface=interface, suffix=suffix)
         config = check_configfile(config=message[MessageFields.CONFIG])
-        wgconfig = check_wgconfig(config, interface)
-        with file_locker():
-            wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)
+        wgconfig = check_wgconfig(config, wg_interface)
         wgconfig.autoremove = message[MessageFields.AUTOREMOVE]
-        TCPClient.upgrade(wgconfig=wgconfig)
+        TCPClient.upgrade(wgconfig=wgconfig, interface=interface, stack=stack, suffix=suffix)
 
     @staticmethod
-    def recover(message: dict):
-        pair = CONNECTION_PAIRS[get_ident()]
+    def recover(message: dict, stack: ExitStack):
         interface = message[MessageFields.INTERFACE]
         latest_handshake = message[MessageFields.LATEST_HANDSHAKE]
         recover = RecoverConfig.create_from_autoremove(interface=interface, latest_handshake=latest_handshake)
         check_recover_config(recover)
-        with file_locker():
-            recover.endpoint = TSManager.peer_endpoint(pair.peer_ip)
-        TCPClient.recover(recover=recover)
+        TCPClient.recover(recover=recover, stack=stack)

@@ -16,6 +16,7 @@ from wirescale.communications.unix_client import UnixClient
 from wirescale.communications.unix_server import UnixServer
 from wirescale.parsers import top_parser
 from wirescale.parsers.args import ARGS, parse_args
+from wirescale.vpn.watch import ACTIVE_SOCKETS
 
 sys.tracebacklimit = 0
 
@@ -56,7 +57,8 @@ def main():
             copy_script()
             tcp_thread = create_thread(TCPServer.run_server)
             unix_thread = create_thread(UnixServer.run_server)
-            tcp_thread.result(), unix_thread.result()
+            watch_thread = create_thread(ACTIVE_SOCKETS.watch)
+            tcp_thread.result(), unix_thread.result(), watch_thread.result()
         elif ARGS.STOP:
             if systemd_exec_pid == -1 or os.getpgid(systemd_exec_pid) != os.getpgid(os.getpid()):
                 systemd = subprocess.run(['systemctl', 'stop', 'wirescaled.service'], text=True)

@@ -4,6 +4,7 @@
 
 import json
 import os
+import secrets
 import sys
 from enum import auto, IntEnum, StrEnum, unique
 from subprocess import CompletedProcess
@@ -40,16 +41,20 @@ class MessageFields(StrEnum):
     REMOTE_PUBKEY = auto()
     START_TIME = auto()
     SUFFIX = auto()
+    TOKEN = auto()
     WG_IP = auto()
 
 
 class ActionCodes(IntEnum):
+    ACK = auto()
     GO = auto()
+    HELLO = auto()
     INFO = auto()
     RECOVER = auto()
     RECOVER_RESPONSE = auto()
     STOP = auto()
     SUCCESS = auto()
+    TOKEN = auto()
     UPGRADE = auto()
     UPGRADE_RESPONSE = auto()
 
@@ -106,6 +111,33 @@ class UnixMessages:
 
 
 class TCPMessages:
+
+    @staticmethod
+    def build_ack() -> dict:
+        res = {
+            MessageFields.CODE: ActionCodes.ACK,
+            MessageFields.ERROR_CODE: None
+        }
+        return res
+
+    @staticmethod
+    def build_hello() -> dict:
+        res = {
+            MessageFields.CODE: ActionCodes.HELLO,
+            MessageFields.ERROR_CODE: None
+        }
+        return res
+
+    @staticmethod
+    def build_token() -> dict:
+        pair = CONNECTION_PAIRS[get_ident()]
+        pair.token = secrets.token_urlsafe(16)
+        res = {
+            MessageFields.CODE: ActionCodes.TOKEN,
+            MessageFields.ERROR_CODE: None,
+            MessageFields.TOKEN: pair.token,
+        }
+        return res
 
     @staticmethod
     def build_upgrade(wgconfig: 'WGConfig') -> dict:
@@ -220,6 +252,7 @@ class Messages:
     CHECKING_ENDPOINT = "Checking that an endpoint is available for peer '{peer_name}' ({peer_ip})..."
     CONNECTING_UNIX = 'Connecting to local UNIX socket...'
     CONNECTED_UNIX = 'Connection to local UNIX socket established'
+    DEADLOCK = 'Potential deadlock situation identified. Taking actions to avoid it'
     ENQUEUEING_FROM = "Enqueueing request coming from peer '{peer_name}' ({peer_ip})..."
     ENQUEUEING_REMOTE = "Remote peer '{sender_name}' ({sender_ip}) has enqueued our request"
     ENQUEUEING_TO = "Enqueueing upgrade request to peer '{peer_name}' ({peer_ip})..."

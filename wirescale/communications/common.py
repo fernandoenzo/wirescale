@@ -5,6 +5,7 @@ import base64
 import collections
 import fcntl
 from contextlib import contextmanager, ExitStack
+from enum import auto, IntEnum
 from pathlib import Path
 from subprocess import CompletedProcess, run
 from tempfile import TemporaryFile
@@ -14,10 +15,17 @@ from typing import Dict, TYPE_CHECKING
 if TYPE_CHECKING:
     from wirescale.parsers.args import ConnectionPair
 
-SHUTDOWN = Event()
-TCP_PORT = 41642
-SOCKET_PATH = Path('/run/wirescale/wirescaled.sock').resolve()
 CONNECTION_PAIRS: Dict[int, 'ConnectionPair'] = {}
+SHUTDOWN = Event()
+SOCKET_PATH = Path('/run/wirescale/wirescaled.sock').resolve()
+TCP_PORT = 41642
+
+
+class Semaphores(IntEnum):
+    CLIENT = auto()
+    EXCLUSIVE = auto()
+    SERVER = auto()
+    WAIT_IF_SWITCHED = auto()
 
 
 def subprocess_run_tmpfile(*args, **kwargs) -> CompletedProcess[str]:
