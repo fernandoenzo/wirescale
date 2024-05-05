@@ -83,9 +83,10 @@ class TCPServer:
     @classmethod
     def upgrade(cls, message: dict):
         pair = CONNECTION_PAIRS[get_ident()]
-        interface = check_interface(interface=pair.peer_name, suffix=ARGS.SUFFIX)
+        interface, suffix = check_interface(interface=pair.peer_name, suffix=ARGS.SUFFIX)
         config = check_configfile(config=f'/etc/wirescale/{pair.peer_name}.conf')
         wgconfig = check_wgconfig(config, interface)
+        wgconfig.suffix = suffix
         wgconfig.autoremove = ARGS.AUTOREMOVE
         with file_locker():
             wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)

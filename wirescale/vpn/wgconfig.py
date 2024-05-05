@@ -52,6 +52,7 @@ class WGConfig:
         self.has_psk: bool = self.psk is not None
         self.psk = self.psk or self.generate_wg_psk()
         self.start_time: int = datetime.now().second
+        self.suffix: int = None
 
     def read_config(self):
         with open(self.file_path, 'r') as f:
@@ -178,7 +179,7 @@ class WGConfig:
         new_config.set(peer, 'PersistentKeepalive', '10')
         for i, value in enumerate(self.get_field(peer, allowedips), start=1):
             new_config.set(peer, f'{allowedips}{i}_', value)
-        new_config = self.write_config(new_config)
+        new_config = self.write_config(new_config, self.suffix)
         self.new_config_path.write_text(new_config, encoding='utf-8')
 
     @property
@@ -186,7 +187,7 @@ class WGConfig:
         return Path('/run/wirescale/').joinpath(f'{self.interface}.conf')
 
     @classmethod
-    def write_config(cls, config: ConfigParser):
+    def write_config(cls, config: ConfigParser, suffix: int = None):
         string_io = StringIO()
         config.write(string_io)
         text = string_io.getvalue()
@@ -198,6 +199,10 @@ class WGConfig:
 
         for field in cls.repeatable_fields:
             text = re.sub(rf'{field}\d+_', replace, text, flags=re.IGNORECASE)
+
+        if suffix is not None:
+            text = text.replace('%s', str(suffix))
+
         return text
 
     def upgrade(self) -> CompletedProcess[str]:

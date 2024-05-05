@@ -7,7 +7,7 @@ from _socket import if_nametoindex
 from configparser import ConfigParser
 from pathlib import Path
 from threading import get_ident
-from typing import TYPE_CHECKING
+from typing import Tuple, TYPE_CHECKING
 
 from wirescale.communications.common import CONNECTION_PAIRS
 from wirescale.communications.messages import ErrorCodes, ErrorMessages
@@ -25,16 +25,16 @@ def interface_exists(name: str) -> bool:
         return False
 
 
-def next_interface_with_suffix(name: str) -> str:
+def next_interface_with_suffix(name: str) -> Tuple[str, int]:
     if not interface_exists(name):
-        return name
+        return name, 0
     counter = 1
     while interface_exists(name_with_suffix := f'{name}{counter}'):
         counter += 1
-    return name_with_suffix
+    return name_with_suffix, counter
 
 
-def check_interface(interface: str, suffix: bool) -> str:
+def check_interface(interface: str, suffix: bool) -> Tuple[str, int]:
     pair = CONNECTION_PAIRS[get_ident()]
     if not suffix and interface_exists(interface):
         error = ErrorMessages.INTERFACE_EXISTS.format(interface=interface)
@@ -122,7 +122,7 @@ def test_wgconfig(wgconfig: WGConfig) -> str | None:
     remote_pubkey = wgconfig.remote_pubkey if wgconfig.remote_pubkey else WGConfig.generate_wg_keypair()[1]
     test_config.set(peer, 'PublicKey', remote_pubkey)
     test_config.set(peer, 'PresharedKey', wgconfig.psk) if wgconfig.has_psk else None
-    test_config = WGConfig.write_config(test_config)
+    test_config = WGConfig.write_config(test_config, wgconfig.suffix)
     wgconfig.new_config_path.write_text(test_config, encoding='utf-8')
     wgquick = subprocess.run(['wg-quick', 'up', str(wgconfig.new_config_path)], capture_output=True, text=True)
     if wgquick.returncode != 0:

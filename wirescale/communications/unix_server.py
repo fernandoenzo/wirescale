@@ -123,7 +123,7 @@ class UnixServer:
     @staticmethod
     def upgrade(message: dict, stack: ExitStack):
         interface, suffix = message[MessageFields.INTERFACE], message[MessageFields.SUFFIX]
-        wg_interface = check_interface(interface=interface, suffix=suffix)
+        wg_interface, _ = check_interface(interface=interface, suffix=suffix)
         config = check_configfile(config=message[MessageFields.CONFIG])
         wgconfig = check_wgconfig(config, wg_interface)
         wgconfig.autoremove = message[MessageFields.AUTOREMOVE]

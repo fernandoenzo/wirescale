@@ -51,7 +51,7 @@ class TCPClient:
                             stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.WAIT_IF_SWITCHED))
                             with file_locker():
                                 wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)
-                            wgconfig.interface = check_interface(interface=interface, suffix=suffix)
+                            wgconfig.interface, wgconfig.suffix = check_interface(interface=interface, suffix=suffix)
                             wgconfig.listen_port = TSManager.local_port()
                             upgrade_message = TCPMessages.build_upgrade(wgconfig)
                             pair.remote_socket.send(json.dumps(upgrade_message))
