@@ -67,7 +67,10 @@ class TCPServer:
                                 Messages.send_info_message(local_message=start_processing.format(action='upgrade'), remote_message=start_processing_remote.format(action='upgrade'))
                                 cls.upgrade(message)
                             case ActionCodes.RECOVER:
-                                Messages.send_info_message(local_message=start_processing.format(action='recover'), remote_message=start_processing_remote.format(action='recover'))
+                                interface = message[MessageFields.INTERFACE]
+                                start_processing = start_processing.format(action='recover') + f" for interface '{interface}'"
+                                start_processing_remote = start_processing_remote.format(action='recover') + f" for their local interface '{interface}'"
+                                Messages.send_info_message(local_message=start_processing, remote_message=start_processing_remote)
                                 cls.recover(message)
 
             finally:
