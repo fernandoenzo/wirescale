@@ -157,7 +157,12 @@ class RecoverConfig:
         create_thread(self.autoremove_interface, pair)
 
     def autoremove_interface(self, pair: 'ConnectionPair'):
-        sleep(20)
+        timeout = 20
+        is_active = 0
+        start_time = time.time()
+        while is_active == 0 and time.time() - start_time > timeout:
+            is_active = subprocess.run(['systemctl', 'is-active', f'autoremove-{self.interface}'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
+            sleep(1)
         subprocess.run(['systemctl', 'reset-failed', f'autoremove-{self.interface}'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         systemd = subprocess.run(['systemd-run', '-u', f'autoremove-{self.interface}', '/bin/sh', '/run/wirescale/wirescale-autoremove', 'autoremove',
                                   self.interface, str(pair.peer_ip), self.remote_pubkey_str, str(self.wg_ip), str(self.is_remote), str(self.start_time),
