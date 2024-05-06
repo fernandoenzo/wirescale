@@ -66,26 +66,18 @@ class UnixServer:
                     match code:
                         case ActionCodes.STOP:
                             cls.stop()
-                        case ActionCodes.UPGRADE:
+                        case ActionCodes.UPGRADE | ActionCodes.RECOVER:
                             pair = ConnectionPair(caller=TSManager.my_ip(), receiver=IPv4Address(message[MessageFields.PEER_IP]))
                             pair.unix_socket = websocket
-                            enqueueing = Messages.ENQUEUEING_TO.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
-                            Messages.send_info_message(local_message=enqueueing)
-                            with ExitStack() as stack:
-                                stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.CLIENT))
-                                ACTIVE_SOCKETS.client_thread = get_ident()
-                                ACTIVE_SOCKETS.waiter_switched.wait()
-                                stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.EXCLUSIVE))
-                                ACTIVE_SOCKETS.exclusive_socket = pair
-                                cls.discard_connections(websocket)
+                            if code == ActionCodes.UPGRADE:
+                                enqueueing = Messages.ENQUEUEING_TO.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
                                 start_processing = Messages.START_PROCESSING_TO.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
-                                Messages.send_info_message(local_message=start_processing)
-                                cls.upgrade(message, stack)
-                        case ActionCodes.RECOVER:
-                            pair = ConnectionPair(caller=TSManager.my_ip(), receiver=IPv4Address(message[MessageFields.PEER_IP]))
-                            pair.unix_socket = websocket
-                            interface = message[MessageFields.INTERFACE]
-                            enqueueing = Messages.ENQUEUEING_RECOVER.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
+                                action = lambda: cls.upgrade(message, stack)
+                            elif code == ActionCodes.RECOVER:
+                                interface = message[MessageFields.INTERFACE]
+                                enqueueing = Messages.ENQUEUEING_RECOVER.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
+                                start_processing = Messages.START_PROCESSING_RECOVER.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
+                                action = lambda: cls.recover(message, stack)
                             Messages.send_info_message(local_message=enqueueing)
                             with ExitStack() as stack:
                                 stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.CLIENT))
@@ -94,9 +86,9 @@ class UnixServer:
                                 stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.EXCLUSIVE))
                                 ACTIVE_SOCKETS.exclusive_socket = pair
                                 cls.discard_connections(websocket)
-                                start_processing = Messages.START_PROCESSING_RECOVER.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
                                 Messages.send_info_message(local_message=start_processing)
-                                cls.recover(message, stack)
+                                action()
+
                 finally:
                     CONNECTION_PAIRS.pop(get_ident(), None)
 
