@@ -48,8 +48,6 @@ class TCPServer:
                     ACTIVE_SOCKETS.server_thread = get_ident()
                     ACTIVE_SOCKETS.waiter_switched.wait()
                     cls.discard_connections()
-                    token = TCPMessages.build_token()
-                    pair.remote_socket.send(json.dumps(token))
                     stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.EXCLUSIVE))
                     ACTIVE_SOCKETS.exclusive_socket = pair
                     ACTIVE_SOCKETS.waiter_server_switched.set()

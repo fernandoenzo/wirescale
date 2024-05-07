@@ -4,7 +4,6 @@
 
 import json
 import os
-import secrets
 import sys
 from enum import auto, IntEnum, StrEnum, unique
 from subprocess import CompletedProcess
@@ -41,7 +40,6 @@ class MessageFields(StrEnum):
     REMOTE_PUBKEY = auto()
     START_TIME = auto()
     SUFFIX = auto()
-    TOKEN = auto()
     WG_IP = auto()
 
 
@@ -54,7 +52,6 @@ class ActionCodes(IntEnum):
     RECOVER_RESPONSE = auto()
     STOP = auto()
     SUCCESS = auto()
-    TOKEN = auto()
     UPGRADE = auto()
     UPGRADE_RESPONSE = auto()
 
@@ -125,17 +122,6 @@ class TCPMessages:
         res = {
             MessageFields.CODE: ActionCodes.HELLO,
             MessageFields.ERROR_CODE: None
-        }
-        return res
-
-    @staticmethod
-    def build_token() -> dict:
-        pair = CONNECTION_PAIRS[get_ident()]
-        pair.token = secrets.token_urlsafe(16)
-        res = {
-            MessageFields.CODE: ActionCodes.TOKEN,
-            MessageFields.ERROR_CODE: None,
-            MessageFields.TOKEN: pair.token,
         }
         return res
 

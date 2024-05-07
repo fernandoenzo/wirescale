@@ -55,10 +55,7 @@ class ActiveSockets:
         if self.server_is_running():
             return False
         if self.client_is_running():
-            if self._server.peer_ip != self._client.peer_ip:
-                return self._server.peer_ip < self._client.peer_ip
-            else:
-                return self._server.token < self._client.token
+            return self._server.peer_ip < self._client.my_ip
         return False
 
     def capture_semaphore(self):

@@ -23,14 +23,11 @@ class ConnectionPair:
         with file_locker():
             self.caller_name, self.receiver_name
         self.tcp_socket: ClientConnection | ServerConnection = None
-        self.token: str = None
         self.unix_socket: ServerConnection = None
         CONNECTION_PAIRS[get_ident()] = self
 
     def __eq__(self, other):
         if self is not other:
-            return False
-        if self.token != other.token:
             return False
         if self.caller is not other.caller:
             return False

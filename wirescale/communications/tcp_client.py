@@ -57,8 +57,6 @@ class TCPClient:
                             pair.remote_socket.send(json.dumps(upgrade_message))
                         case ActionCodes.INFO:
                             Messages.send_info_message(local_message=message[MessageFields.MESSAGE])
-                        case ActionCodes.TOKEN:
-                            pair.token = message[MessageFields.TOKEN]
                         case ActionCodes.UPGRADE_RESPONSE:
                             match_pubkeys(wgconfig, remote_pubkey=message[MessageFields.PUBKEY], my_pubkey=None)
                             wgconfig.remote_addresses = frozenset(ip_address(ip) for ip in message[MessageFields.ADDRESSES])
@@ -101,8 +99,6 @@ class TCPClient:
                             pair.remote_socket.send(json.dumps(recover_message))
                         case ActionCodes.INFO:
                             Messages.send_info_message(local_message=message[MessageFields.MESSAGE])
-                        case ActionCodes.TOKEN:
-                            pair.token = message[MessageFields.TOKEN]
                         case ActionCodes.RECOVER_RESPONSE:
                             TCPMessages.process_recover_response(message, recover)
                             pair.remote_socket.send(json.dumps(TCPMessages.build_go()))
