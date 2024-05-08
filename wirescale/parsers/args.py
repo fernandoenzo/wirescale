@@ -2,16 +2,20 @@
 # encoding:utf-8
 
 
+import json
+import sys
 from functools import cached_property
 from ipaddress import IPv4Address
 from pathlib import Path
 from threading import get_ident
 
+from websockets import ConnectionClosed
 from websockets.sync.client import ClientConnection
 from websockets.sync.server import ServerConnection
 
 from wirescale.communications.checkers import get_latest_handshake
 from wirescale.communications.common import CONNECTION_PAIRS, file_locker
+from wirescale.communications.messages import ErrorCodes, ErrorMessages
 from wirescale.parsers import top_parser
 from wirescale.vpn.tsmanager import TSManager
 
@@ -72,6 +76,37 @@ class ConnectionPair:
     @cached_property
     def running_in_remote(self) -> bool:
         return self.receiver == self.my_ip
+
+    def send_to_local(self, message):
+        try:
+            self.local_socket.send(message)
+        except ConnectionClosed:
+            print(ErrorMessages.SOCKET_ERROR, file=sys.stderr, flush=True)
+            if self.remote_socket is not None:
+                error = ErrorMessages.SOCKET_REMOTE_ERROR.format(peer_name=self.my_name, peer_ip=self.my_ip)
+                error_message = ErrorMessages.build_error_message(error, ErrorCodes.GENERIC)
+                try:
+                    self.remote_socket.send(json.dumps(error_message))
+                except ConnectionClosed:
+                    error = ErrorMessages.SOCKET_REMOTE_ERROR.format(peer_name=self.peer_name, peer_ip=self.peer_ip)
+                    print(error, file=sys.stderr, flush=True)
+            self.close_sockets()
+            sys.exit(1)
+
+    def send_to_remote(self, message):
+        try:
+            self.remote_socket.send(message)
+        except ConnectionClosed:
+            error = ErrorMessages.SOCKET_REMOTE_ERROR.format(peer_name=self.peer_name, peer_ip=self.peer_ip)
+            print(error, file=sys.stderr, flush=True)
+            if not self.running_in_remote:
+                error_message = ErrorMessages.build_error_message(error, ErrorCodes.GENERIC)
+                try:
+                    self.local_socket.send(json.dumps(error_message))
+                except ConnectionClosed:
+                    print(ErrorMessages.SOCKET_ERROR, file=sys.stderr, flush=True)
+            self.close_sockets()
+            sys.exit(1)
 
     @property
     def remote_socket(self):

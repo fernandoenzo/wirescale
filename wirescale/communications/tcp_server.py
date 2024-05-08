@@ -60,7 +60,7 @@ class TCPServer:
                         match message[MessageFields.CODE]:
                             case ActionCodes.HELLO:
                                 ack = TCPMessages.build_ack()
-                                pair.remote_socket.send(json.dumps(ack))
+                                pair.send_to_remote(json.dumps(ack))
                             case ActionCodes.UPGRADE:
                                 Messages.send_info_message(local_message=start_processing.format(action='upgrade'), remote_message=start_processing_remote.format(action='upgrade'))
                                 cls.upgrade(message)
@@ -98,7 +98,7 @@ class TCPServer:
         check_addresses_in_allowedips(wgconfig)
         wgconfig.generate_new_config()
         upgrade_response = TCPMessages.build_upgrade_response(wgconfig)
-        pair.remote_socket.send(json.dumps(upgrade_response))
+        pair.send_to_remote(json.dumps(upgrade_response))
         for message in pair.remote_socket:
             message = json.loads(message)
             if message[MessageFields.ERROR_CODE]:
@@ -119,7 +119,7 @@ class TCPServer:
         pair = CONNECTION_PAIRS[get_ident()]
         recover = TCPMessages.process_recover(message)
         recover_response = TCPMessages.build_recover_response(recover)
-        pair.remote_socket.send(json.dumps(recover_response))
+        pair.send_to_remote(json.dumps(recover_response))
         for message in pair.remote_socket:
             message = json.loads(message)
             if message[MessageFields.ERROR_CODE]:

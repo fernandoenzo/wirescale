@@ -12,6 +12,7 @@ from threading import active_count, get_ident
 from time import sleep
 
 from parallel_utils.thread import StaticMonitor
+from websockets import ConnectionClosed
 from websockets.sync.server import ServerConnection, unix_serve, WebSocketServer
 
 from wirescale.communications.checkers import check_configfile, check_interface, check_recover_config, check_wgconfig
@@ -96,7 +97,10 @@ class UnixServer:
     def discard_connections(websocket: ServerConnection):
         if SHUTDOWN.is_set():
             error = ErrorMessages.build_error_message(ErrorMessages.CLOSED, ErrorCodes.CLOSED)
-            websocket.send(json.dumps(error))
+            try:
+                websocket.send(json.dumps(error))
+            except ConnectionClosed:
+                pass
             websocket.close()
             sys.exit(1)
 

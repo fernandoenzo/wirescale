@@ -268,10 +268,10 @@ class Messages:
         if pair is not None:
             if pair.local_socket is not None and local_message is not None:
                 local_message = cls.build_info_message(local_message, code)
-                pair.local_socket.send(json.dumps(local_message))
+                pair.send_to_local(json.dumps(local_message))
             if pair.remote_socket is not None and remote_message is not None and (always_send_to_remote or pair.running_in_remote):
                 remote_message = cls.build_info_message(remote_message, code)
-                pair.remote_socket.send(json.dumps(remote_message))
+                pair.send_to_remote(json.dumps(remote_message))
 
 
 class ErrorMessages:
@@ -315,6 +315,8 @@ class ErrorMessages:
     REMOTE_WG_INTERFACE_MISSING = "Error: Remote peer '{my_name}' ({my_ip}) does not have a WireGuard interface named '{interface}'"
     RUNFILE_MISSING = "Error: File '/run/wirescale/{interface}.conf' does not exist or is not a regular file"
     ROOT_SYSTEMD = "Error: Wirescale daemon must be managed by root's systemd"
+    SOCKET_REMOTE_ERROR = "Error: Remote peer '{peer_name}' ({peer_ip}) has closed the connection. Aborting pending operations"
+    SOCKET_ERROR = "Error: The program has been closed. Aborting pending operations"
     SUDO = 'Error: This program must be run as a superuser'
     TS_PEER_OFFLINE = "Error: Peer '{peer_name}' ({peer_ip}) is offline"
     TS_SYSTEMD_STOPPED = "Error: 'tailscaled.service' is stopped. Start the service with systemd"
@@ -346,10 +348,10 @@ class ErrorMessages:
         if pair is not None:
             if pair.local_socket is not None and local_message is not None:
                 local_message = cls.build_error_message(local_message, error_code)
-                pair.local_socket.send(json.dumps(local_message))
+                pair.send_to_local(json.dumps(local_message))
             if pair.remote_socket is not None and remote_message is not None and (always_send_to_remote or pair.running_in_remote):
                 remote_message = cls.build_error_message(remote_message, error_code)
-                pair.remote_socket.send(json.dumps(remote_message))
+                pair.send_to_remote(json.dumps(remote_message))
             pair.close_sockets()
         if exit_code is not None:
             sys.exit(exit_code)

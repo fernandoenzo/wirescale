@@ -38,7 +38,7 @@ class TCPClient:
             ErrorMessages.send_error_message(local_message=error)
         with pair.remote_socket:
             hello_message = TCPMessages.build_hello()
-            pair.remote_socket.send(json.dumps(hello_message))
+            pair.send_to_remote(json.dumps(hello_message))
             for message in pair.remote_socket:
                 message = json.loads(message)
                 if error_code := message[MessageFields.ERROR_CODE]:
@@ -54,7 +54,7 @@ class TCPClient:
                             wgconfig.interface, wgconfig.suffix = check_interface(interface=interface, suffix=suffix)
                             wgconfig.listen_port = TSManager.local_port()
                             upgrade_message = TCPMessages.build_upgrade(wgconfig)
-                            pair.remote_socket.send(json.dumps(upgrade_message))
+                            pair.send_to_remote(json.dumps(upgrade_message))
                         case ActionCodes.INFO:
                             Messages.send_info_message(local_message=message[MessageFields.MESSAGE])
                         case ActionCodes.UPGRADE_RESPONSE:
@@ -65,9 +65,9 @@ class TCPClient:
                             wgconfig.remote_local_port = message[MessageFields.PORT]
                             wgconfig.remote_interface = message[MessageFields.INTERFACE]
                             wgconfig.generate_new_config()
-                            pair.remote_socket.send(json.dumps(TCPMessages.build_go()))
+                            pair.send_to_remote(json.dumps(TCPMessages.build_go()))
                             wgquick = wgconfig.upgrade()
-                            pair.local_socket.send(json.dumps(UnixMessages.build_upgrade_result(wgquick, wgconfig.interface)))
+                            pair.send_to_local(json.dumps(UnixMessages.build_upgrade_result(wgquick, wgconfig.interface)))
                             pair.close_sockets()
                             sys.exit(wgquick.returncode)
 
@@ -81,7 +81,7 @@ class TCPClient:
             ErrorMessages.send_error_message(local_message=error)
         with pair.remote_socket:
             hello_message = TCPMessages.build_hello()
-            pair.remote_socket.send(json.dumps(hello_message))
+            pair.send_to_remote(json.dumps(hello_message))
             for message in pair.remote_socket:
                 message = json.loads(message)
                 if error_code := message[MessageFields.ERROR_CODE]:
@@ -96,12 +96,12 @@ class TCPClient:
                                 recover.endpoint = TSManager.peer_endpoint(pair.peer_ip)
                             recover.new_port = TSManager.local_port()
                             recover_message = TCPMessages.build_recover(recover)
-                            pair.remote_socket.send(json.dumps(recover_message))
+                            pair.send_to_remote(json.dumps(recover_message))
                         case ActionCodes.INFO:
                             Messages.send_info_message(local_message=message[MessageFields.MESSAGE])
                         case ActionCodes.RECOVER_RESPONSE:
                             TCPMessages.process_recover_response(message, recover)
-                            pair.remote_socket.send(json.dumps(TCPMessages.build_go()))
+                            pair.send_to_remote(json.dumps(TCPMessages.build_go()))
                             recover.recover()
                             pair.close_sockets()
                             sys.exit(0)
