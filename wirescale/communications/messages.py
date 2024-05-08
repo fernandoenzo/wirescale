@@ -20,7 +20,6 @@ if TYPE_CHECKING:
 @unique
 class MessageFields(StrEnum):
     ADDRESSES = auto()
-    AUTOREMOVE = auto()
     CODE = auto()
     CONFIG = auto()
     ENCRYPTED = auto()
@@ -74,7 +73,6 @@ class UnixMessages:
         res = {
             MessageFields.CODE: ActionCodes.UPGRADE,
             MessageFields.ERROR_CODE: None,
-            MessageFields.AUTOREMOVE: args.AUTOREMOVE,
             MessageFields.CONFIG: args.CONFIGFILE,
             MessageFields.INTERFACE: args.INTERFACE,
             MessageFields.PEER_IP: str(args.PAIR.peer_ip),

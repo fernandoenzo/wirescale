@@ -87,7 +87,6 @@ class ConnectionPair:
 
 
 class ARGS:
-    AUTOREMOVE: bool = None
     CONFIGFILE: str = None
     DAEMON: bool = None
     DOWN: Path = None
@@ -111,7 +110,6 @@ def parse_args():
     ARGS.START = args.get('command') == 'start'
     ARGS.STOP = args.get('command') == 'stop'
     ARGS.SUFFIX = not args.get('no_suffix')
-    ARGS.AUTOREMOVE = not args.get('disable_autoremove')
     if ARGS.UPGRADE:
         peer_ip = args.get('peer')
         ARGS.PAIR = ConnectionPair(caller=TSManager.my_ip(), receiver=peer_ip)

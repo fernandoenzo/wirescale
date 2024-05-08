@@ -28,7 +28,6 @@ class WGConfig:
     configfile = Path('/run/wirescale/%i.conf')
 
     def __init__(self, file_path: Path | str):
-        self.autoremove: bool = None
         self.interface: str = None
         self.file_path: Path = file_path if isinstance(file_path, Path) else Path(file_path)
         self.config: ConfigParser = ConfigParser(interpolation=None)

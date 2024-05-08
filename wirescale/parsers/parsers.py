@@ -16,8 +16,6 @@ order_subparser = daemon_subparser.add_subparsers(dest='command', required=True)
 order_subparser.add_parser('start', help="start the daemon. Must be run by systemd", add_help=False)
 order_subparser.add_parser('stop', help="stop the daemon. Must be run with sudo", add_help=False)
 daemon_subparser.add_argument('--no-suffix', action='store_true', help='prevent numeric suffix addition to existing interface names during new ones setup')
-daemon_subparser.add_argument('--disable-autoremove', action='store_true',
-                              help='prevents automatic removal of WireGuard interfaces when connections are permanently lost')
 
 down_subparser = subparsers.add_parser('down', help='deactivates a WireGuard interface set up by wirescale', formatter_class=CustomArgumentFormatter)
 down_subparser.add_argument('interface', type=check_existing_conf, help="shortcut for 'wg-quick down /run/wirescale/interface.conf'")
@@ -28,8 +26,6 @@ config_argument = upgrade_subparser.add_argument('--config', '-c', metavar='wgco
                                                  help='path to a WireGuard config template.\n'
                                                       'Defaults to /etc/wirescale/{peername}.conf\n')
 upgrade_subparser.add_argument('--no-suffix', action='store_true', help='prevent numeric suffix addition to existing interface names during new ones setup')
-upgrade_subparser.add_argument('--disable-autoremove', action='store_true',
-                               help='prevents automatic removal of the WireGuard interface if connection is permanently lost')
 interface_argument = upgrade_subparser.add_argument('--interface', '-i', metavar='iface', type=interface_name_validator,
                                                     help='interface name that WireGuard will set up. Defaults to {peername}')
 

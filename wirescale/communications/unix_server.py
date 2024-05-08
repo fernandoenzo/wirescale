@@ -118,7 +118,6 @@ class UnixServer:
         wg_interface, _ = check_interface(interface=interface, suffix=suffix)
         config = check_configfile(config=message[MessageFields.CONFIG])
         wgconfig = check_wgconfig(config, wg_interface)
-        wgconfig.autoremove = message[MessageFields.AUTOREMOVE]
         TCPClient.upgrade(wgconfig=wgconfig, interface=interface, stack=stack, suffix=suffix)
 
     @staticmethod
