@@ -32,8 +32,7 @@ class ActiveSockets:
     def client_exists(self) -> bool:
         if self._client is None or CONNECTION_PAIRS.get(self._client_thread) != self._client:
             self._client, self._client_thread = None, None
-            return False
-        return True
+        return self._client is not None
 
     def client_is_running(self) -> bool | None:
         if self.exclusive_socket is None or not self.client_exists():
@@ -70,8 +69,7 @@ class ActiveSockets:
     def server_exists(self) -> bool:
         if self._server is None or CONNECTION_PAIRS.get(self._server_thread) != self._server:
             self._server, self._server_thread = None, None
-            return False
-        return True
+        return self._server is not None
 
     def server_is_running(self) -> bool | None:
         if self.exclusive_socket is None or not self.server_exists():

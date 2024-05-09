@@ -71,20 +71,26 @@ class UnixServer:
                             pair = ConnectionPair(caller=TSManager.my_ip(), receiver=IPv4Address(message[MessageFields.PEER_IP]))
                             pair.unix_socket = websocket
                             if code == ActionCodes.UPGRADE:
-                                enqueueing = Messages.ENQUEUEING_TO.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
-                                start_processing = Messages.START_PROCESSING_TO.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+                                enqueueing = Messages.ENQUEUEING_TO.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+                                start_processing = Messages.START_PROCESSING_TO.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+                                next_message = Messages.NEXT_UPGRADE.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+                                exclusive_message = Messages.EXCLUSIVE_SEMAPHORE_UPGRADE.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip)
                                 action = lambda: cls.upgrade(message, stack)
                             elif code == ActionCodes.RECOVER:
                                 interface = message[MessageFields.INTERFACE]
-                                enqueueing = Messages.ENQUEUEING_RECOVER.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
-                                start_processing = Messages.START_PROCESSING_RECOVER.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
+                                enqueueing = Messages.ENQUEUEING_RECOVER.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
+                                start_processing = Messages.START_PROCESSING_RECOVER.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
+                                next_message = Messages.NEXT_RECOVER.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
+                                exclusive_message = Messages.EXCLUSIVE_SEMAPHORE_RECOVER.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
                                 action = lambda: cls.recover(message, stack)
                             Messages.send_info_message(local_message=enqueueing)
                             with ExitStack() as stack:
                                 stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.CLIENT))
+                                Messages.send_info_message(local_message=next_message)
                                 ACTIVE_SOCKETS.client_thread = get_ident()
                                 ACTIVE_SOCKETS.waiter_switched.wait()
                                 stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.EXCLUSIVE))
+                                Messages.send_info_message(local_message=exclusive_message)
                                 ACTIVE_SOCKETS.exclusive_socket = pair
                                 cls.discard_connections(websocket)
                                 Messages.send_info_message(local_message=start_processing)

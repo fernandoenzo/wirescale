@@ -28,10 +28,13 @@ class ConnectionPair:
             self.caller_name, self.receiver_name
         self.tcp_socket: ClientConnection | ServerConnection = None
         self.unix_socket: ServerConnection = None
+        self.token: str = None
         CONNECTION_PAIRS[get_ident()] = self
 
     def __eq__(self, other):
         if self is not other:
+            return False
+        if self.token != other.token:
             return False
         if self.caller is not other.caller:
             return False
@@ -48,6 +51,12 @@ class ConnectionPair:
             self.local_socket.close()
         if self.remote_socket is not None:
             self.remote_socket.close()
+
+    @cached_property
+    def id(self) -> str:
+        if self.token is None:
+            self.token: str = str(self.local_socket.id)
+        return self.token[-6:]
 
     @cached_property
     def my_ip(self) -> IPv4Address:

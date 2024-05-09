@@ -39,6 +39,7 @@ class MessageFields(StrEnum):
     REMOTE_PUBKEY = auto()
     START_TIME = auto()
     SUFFIX = auto()
+    TOKEN = auto()
     WG_IP = auto()
 
 
@@ -51,6 +52,7 @@ class ActionCodes(IntEnum):
     RECOVER_RESPONSE = auto()
     STOP = auto()
     SUCCESS = auto()
+    TOKEN = auto()
     UPGRADE = auto()
     UPGRADE_RESPONSE = auto()
 
@@ -122,6 +124,16 @@ class TCPMessages:
             MessageFields.ERROR_CODE: None
         }
         return res
+
+    @staticmethod
+    def send_token() -> dict:
+        pair = CONNECTION_PAIRS[get_ident()]
+        res = {
+            MessageFields.CODE: ActionCodes.TOKEN,
+            MessageFields.ERROR_CODE: None,
+            MessageFields.TOKEN: pair.token,
+        }
+        pair.send_to_remote(json.dumps(res))
 
     @staticmethod
     def build_upgrade(wgconfig: 'WGConfig') -> dict:
@@ -237,18 +249,24 @@ class Messages:
     CONNECTING_UNIX = 'Connecting to local UNIX socket...'
     CONNECTED_UNIX = 'Connection to local UNIX socket established'
     DEADLOCK = 'Potential deadlock situation identified. Taking actions to avoid it'
-    ENQUEUEING_FROM = "Enqueueing request coming from peer '{peer_name}' ({peer_ip})..."
-    ENQUEUEING_REMOTE = "Remote peer '{sender_name}' ({sender_ip}) has enqueued our request"
-    ENQUEUEING_TO = "Enqueueing upgrade request to peer '{peer_name}' ({peer_ip})..."
-    ENQUEUEING_RECOVER = "Enqueueing recover request to peer '{peer_name}' ({peer_ip}) for interface '{interface}'..."
+    ENQUEUEING_FROM = "{id} - Enqueueing request coming from peer '{peer_name}' ({peer_ip})..."
+    ENQUEUEING_REMOTE = "{id} - Remote peer '{sender_name}' ({sender_ip}) has enqueued our request"
+    ENQUEUEING_TO = "{id} - Enqueueing upgrade request to peer '{peer_name}' ({peer_ip})..."
+    ENQUEUEING_RECOVER = "{id} - Enqueueing recover request to peer '{peer_name}' ({peer_ip}) for interface '{interface}'..."
+    EXCLUSIVE_SEMAPHORE_RECOVER = "{id} - The recover request to peer '{peer_name}' ({peer_ip}) for interface '{interface}' has acquired the exclusive semaphore"
+    EXCLUSIVE_SEMAPHORE_REMOTE = "{id} - Request coming from peer '{peer_name}' ({peer_ip}) has acquired the exclusive semaphore"
+    EXCLUSIVE_SEMAPHORE_UPGRADE = "{id} - The upgrade request for the peer '{peer_name}' ({peer_ip}) has acquired the exclusive semaphore"
     NEW_UNIX_INCOMING = 'New local UNIX connection incoming'
+    NEXT_INCOMING = "{id} - Request coming from peer '{peer_name}' ({peer_ip}) is the next one in the processing queue"
+    NEXT_RECOVER = "{id} - The recover request to peer '{peer_name}' ({peer_ip}) for interface '{interface}' is the next one in the processing queue"
+    NEXT_UPGRADE = "{id} - The upgrade request for the peer '{peer_name}' ({peer_ip}) is the next one in the processing queue"
     REACHABLE = "Peer '{peer_name}' ({peer_ip}) is reachable"
-    RECOVER_SUCCES = "Success! WireGuard connection through interface '{interface}' is working again"
+    RECOVER_SUCCES = "{id} - Success! WireGuard connection through interface '{interface}' is working again"
     SHUTDOWN_SET = 'The server has been set to shut down'
-    START_PROCESSING_FROM = "Starting to process the {{action}} request coming from peer '{peer_name}' ({peer_ip})"
-    START_PROCESSING_REMOTE = "Remote peer '{sender_name}' ({sender_ip}) has started to process our {{action}} request"
-    START_PROCESSING_TO = "Starting to process the upgrade request for the peer '{peer_name}' ({peer_ip})"
-    START_PROCESSING_RECOVER = "Starting to process the recover request for the peer '{peer_name}' ({peer_ip}) for interface '{interface}'"
+    START_PROCESSING_FROM = "{id} - Starting to process the {{action}} request coming from peer '{peer_name}' ({peer_ip})"
+    START_PROCESSING_REMOTE = "{id} - Remote peer '{sender_name}' ({sender_ip}) has started to process our {{action}} request"
+    START_PROCESSING_TO = "{id} - Starting to process the upgrade request for the peer '{peer_name}' ({peer_ip})"
+    START_PROCESSING_RECOVER = "{id} - Starting to process the recover request for the peer '{peer_name}' ({peer_ip}) for interface '{interface}'"
     SUCCESS = "Success! Now you have a new working P2P connection through interface '{interface}'"
 
     @staticmethod

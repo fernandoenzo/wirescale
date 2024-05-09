@@ -37,6 +37,7 @@ class TCPClient:
             error = ErrorMessages.REMOTE_MISSING_WIRESCALE.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
             ErrorMessages.send_error_message(local_message=error)
         with pair.remote_socket:
+            TCPMessages.send_token()
             hello_message = TCPMessages.build_hello()
             pair.send_to_remote(json.dumps(hello_message))
             for message in pair.remote_socket:
@@ -80,6 +81,7 @@ class TCPClient:
             error = ErrorMessages.REMOTE_MISSING_WIRESCALE.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
             ErrorMessages.send_error_message(local_message=error)
         with pair.remote_socket:
+            TCPMessages.send_token()
             hello_message = TCPMessages.build_hello()
             pair.send_to_remote(json.dumps(hello_message))
             for message in pair.remote_socket:
