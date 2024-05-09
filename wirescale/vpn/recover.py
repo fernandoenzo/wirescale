@@ -152,7 +152,7 @@ class RecoverConfig:
             ErrorMessages.send_error_message(local_message=error)
         if pair.running_in_remote:
             subprocess.run(['systemctl', 'stop', f'autoremove-{self.interface}.service'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        success_message = Messages.RECOVER_SUCCES.format(interface=self.interface)
+        success_message = Messages.RECOVER_SUCCES.format(id=pair.id, interface=self.interface)
         Messages.send_info_message(local_message=success_message, code=ActionCodes.SUCCESS)
         create_thread(self.autoremove_interface, pair)
 
