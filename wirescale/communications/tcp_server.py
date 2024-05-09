@@ -53,10 +53,10 @@ class TCPServer:
                     ACTIVE_SOCKETS.waiter_switched.wait()
                     cls.discard_connections()
                     stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.EXCLUSIVE))
-                    exclusive_message = Messages.EXCLUSIVE_SEMAPHORE_REMOTE.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip)
-                    Messages.send_info_message(local_message=exclusive_message)
                     ACTIVE_SOCKETS.exclusive_socket = pair
                     ACTIVE_SOCKETS.waiter_server_switched.set()
+                    exclusive_message = Messages.EXCLUSIVE_SEMAPHORE_REMOTE.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+                    Messages.send_info_message(local_message=exclusive_message)
                     stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.WAIT_IF_SWITCHED))
                     cls.discard_connections()
                     start_processing = Messages.START_PROCESSING_FROM.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip)

@@ -90,8 +90,8 @@ class UnixServer:
                                 ACTIVE_SOCKETS.client_thread = get_ident()
                                 ACTIVE_SOCKETS.waiter_switched.wait()
                                 stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.EXCLUSIVE))
-                                Messages.send_info_message(local_message=exclusive_message)
                                 ACTIVE_SOCKETS.exclusive_socket = pair
+                                Messages.send_info_message(local_message=exclusive_message)
                                 cls.discard_connections(websocket)
                                 Messages.send_info_message(local_message=start_processing)
                                 action()

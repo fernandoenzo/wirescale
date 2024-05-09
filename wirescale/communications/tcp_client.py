@@ -16,6 +16,7 @@ from wirescale.communications.checkers import check_addresses_in_allowedips, che
 from wirescale.communications.common import CONNECTION_PAIRS, file_locker, Semaphores, TCP_PORT
 from wirescale.communications.messages import ActionCodes, ErrorMessages, MessageFields, Messages, TCPMessages, UnixMessages
 from wirescale.vpn.tsmanager import TSManager
+from wirescale.vpn.watch import ACTIVE_SOCKETS
 
 if TYPE_CHECKING:
     from wirescale.vpn.recover import RecoverConfig
@@ -50,6 +51,7 @@ class TCPClient:
                     match code:
                         case ActionCodes.ACK:
                             stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.WAIT_IF_SWITCHED))
+                            ACTIVE_SOCKETS.exclusive_socket = pair
                             with file_locker():
                                 wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)
                             wgconfig.interface, wgconfig.suffix = check_interface(interface=interface, suffix=suffix)
@@ -94,6 +96,7 @@ class TCPClient:
                     match code:
                         case ActionCodes.ACK:
                             stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.WAIT_IF_SWITCHED))
+                            ACTIVE_SOCKETS.exclusive_socket = pair
                             with file_locker():
                                 recover.endpoint = TSManager.peer_endpoint(pair.peer_ip)
                             recover.new_port = TSManager.local_port()

@@ -25,19 +25,13 @@ class ActiveSockets:
         self.waiter_server_switched.set()
         self.waiter_switched.set()
 
-    @property
-    def client(self) -> 'ConnectionPair':
-        return self._client
-
     def client_exists(self) -> bool:
-        if self._client is None or CONNECTION_PAIRS.get(self._client_thread) != self._client:
+        if CONNECTION_PAIRS.get(self._client_thread) != self._client:
             self._client, self._client_thread = None, None
         return self._client is not None
 
-    def client_is_running(self) -> bool | None:
-        if self.exclusive_socket is None or not self.client_exists():
-            return None
-        return self.exclusive_socket == self._client
+    def client_is_running(self) -> bool:
+        return self.client_exists() and self.exclusive_socket == self._client
 
     @property
     def client_thread(self) -> int:
@@ -48,12 +42,14 @@ class ActiveSockets:
         self._client_thread = new_client_thread
         self._client = CONNECTION_PAIRS[new_client_thread]
 
-    def needs_switch(self) -> bool:
+    def needs_switch(self, counter: int) -> bool:
         if not self.client_exists() or not self.server_exists():
             return False
         if self.server_is_running():
             return False
         if self.client_is_running():
+            if counter > 1 and self._server.peer_ip == self._client.peer_ip:
+                return True
             return self._server.peer_ip < self._client.my_ip
         return False
 
@@ -62,19 +58,13 @@ class ActiveSockets:
         StaticMonitor.lock_code(uid=Semaphores.EXCLUSIVE)
         self.waiter_switched.set()
 
-    @property
-    def server(self) -> 'ConnectionPair':
-        return self._server
-
     def server_exists(self) -> bool:
-        if self._server is None or CONNECTION_PAIRS.get(self._server_thread) != self._server:
+        if CONNECTION_PAIRS.get(self._server_thread) != self._server:
             self._server, self._server_thread = None, None
         return self._server is not None
 
-    def server_is_running(self) -> bool | None:
-        if self.exclusive_socket is None or not self.server_exists():
-            return None
-        return self.exclusive_socket == self._server
+    def server_is_running(self) -> bool:
+        return self.server_exists() and self.exclusive_socket == self._server
 
     @property
     def server_thread(self) -> int:
@@ -87,18 +77,22 @@ class ActiveSockets:
 
     def watch(self):
         server, client = None, None
+        counter = 0
         while True:
             if SHUTDOWN.is_set() and not (self.server_exists() and self.client_exists()):
                 return
-            if self._server != server or self._client != client:
+            if self._server != server or self._client != client or None in (self._server, self._client):
                 server, client = self._server, self._client
+                counter = 0
             else:
-                if self.needs_switch() and self.waiter_switched.is_set():
-                    print(Messages.DEADLOCK, flush=True)
-                    self.waiter_server_switched.clear()
-                    self.waiter_switched.clear()
-                    StaticMonitor.unlock_code(uid=Semaphores.EXCLUSIVE)
-                    create_thread(self.capture_semaphore)
+                if self.waiter_switched.is_set():
+                    counter += 1
+                    if self.needs_switch(counter):
+                        print(Messages.DEADLOCK, flush=True)
+                        self.waiter_server_switched.clear()
+                        self.waiter_switched.clear()
+                        StaticMonitor.unlock_code(uid=Semaphores.EXCLUSIVE)
+                        create_thread(self.capture_semaphore)
             sleep(15)
 
 
