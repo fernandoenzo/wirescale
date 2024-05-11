@@ -118,21 +118,19 @@ class TSManager:
 
     @classmethod
     def peer_is_online(cls, ip: IPv4Address) -> bool:
-        # if not cls.peer(ip)['Online']:
-        #     return False
-        check_ping = subprocess.run(['tailscale', 'ping', '-c', '3', '--until-direct=false', '--timeout', '3s', str(ip)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, text=True)
-        return check_ping.returncode == 0
+        for _ in range(5):
+            check_ping = subprocess.run(['tailscale', 'ping', '-c', '1', '--until-direct=false', '--timeout', '2s', str(ip)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
+            if check_ping == 0:
+                return True
+        return False
 
     @classmethod
     def wait_until_peer_is_online(cls, ip: IPv4Address, timeout: int = None) -> bool:
-        ts_recovered = None
         start_time = time.time()
-        while ts_recovered != 0:
+        while not (ts_recovered := cls.peer_is_online(ip)):
             if timeout is not None and time.time() - start_time > timeout:
                 break
-            ts_recovered = subprocess.run(['tailscale', 'ping', '-c', '1', '--until-direct=false', str(ip)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, text=True).returncode
-            sleep(0.5)
-        return ts_recovered == 0
+        return ts_recovered
 
     @classmethod
     def wait_tailscale_restarted(cls, pair: 'ConnectionPair', stack: ExitStack):
