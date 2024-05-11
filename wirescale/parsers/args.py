@@ -8,14 +8,16 @@ from functools import cached_property
 from ipaddress import IPv4Address
 from pathlib import Path
 from threading import get_ident
+from typing import Iterator
 
-from websockets import ConnectionClosed
+from parallel_utils.thread import create_thread
+from websockets import ConnectionClosed, ConnectionClosedError, ConnectionClosedOK, Data
 from websockets.sync.client import ClientConnection
 from websockets.sync.server import ServerConnection
 
 from wirescale.communications.checkers import get_latest_handshake
 from wirescale.communications.common import CONNECTION_PAIRS, file_locker
-from wirescale.communications.messages import ErrorCodes, ErrorMessages
+from wirescale.communications.messages import ErrorCodes, ErrorMessages, Messages
 from wirescale.parsers import top_parser
 from wirescale.vpn.tsmanager import TSManager
 
@@ -26,6 +28,7 @@ class ConnectionPair:
         self.receiver = receiver
         with file_locker():
             self.caller_name, self.receiver_name
+        self.check_running = False
         self.tcp_socket: ClientConnection | ServerConnection = None
         self.unix_socket: ServerConnection = None
         self.token: str = None
@@ -45,6 +48,37 @@ class ConnectionPair:
         if self.unix_socket is not other.unix_socket:
             return False
         return True
+
+    def __iter__(self) -> Iterator[Data]:
+        while True:
+            try:
+                yield self.remote_socket.recv(15)
+            except TimeoutError:
+                create_thread(self.check_broken_connection)
+            except ConnectionClosedError:
+                error = ErrorMessages.CONNECTION_LOST.format(id=self.id, peer_name=self.peer_name, peer_ip=self.peer_ip)
+                ErrorMessages.send_error_message(local_message=error)
+            except ConnectionClosedOK:
+                return
+
+    def check_broken_connection(self):
+        if self.check_running:
+            return
+        try:
+            self.check_running = True
+            CONNECTION_PAIRS[get_ident()] = self
+            with file_locker():
+                checking_message = Messages.CHECKING_CONNECTION.format(id=self.id, peer_name=self.peer_name, peer_ip=self.peer_ip)
+                Messages.send_info_message(local_message=checking_message)
+                is_online = TSManager.wait_until_peer_is_online(ip=self.peer_ip, timeout=30)
+            if not is_online:
+                error = ErrorMessages.CONNECTION_LOST.format(id=self.id, peer_name=self.peer_name, peer_ip=self.peer_ip)
+                ErrorMessages.send_error_message(local_message=error, error_code=ErrorCodes.TS_UNREACHABLE)
+            message_ok = Messages.CONNECTION_OK.format(id=self.id, peer_name=self.peer_name, peer_ip=self.peer_ip)
+            Messages.send_info_message(local_message=message_ok)
+        finally:
+            self.check_running = False
+            CONNECTION_PAIRS.pop(get_ident(), None)
 
     def close_sockets(self):
         if self.local_socket is not None:
@@ -92,12 +126,12 @@ class ConnectionPair:
         except ConnectionClosed:
             print(ErrorMessages.SOCKET_ERROR, file=sys.stderr, flush=True)
             if self.remote_socket is not None:
-                error = ErrorMessages.SOCKET_REMOTE_ERROR.format(peer_name=self.my_name, peer_ip=self.my_ip)
+                error = ErrorMessages.SOCKET_REMOTE_ERROR.format(id=self.id, peer_name=self.my_name, peer_ip=self.my_ip)
                 error_message = ErrorMessages.build_error_message(error, ErrorCodes.GENERIC)
                 try:
                     self.remote_socket.send(json.dumps(error_message))
                 except ConnectionClosed:
-                    error = ErrorMessages.SOCKET_REMOTE_ERROR.format(peer_name=self.peer_name, peer_ip=self.peer_ip)
+                    error = ErrorMessages.SOCKET_REMOTE_ERROR.format(id=self.id, peer_name=self.peer_name, peer_ip=self.peer_ip)
                     print(error, file=sys.stderr, flush=True)
             self.close_sockets()
             sys.exit(1)
@@ -106,7 +140,7 @@ class ConnectionPair:
         try:
             self.remote_socket.send(message)
         except ConnectionClosed:
-            error = ErrorMessages.SOCKET_REMOTE_ERROR.format(peer_name=self.peer_name, peer_ip=self.peer_ip)
+            error = ErrorMessages.SOCKET_REMOTE_ERROR.format(id=self.id, peer_name=self.peer_name, peer_ip=self.peer_ip)
             print(error, file=sys.stderr, flush=True)
             if not self.running_in_remote:
                 error_message = ErrorMessages.build_error_message(error, ErrorCodes.GENERIC)

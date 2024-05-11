@@ -7,7 +7,6 @@ import os
 import re
 import subprocess
 import sys
-import time
 from contextlib import ExitStack
 from functools import lru_cache
 from ipaddress import IPv4Address
@@ -117,19 +116,20 @@ class TSManager:
         return IPv4Address(ip.stdout.strip())
 
     @classmethod
-    def peer_is_online(cls, ip: IPv4Address) -> bool:
-        for _ in range(5):
-            check_ping = subprocess.run(['tailscale', 'ping', '-c', '1', '--until-direct=false', '--timeout', '2s', str(ip)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
-            if check_ping == 0:
-                return True
-        return False
+    def peer_is_online(cls, ip: IPv4Address, timeout: int = 2) -> bool:
+        while not cls.has_state():
+            sleep(0.5)
+        check_ping = subprocess.run(['tailscale', 'ping', '-c', '1', '--until-direct=false', '--timeout', f'{timeout}s', str(ip)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return check_ping.returncode == 0
 
     @classmethod
     def wait_until_peer_is_online(cls, ip: IPv4Address, timeout: int = None) -> bool:
-        start_time = time.time()
-        while not (ts_recovered := cls.peer_is_online(ip)):
-            if timeout is not None and time.time() - start_time > timeout:
-                break
+        single_ping_timeout = 2
+        while not (ts_recovered := cls.peer_is_online(ip=ip, timeout=single_ping_timeout)):
+            if timeout is not None:
+                timeout -= single_ping_timeout
+                if timeout <= 0:
+                    break
         return ts_recovered
 
     @classmethod
@@ -148,7 +148,7 @@ class TSManager:
         pair = CONNECTION_PAIRS.get(get_ident())
         peer_name = pair.peer_name if pair is not None else cls.peer_name(ip)
         print(Messages.CHECKING_ENDPOINT.format(peer_name=peer_name, peer_ip=ip), flush=True)
-        if not cls.peer_is_online(ip):
+        if not cls.wait_until_peer_is_online(ip, timeout=45):
             peer_is_offline = ErrorMessages.TS_PEER_OFFLINE.format(peer_name=peer_name, peer_ip=ip)
             ErrorMessages.send_error_message(local_message=peer_is_offline, error_code=ErrorCodes.TS_UNREACHABLE, exit_code=2)
         force_endpoint = subprocess.run(['tailscale', 'ping', '-c', '30', str(ip)], capture_output=True, text=True)

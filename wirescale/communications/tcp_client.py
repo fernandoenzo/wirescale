@@ -41,7 +41,7 @@ class TCPClient:
             TCPMessages.send_token()
             hello_message = TCPMessages.build_hello()
             pair.send_to_remote(json.dumps(hello_message))
-            for message in pair.remote_socket:
+            for message in pair:
                 message = json.loads(message)
                 if error_code := message[MessageFields.ERROR_CODE]:
                     match error_code:
@@ -86,7 +86,7 @@ class TCPClient:
             TCPMessages.send_token()
             hello_message = TCPMessages.build_hello()
             pair.send_to_remote(json.dumps(hello_message))
-            for message in pair.remote_socket:
+            for message in pair:
                 message = json.loads(message)
                 if error_code := message[MessageFields.ERROR_CODE]:
                     match error_code:

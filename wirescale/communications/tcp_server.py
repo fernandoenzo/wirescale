@@ -61,7 +61,7 @@ class TCPServer:
                     cls.discard_connections()
                     start_processing = Messages.START_PROCESSING_FROM.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip)
                     start_processing_remote = Messages.START_PROCESSING_REMOTE.format(id=pair.id, sender_name=pair.my_name, sender_ip=pair.my_ip)
-                    for message in pair.remote_socket:
+                    for message in pair:
                         message = json.loads(message)
                         match message[MessageFields.CODE]:
                             case ActionCodes.HELLO:
@@ -105,7 +105,7 @@ class TCPServer:
         wgconfig.generate_new_config()
         upgrade_response = TCPMessages.build_upgrade_response(wgconfig)
         pair.send_to_remote(json.dumps(upgrade_response))
-        for message in pair.remote_socket:
+        for message in pair:
             message = json.loads(message)
             if message[MessageFields.ERROR_CODE]:
                 print(message[MessageFields.ERROR_MESSAGE], file=sys.stderr, flush=True)
@@ -126,7 +126,7 @@ class TCPServer:
         recover = TCPMessages.process_recover(message)
         recover_response = TCPMessages.build_recover_response(recover)
         pair.send_to_remote(json.dumps(recover_response))
-        for message in pair.remote_socket:
+        for message in pair:
             message = json.loads(message)
             if message[MessageFields.ERROR_CODE]:
                 print(message[MessageFields.ERROR_MESSAGE], file=sys.stderr, flush=True)

@@ -245,9 +245,11 @@ class TCPMessages:
 
 
 class Messages:
+    CHECKING_CONNECTION = "{id} - Checking whether the connection with peer '{peer_name}' ({peer_ip}) is broken..."
     CHECKING_ENDPOINT = "Checking that an endpoint is available for peer '{peer_name}' ({peer_ip})..."
-    CONNECTING_UNIX = 'Connecting to local UNIX socket...'
     CONNECTED_UNIX = 'Connection to local UNIX socket established'
+    CONNECTING_UNIX = 'Connecting to local UNIX socket...'
+    CONNECTION_OK = "{id} - Connection with peer '{peer_name}' ({peer_ip}) is fine"
     DEADLOCK = 'Potential deadlock situation identified. Taking actions to avoid it'
     ENQUEUEING_FROM = "{id} - Enqueueing request coming from peer '{peer_name}' ({peer_ip})..."
     ENQUEUEING_REMOTE = "{id} - Remote peer '{sender_name}' ({sender_ip}) has enqueued our request"
@@ -299,6 +301,7 @@ class ErrorMessages:
     BAD_FORMAT_PUBKEY = "Error: The public key has not the correct length or format in file '{config_file}'"
     CANT_DECRYPT = "Error: Couldn't decrypt the recover message sent by remote peer '{peer_name}' ({peer_ip})"
     CLOSED = 'Error: Wirescale is shutting down and is no longer accepting new requests'
+    CONNECTION_LOST = "{id} - Error: Connection with remote peer '{peer_name}' ({peer_ip}) has been lost. Aborting pending operations"
     FINAL_ERROR = 'Something went wrong and, finally, it was not possible to establish the P2P connection'
     HANDSHAKE_FAILED = "Handshake with interface '{interface}' failed after changing its endpoint. Interface will be removed"
     INTERFACE_EXISTS = "Error: A network interface '{interface}' already exists and Wirescale was started with the --no-suffix option"
@@ -333,7 +336,7 @@ class ErrorMessages:
     REMOTE_WG_INTERFACE_MISSING = "Error: Remote peer '{my_name}' ({my_ip}) does not have a WireGuard interface named '{interface}'"
     RUNFILE_MISSING = "Error: File '/run/wirescale/{interface}.conf' does not exist or is not a regular file"
     ROOT_SYSTEMD = "Error: Wirescale daemon must be managed by root's systemd"
-    SOCKET_REMOTE_ERROR = "Error: Remote peer '{peer_name}' ({peer_ip}) has closed the connection. Aborting pending operations"
+    SOCKET_REMOTE_ERROR = "{id} - Error: Remote peer '{peer_name}' ({peer_ip}) has closed the connection. Aborting pending operations"
     SOCKET_ERROR = "Error: The program has been closed. Aborting pending operations"
     SUDO = 'Error: This program must be run as a superuser'
     TS_PEER_OFFLINE = "Error: Peer '{peer_name}' ({peer_ip}) is offline"
