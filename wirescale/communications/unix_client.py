@@ -29,7 +29,7 @@ class UnixClient:
                 print(Messages.CONNECTED_UNIX, flush=True)
             except:
                 print(ErrorMessages.UNIX_SOCKET, file=sys.stderr, flush=True)
-                sys.exit(1)
+                sys.exit(2)
 
     @classmethod
     def stop(cls):

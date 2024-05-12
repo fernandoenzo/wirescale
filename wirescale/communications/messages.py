@@ -334,7 +334,6 @@ class ErrorMessages:
     REMOTE_MISSING_WIRESCALE = "Error: Remote peer '{peer_name}' ({peer_ip}) does not have Wirescale running"
     REMOTE_PORT_MISMATCH = "Error: WireGuard interface '{interface}' is not listening on local port {port} in remote peer '{peer_name}' ({peer_ip})"
     REMOTE_RUNFILE_MISSING = "Error: File '/run/wirescale/{interface}.conf' does not exist or is not a regular file in remote peer '{my_name}' ({my_ip})"
-    REMOTE_TAILSCALED_STOPPED = "Error: Tailscaled service is not running in remote peer `{peer_name}` ({peer_ip})"
     REMOTE_WG_INTERFACE_MISSING = "Error: Remote peer '{my_name}' ({my_ip}) does not have a WireGuard interface named '{interface}'"
     RUNFILE_MISSING = "Error: File '/run/wirescale/{interface}.conf' does not exist or is not a regular file"
     ROOT_SYSTEMD = "Error: Wirescale daemon must be managed by root's systemd"

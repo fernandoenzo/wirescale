@@ -27,13 +27,21 @@ class TCPClient:
 
     @staticmethod
     def connect(uri: IPv4Address) -> ClientConnection:
-        return connect(uri=f'ws://{uri}:{TCP_PORT}')
+        for i in range(2):
+            try:
+                return connect(uri=f'ws://{uri}:{TCP_PORT}')
+            except TimeoutError:
+                if i == 1:
+                    return None
 
     @classmethod
     def upgrade(cls, wgconfig: 'WGConfig', interface: str, stack: ExitStack, suffix: bool):
         pair = CONNECTION_PAIRS[get_ident()]
         try:
             pair.tcp_socket = cls.connect(uri=pair.peer_ip)
+            if pair.tcp_socket is None:
+                peer_is_offline = ErrorMessages.TS_PEER_OFFLINE.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+                ErrorMessages.send_error_message(local_message=peer_is_offline, error_code=ErrorCodes.TS_UNREACHABLE, exit_code=2)
         except ConnectionRefusedError:
             error = ErrorMessages.REMOTE_MISSING_WIRESCALE.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
             ErrorMessages.send_error_message(local_message=error)
