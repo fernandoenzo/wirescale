@@ -6,7 +6,6 @@ import base64
 import os
 import re
 import subprocess
-import time
 from contextlib import ExitStack
 from datetime import datetime
 from ipaddress import IPv4Address
@@ -124,12 +123,11 @@ class RecoverConfig:
         return decrypted
 
     def check_updated_handshake(self, timeout: int = 10) -> bool:
-        t1 = time.time()
-        while (time.time() - t1) < timeout:
-            if get_latest_handshake(self.interface) != self.latest_handshake:
-                return True
-            sleep(0.5)
-        return False
+        sleep_time = 0.5
+        while not (updated := get_latest_handshake(self.interface) != self.latest_handshake) and timeout > 0:
+            timeout -= sleep_time
+            sleep(sleep_time)
+        return updated
 
     def recover(self):
         self.modify_wgconfig()
