@@ -57,7 +57,7 @@ class ConnectionPair:
                 create_thread(self.check_broken_connection)
             except ConnectionClosedError:
                 error = ErrorMessages.CONNECTION_LOST.format(id=self.id, peer_name=self.peer_name, peer_ip=self.peer_ip)
-                ErrorMessages.send_error_message(local_message=error)
+                ErrorMessages.send_error_message(local_message=error, error_code=ErrorCodes.TS_UNREACHABLE)
             except ConnectionClosedOK:
                 return
 
@@ -69,13 +69,13 @@ class ConnectionPair:
             CONNECTION_PAIRS[get_ident()] = self
             with file_locker():
                 checking_message = Messages.CHECKING_CONNECTION.format(id=self.id, peer_name=self.peer_name, peer_ip=self.peer_ip)
-                Messages.send_info_message(local_message=checking_message)
+                print(checking_message, flush=True)
                 is_online = TSManager.wait_until_peer_is_online(ip=self.peer_ip, timeout=30)
             if not is_online:
-                error = ErrorMessages.CONNECTION_LOST.format(id=self.id, peer_name=self.peer_name, peer_ip=self.peer_ip)
-                ErrorMessages.send_error_message(local_message=error, error_code=ErrorCodes.TS_UNREACHABLE)
-            message_ok = Messages.CONNECTION_OK.format(id=self.id, peer_name=self.peer_name, peer_ip=self.peer_ip)
-            Messages.send_info_message(local_message=message_ok)
+                self.remote_socket.close()
+            else:
+                message_ok = Messages.CONNECTION_OK.format(id=self.id, peer_name=self.peer_name, peer_ip=self.peer_ip)
+                print(message_ok, flush=True)
         finally:
             self.check_running = False
             CONNECTION_PAIRS.pop(get_ident(), None)
