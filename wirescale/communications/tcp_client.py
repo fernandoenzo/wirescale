@@ -14,7 +14,7 @@ from websockets.sync.client import ClientConnection, connect
 
 from wirescale.communications.checkers import check_addresses_in_allowedips, check_interface, match_pubkeys
 from wirescale.communications.common import CONNECTION_PAIRS, file_locker, Semaphores, TCP_PORT
-from wirescale.communications.messages import ActionCodes, ErrorMessages, MessageFields, Messages, TCPMessages, UnixMessages
+from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, MessageFields, Messages, TCPMessages, UnixMessages
 from wirescale.vpn.tsmanager import TSManager
 from wirescale.vpn.watch import ACTIVE_SOCKETS
 
@@ -68,7 +68,10 @@ class TCPClient:
                             wgconfig.remote_local_port = message[MessageFields.PORT]
                             wgconfig.remote_interface = message[MessageFields.INTERFACE]
                             wgconfig.generate_new_config()
-                            pair.send_to_remote(json.dumps(TCPMessages.build_go()))
+                            sent = pair.send_to_remote(json.dumps(TCPMessages.build_go()), ack_timeout=5)
+                            if not sent:
+                                error = ErrorMessages.CONNECTION_LOST.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+                                ErrorMessages.send_error_message(local_message=error, error_code=ErrorCodes.TS_UNREACHABLE)
                             wgquick = wgconfig.upgrade()
                             pair.send_to_local(json.dumps(UnixMessages.build_upgrade_result(wgquick, wgconfig.interface)))
                             pair.close_sockets()
@@ -106,7 +109,10 @@ class TCPClient:
                             Messages.send_info_message(local_message=message[MessageFields.MESSAGE])
                         case ActionCodes.RECOVER_RESPONSE:
                             TCPMessages.process_recover_response(message, recover)
-                            pair.send_to_remote(json.dumps(TCPMessages.build_go()))
+                            sent = pair.send_to_remote(json.dumps(TCPMessages.build_go()), ack_timeout=5)
+                            if not sent:
+                                error = ErrorMessages.CONNECTION_LOST.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+                                ErrorMessages.send_error_message(local_message=error, error_code=ErrorCodes.TS_UNREACHABLE)
                             recover.recover()
                             pair.close_sockets()
                             sys.exit(0)
