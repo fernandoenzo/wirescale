@@ -302,6 +302,7 @@ class ErrorMessages:
     BAD_FORMAT_PUBKEY = "Error: The public key has not the correct length or format in file '{config_file}'"
     CANT_DECRYPT = "Error: Couldn't decrypt the recover message sent by remote peer '{peer_name}' ({peer_ip})"
     CLOSED = 'Error: Wirescale is shutting down and is no longer accepting new requests'
+    CLOSING_SOCKET = "{id} - Error: Connection is broken. Closing socket"
     CONNECTION_LOST = "{id} - Error: Connection with remote peer '{peer_name}' ({peer_ip}) has been lost. Aborting pending operations"
     FINAL_ERROR = 'Something went wrong and, finally, it was not possible to establish the P2P connection'
     HANDSHAKE_FAILED = "Handshake with interface '{interface}' failed after changing its endpoint. Interface will be removed"

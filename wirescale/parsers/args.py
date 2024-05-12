@@ -4,6 +4,7 @@
 
 import json
 import sys
+from contextlib import suppress
 from functools import cached_property
 from ipaddress import IPv4Address
 from pathlib import Path
@@ -13,6 +14,7 @@ from typing import Iterator
 from parallel_utils.thread import create_thread
 from websockets import ConnectionClosed, ConnectionClosedError, ConnectionClosedOK, Data
 from websockets.sync.client import ClientConnection
+from websockets.sync.connection import Connection
 from websockets.sync.server import ServerConnection
 
 from wirescale.communications.checkers import get_latest_handshake
@@ -29,6 +31,7 @@ class ConnectionPair:
         with file_locker():
             self.caller_name, self.receiver_name
         self.check_running = False
+        self.closing = False
         self.tcp_socket: ClientConnection | ServerConnection = None
         self.unix_socket: ServerConnection = None
         self.token: str = None
@@ -62,29 +65,35 @@ class ConnectionPair:
                 return
 
     def check_broken_connection(self):
-        if self.check_running:
+        if self.closing or self.check_running:
             return
         try:
             self.check_running = True
-            CONNECTION_PAIRS[get_ident()] = self
             with file_locker():
                 checking_message = Messages.CHECKING_CONNECTION.format(id=self.id, peer_name=self.peer_name, peer_ip=self.peer_ip)
                 print(checking_message, flush=True)
                 is_online = TSManager.wait_until_peer_is_online(ip=self.peer_ip, timeout=30)
             if not is_online:
-                self.remote_socket.close()
+                self.closing = True
+                closing_message = ErrorMessages.CLOSING_SOCKET.format(id=self.id)
+                print(closing_message, file=sys.stderr, flush=True)
+                create_thread(self.close_socket, self.remote_socket)
             else:
                 message_ok = Messages.CONNECTION_OK.format(id=self.id, peer_name=self.peer_name, peer_ip=self.peer_ip)
                 print(message_ok, flush=True)
         finally:
             self.check_running = False
-            CONNECTION_PAIRS.pop(get_ident(), None)
 
     def close_sockets(self):
         if self.local_socket is not None:
-            self.local_socket.close()
+            create_thread(self.close_socket, self.local_socket)
         if self.remote_socket is not None:
-            self.remote_socket.close()
+            create_thread(self.close_socket, self.remote_socket)
+
+    @staticmethod
+    def close_socket(socket: Connection):
+        with suppress(BaseException):
+            socket.close()
 
     @cached_property
     def id(self) -> str:

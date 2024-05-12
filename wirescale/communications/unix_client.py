@@ -12,7 +12,7 @@ from websockets.sync.client import ClientConnection, unix_connect
 from wirescale.communications.common import SOCKET_PATH
 from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, MessageFields, Messages, UnixMessages
 from wirescale.parsers import upgrade_subparser
-from wirescale.parsers.args import ARGS
+from wirescale.parsers.args import ARGS, ConnectionPair
 from wirescale.parsers.parsers import config_argument, interface_argument
 from wirescale.vpn.recover import RecoverConfig
 
@@ -56,7 +56,7 @@ class UnixClient:
             for message in cls.CLIENT:
                 message = json.loads(message)
                 if error_code := message[MessageFields.ERROR_CODE]:
-                    cls.CLIENT.close()
+                    ConnectionPair.close_socket(cls.CLIENT)
                     error = message[MessageFields.ERROR_MESSAGE]
                     match error_code:
                         case ErrorCodes.INTERFACE_EXISTS:
@@ -76,7 +76,7 @@ class UnixClient:
                             print(message[MessageFields.MESSAGE], flush=True)
                         case ActionCodes.SUCCESS:
                             print(Messages.SUCCESS.format(interface=message[MessageFields.INTERFACE]), flush=True)
-                            cls.CLIENT.close()
+                            ConnectionPair.close_socket(cls.CLIENT)
                             sys.exit(0)
 
     @classmethod
@@ -89,7 +89,7 @@ class UnixClient:
             for message in cls.CLIENT:
                 message = json.loads(message)
                 if error_code := message[MessageFields.ERROR_CODE]:
-                    cls.CLIENT.close()
+                    ConnectionPair.close_socket(cls.CLIENT)
                     error = message[MessageFields.ERROR_MESSAGE]
                     match error_code:
                         case ErrorCodes.TS_UNREACHABLE:
@@ -107,5 +107,5 @@ class UnixClient:
                             print(message[MessageFields.MESSAGE], flush=True)
                         case ActionCodes.SUCCESS:
                             print(message[MessageFields.MESSAGE], flush=True)
-                            cls.CLIENT.close()
+                            ConnectionPair.close_socket(cls.CLIENT)
                             sys.exit(0)

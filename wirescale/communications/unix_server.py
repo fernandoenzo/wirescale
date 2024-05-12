@@ -39,7 +39,7 @@ class UnixServer:
         fd_dir = Path('/proc/self/fd')
         fd_dir = [int(fd.name) for fd in fd_dir.iterdir() if fd.is_socket() and int(fd.name) not in (0, 1, 2)]
         for fd in fd_dir:
-            with suppress(Exception):
+            with suppress(BaseException):
                 s = socket.fromfd(fd, socket.AF_UNIX, socket.SOCK_STREAM)
                 if s.getsockname() == str(SOCKET_PATH):
                     cls.SYSTEMD_SOCKET_FD = fd
@@ -97,7 +97,7 @@ class UnixServer:
                                 action()
 
                 finally:
-                    CONNECTION_PAIRS.pop(get_ident(), None)
+                    pair = CONNECTION_PAIRS.pop(get_ident(), None)
                     if pair is not None and pair.token is not None:
                         end_message = Messages.END_SESSION.format(id=pair.id)
                         print(end_message, flush=True)
@@ -110,7 +110,7 @@ class UnixServer:
                 websocket.send(json.dumps(error))
             except ConnectionClosed:
                 pass
-            websocket.close()
+            ConnectionPair.close_socket(websocket)
             sys.exit(1)
 
     @classmethod
