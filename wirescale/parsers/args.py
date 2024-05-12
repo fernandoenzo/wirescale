@@ -145,9 +145,12 @@ class ConnectionPair:
             self.close_sockets()
             sys.exit(1)
 
-    def send_to_remote(self, message):
+    def send_to_remote(self, message, ack_timeout: int = None):
         try:
             self.remote_socket.send(message)
+            if ack_timeout is not None:
+                p = self.remote_socket.ping()
+                return p.wait(timeout=ack_timeout)
         except ConnectionClosed:
             error = ErrorMessages.SOCKET_REMOTE_ERROR.format(id=self.id, peer_name=self.peer_name, peer_ip=self.peer_ip)
             print(error, file=sys.stderr, flush=True)
