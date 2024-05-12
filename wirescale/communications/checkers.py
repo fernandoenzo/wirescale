@@ -7,6 +7,7 @@ from _socket import if_nametoindex
 from configparser import ConfigParser
 from pathlib import Path
 from threading import get_ident
+from time import sleep
 from typing import Tuple, TYPE_CHECKING
 
 from wirescale.communications.common import CONNECTION_PAIRS
@@ -172,8 +173,13 @@ def check_addresses_in_allowedips(wgconfig: WGConfig):
 def match_interface_port(interface: str, port: int) -> bool:
     pair = CONNECTION_PAIRS[get_ident()]
     try:
-        real_port = int(subprocess.run(['wg', 'show', interface, 'listen-port'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True).stdout.strip())
-        return real_port == port
+        for i in range(2):
+            real_port = int(subprocess.run(['wg', 'show', interface, 'listen-port'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True).stdout.strip())
+            res = real_port == port
+            if not res and i == 0:
+                sleep(3)
+            else:
+                return res
     except:
         error = ErrorMessages.WG_INTERFACE_MISSING.format(interface=interface)
         remote_error = ErrorMessages.REMOTE_WG_INTERFACE_MISSING.format(my_name=pair.my_name, my_ip=pair.my_ip, interface=interface)
