@@ -78,7 +78,10 @@ class TCPServer:
                                 cls.recover(message)
 
             finally:
-                CONNECTION_PAIRS.pop(get_ident(), None)
+                pair = CONNECTION_PAIRS.pop(get_ident(), None)
+                if pair is not None and pair.token is not None:
+                    end_message = Messages.END_SESSION.format(id=pair.id)
+                    Messages.send_info_message(local_message=end_message)
 
     @staticmethod
     def discard_connections():

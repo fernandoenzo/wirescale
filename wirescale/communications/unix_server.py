@@ -98,6 +98,9 @@ class UnixServer:
 
                 finally:
                     CONNECTION_PAIRS.pop(get_ident(), None)
+                    if pair is not None and pair.token is not None:
+                        end_message = Messages.END_SESSION.format(id=pair.id)
+                        print(end_message, flush=True)
 
     @staticmethod
     def discard_connections(websocket: ServerConnection):

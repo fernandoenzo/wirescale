@@ -251,6 +251,7 @@ class Messages:
     CONNECTING_UNIX = 'Connecting to local UNIX socket...'
     CONNECTION_OK = "{id} - Connection with peer '{peer_name}' ({peer_ip}) is fine"
     DEADLOCK = 'Potential deadlock situation identified. Taking actions to avoid it'
+    END_SESSION = "{id} - Session finished"
     ENQUEUEING_FROM = "{id} - Enqueueing request coming from peer '{peer_name}' ({peer_ip})..."
     ENQUEUEING_REMOTE = "{id} - Remote peer '{sender_name}' ({sender_ip}) has enqueued our request"
     ENQUEUEING_TO = "{id} - Enqueueing upgrade request to peer '{peer_name}' ({peer_ip})..."
