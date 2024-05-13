@@ -245,32 +245,36 @@ class TCPMessages:
 
 
 class Messages:
-    CHECKING_CONNECTION = "{id} - Checking whether the connection with peer '{peer_name}' ({peer_ip}) is broken..."
+    CHECKING_CONNECTION = "Checking whether the connection with peer '{peer_name}' ({peer_ip}) is broken..."
     CHECKING_ENDPOINT = "Checking that an endpoint is available for peer '{peer_name}' ({peer_ip})..."
     CONNECTED_UNIX = 'Connection to local UNIX socket established'
     CONNECTING_UNIX = 'Connecting to local UNIX socket...'
-    CONNECTION_OK = "{id} - Connection with peer '{peer_name}' ({peer_ip}) is fine"
+    CONNECTION_OK = "Connection with peer '{peer_name}' ({peer_ip}) is fine"
     DEADLOCK = 'Potential deadlock situation identified. Taking actions to avoid it'
-    END_SESSION = "{id} - Session finished"
-    ENQUEUEING_FROM = "{id} - Enqueueing request coming from peer '{peer_name}' ({peer_ip})..."
-    ENQUEUEING_REMOTE = "{id} - Remote peer '{sender_name}' ({sender_ip}) has enqueued our request"
-    ENQUEUEING_TO = "{id} - Enqueueing upgrade request to peer '{peer_name}' ({peer_ip})..."
-    ENQUEUEING_RECOVER = "{id} - Enqueueing recover request to peer '{peer_name}' ({peer_ip}) for interface '{interface}'..."
-    EXCLUSIVE_SEMAPHORE_RECOVER = "{id} - The recover request to peer '{peer_name}' ({peer_ip}) for interface '{interface}' has acquired the exclusive semaphore"
-    EXCLUSIVE_SEMAPHORE_REMOTE = "{id} - Request coming from peer '{peer_name}' ({peer_ip}) has acquired the exclusive semaphore"
-    EXCLUSIVE_SEMAPHORE_UPGRADE = "{id} - The upgrade request for the peer '{peer_name}' ({peer_ip}) has acquired the exclusive semaphore"
+    END_SESSION = "Session finished"
+    ENQUEUEING_FROM = "Enqueueing request coming from peer '{peer_name}' ({peer_ip})..."
+    ENQUEUEING_REMOTE = "Remote peer '{sender_name}' ({sender_ip}) has enqueued our request"
+    ENQUEUEING_TO = "Enqueueing upgrade request to peer '{peer_name}' ({peer_ip})..."
+    ENQUEUEING_RECOVER = "Enqueueing recover request to peer '{peer_name}' ({peer_ip}) for interface '{interface}'..."
+    EXCLUSIVE_SEMAPHORE_RECOVER = "The recover request to peer '{peer_name}' ({peer_ip}) for interface '{interface}' has acquired the exclusive semaphore"
+    EXCLUSIVE_SEMAPHORE_REMOTE = "Request coming from peer '{peer_name}' ({peer_ip}) has acquired the exclusive semaphore"
+    EXCLUSIVE_SEMAPHORE_UPGRADE = "The upgrade request for the peer '{peer_name}' ({peer_ip}) has acquired the exclusive semaphore"
     NEW_UNIX_INCOMING = 'New local UNIX connection incoming'
-    NEXT_INCOMING = "{id} - Request coming from peer '{peer_name}' ({peer_ip}) is the next one in the processing queue"
-    NEXT_RECOVER = "{id} - The recover request to peer '{peer_name}' ({peer_ip}) for interface '{interface}' is the next one in the processing queue"
-    NEXT_UPGRADE = "{id} - The upgrade request for the peer '{peer_name}' ({peer_ip}) is the next one in the processing queue"
+    NEXT_INCOMING = "Request coming from peer '{peer_name}' ({peer_ip}) is the next one in the processing queue"
+    NEXT_RECOVER = "The recover request to peer '{peer_name}' ({peer_ip}) for interface '{interface}' is the next one in the processing queue"
+    NEXT_UPGRADE = "The upgrade request for the peer '{peer_name}' ({peer_ip}) is the next one in the processing queue"
     REACHABLE = "Peer '{peer_name}' ({peer_ip}) is reachable"
-    RECOVER_SUCCES = "{id} - Success! WireGuard connection through interface '{interface}' is working again"
+    RECOVER_SUCCES = "Success! WireGuard connection through interface '{interface}' is working again"
     SHUTDOWN_SET = 'The server has been set to shut down'
-    START_PROCESSING_FROM = "{id} - Starting to process the {{action}} request coming from peer '{peer_name}' ({peer_ip})"
-    START_PROCESSING_REMOTE = "{id} - Remote peer '{sender_name}' ({sender_ip}) has started to process our {{action}} request"
-    START_PROCESSING_TO = "{id} - Starting to process the upgrade request for the peer '{peer_name}' ({peer_ip})"
-    START_PROCESSING_RECOVER = "{id} - Starting to process the recover request for the peer '{peer_name}' ({peer_ip}) for interface '{interface}'"
+    START_PROCESSING_FROM = "Starting to process the {{action}} request coming from peer '{peer_name}' ({peer_ip})"
+    START_PROCESSING_REMOTE = "Remote peer '{sender_name}' ({sender_ip}) has started to process our {{action}} request"
+    START_PROCESSING_TO = "Starting to process the upgrade request for the peer '{peer_name}' ({peer_ip})"
+    START_PROCESSING_RECOVER = "Starting to process the recover request for the peer '{peer_name}' ({peer_ip}) for interface '{interface}'"
     SUCCESS = "Success! Now you have a new working P2P connection through interface '{interface}'"
+
+    @staticmethod
+    def add_id(uid: str, message: str) -> str:
+        return f'{uid} - {message}'
 
     @staticmethod
     def build_info_message(info_message: str, code: ActionCodes = ActionCodes.INFO) -> dict:
@@ -282,15 +286,18 @@ class Messages:
         return res
 
     @classmethod
-    def send_info_message(cls, local_message: str, remote_message: str = None, code: ActionCodes = ActionCodes.INFO, always_send_to_remote: bool = True):
+    def send_info_message(cls, local_message: str = None, remote_message: str = None, code: ActionCodes = ActionCodes.INFO, send_to_local: bool = True, always_send_to_remote: bool = True):
         pair = CONNECTION_PAIRS.get(get_ident())
+        if pair is not None and pair.token is not None:
+            local_message = cls.add_id(pair.id, local_message) if local_message is not None else None
+            remote_message = cls.add_id(pair.id, remote_message) if remote_message is not None else None
         if local_message is not None:
             print(local_message, flush=True)
         if pair is not None:
-            if pair.local_socket is not None and local_message is not None:
+            if pair.local_socket is not None and local_message is not None and not pair.running_in_remote and send_to_local:
                 local_message = cls.build_info_message(local_message, code)
                 pair.send_to_local(json.dumps(local_message))
-            if pair.remote_socket is not None and remote_message is not None and (always_send_to_remote or pair.running_in_remote):
+            if pair.remote_socket is not None and remote_message is not None and (pair.running_in_remote or always_send_to_remote):
                 remote_message = cls.build_info_message(remote_message, code)
                 pair.send_to_remote(json.dumps(remote_message))
 
@@ -302,8 +309,8 @@ class ErrorMessages:
     BAD_FORMAT_PUBKEY = "Error: The public key has not the correct length or format in file '{config_file}'"
     CANT_DECRYPT = "Error: Couldn't decrypt the recover message sent by remote peer '{peer_name}' ({peer_ip})"
     CLOSED = 'Error: Wirescale is shutting down and is no longer accepting new requests'
-    CLOSING_SOCKET = "{id} - Error: Connection is broken. Closing socket"
-    CONNECTION_LOST = "{id} - Error: Connection with remote peer '{peer_name}' ({peer_ip}) has been lost. Aborting pending operations"
+    CLOSING_SOCKET = "Error: Connection is broken. Closing socket"
+    CONNECTION_LOST = "Error: Connection with remote peer '{peer_name}' ({peer_ip}) has been lost. Aborting pending operations"
     FINAL_ERROR = 'Something went wrong and, finally, it was not possible to establish the P2P connection'
     HANDSHAKE_FAILED = "Handshake with interface '{interface}' failed after changing its endpoint. Interface will be removed"
     INTERFACE_EXISTS = "Error: A network interface '{interface}' already exists and Wirescale was started with the --no-suffix option"
@@ -337,13 +344,13 @@ class ErrorMessages:
     REMOTE_WG_INTERFACE_MISSING = "Error: Remote peer '{my_name}' ({my_ip}) does not have a WireGuard interface named '{interface}'"
     RUNFILE_MISSING = "Error: File '/run/wirescale/{interface}.conf' does not exist or is not a regular file"
     ROOT_SYSTEMD = "Error: Wirescale daemon must be managed by root's systemd"
-    SOCKET_REMOTE_ERROR = "{id} - Error: Remote peer '{peer_name}' ({peer_ip}) has closed the connection. Aborting pending operations"
+    SOCKET_REMOTE_ERROR = "Error: Remote peer '{peer_name}' ({peer_ip}) has closed the connection. Aborting pending operations"
     SOCKET_ERROR = "Error: The program has been closed. Aborting pending operations"
     SUDO = 'Error: This program must be run as a superuser'
     TS_PEER_OFFLINE = "Error: Peer '{peer_name}' ({peer_ip}) is offline"
     TS_SYSTEMD_STOPPED = "Error: 'tailscaled.service' is stopped. Start the service with systemd"
     TS_STOPPED = "Error: Tailscale is stopped. Run 'sudo tailscale up'"
-    TS_NO_ENDPOINT = "Sorry, it was impossible to find a public endpoint for peer `{peer_name}` ({peer_ip})"
+    TS_NO_ENDPOINT = "Sorry, it was impossible to find a public endpoint for peer '{peer_name}' ({peer_ip})"
     TS_NO_IP = "Error: No IPv4 found for peer '{peer_name}'"
     TS_NO_LOGGED = 'Error: Tailscale is logged out'
     TS_NO_PEER = "Error: No peer found matching the IP '{peer_ip}'"
@@ -363,15 +370,19 @@ class ErrorMessages:
         return res
 
     @classmethod
-    def send_error_message(cls, local_message: str = None, remote_message: str = None, error_code: ErrorCodes = ErrorCodes.GENERIC, always_send_to_remote: bool = True, exit_code: int | None = 1):
+    def send_error_message(cls, local_message: str = None, remote_message: str = None, error_code: ErrorCodes = ErrorCodes.GENERIC, send_to_local: bool = True,
+                           always_send_to_remote: bool = True, exit_code: int | None = 1):
         pair = CONNECTION_PAIRS.get(get_ident())
+        if pair is not None and pair.token is not None:
+            local_message = Messages.add_id(pair.id, local_message) if local_message is not None else None
+            remote_message = Messages.add_id(pair.id, remote_message) if remote_message is not None else None
         if local_message is not None:
             print(local_message, file=sys.stderr, flush=True)
         if pair is not None:
-            if pair.local_socket is not None and local_message is not None:
+            if pair.local_socket is not None and local_message is not None and not pair.running_in_remote and send_to_local:
                 local_message = cls.build_error_message(local_message, error_code)
                 pair.send_to_local(json.dumps(local_message))
-            if pair.remote_socket is not None and remote_message is not None and (always_send_to_remote or pair.running_in_remote):
+            if pair.remote_socket is not None and remote_message is not None and (pair.running_in_remote or always_send_to_remote):
                 remote_message = cls.build_error_message(remote_message, error_code)
                 pair.send_to_remote(json.dumps(remote_message))
             pair.close_sockets()

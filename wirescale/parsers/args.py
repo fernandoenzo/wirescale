@@ -59,7 +59,7 @@ class ConnectionPair:
             except TimeoutError:
                 create_thread(self.check_broken_connection)
             except ConnectionClosedError:
-                error = ErrorMessages.CONNECTION_LOST.format(id=self.id, peer_name=self.peer_name, peer_ip=self.peer_ip)
+                error = ErrorMessages.CONNECTION_LOST.format(peer_name=self.peer_name, peer_ip=self.peer_ip)
                 ErrorMessages.send_error_message(local_message=error, error_code=ErrorCodes.TS_UNREACHABLE)
             except ConnectionClosedOK:
                 return
@@ -70,17 +70,17 @@ class ConnectionPair:
         try:
             self.check_running = True
             with file_locker():
-                checking_message = Messages.CHECKING_CONNECTION.format(id=self.id, peer_name=self.peer_name, peer_ip=self.peer_ip)
-                print(checking_message, flush=True)
+                checking_message = Messages.CHECKING_CONNECTION.format(peer_name=self.peer_name, peer_ip=self.peer_ip)
+                Messages.send_info_message(local_message=checking_message, send_to_local=False)
                 is_online = TSManager.wait_until_peer_is_online(ip=self.peer_ip, timeout=30)
             if not is_online:
                 self.closing = True
-                closing_message = ErrorMessages.CLOSING_SOCKET.format(id=self.id)
+                closing_message = Messages.add_id(self.id, ErrorMessages.CLOSING_SOCKET)
                 print(closing_message, file=sys.stderr, flush=True)
                 create_thread(self.close_socket, self.remote_socket)
             else:
-                message_ok = Messages.CONNECTION_OK.format(id=self.id, peer_name=self.peer_name, peer_ip=self.peer_ip)
-                print(message_ok, flush=True)
+                message_ok = Messages.CONNECTION_OK.format(peer_name=self.peer_name, peer_ip=self.peer_ip)
+                Messages.send_info_message(local_message=message_ok, send_to_local=False)
         finally:
             self.check_running = False
 
@@ -133,15 +133,18 @@ class ConnectionPair:
         try:
             self.local_socket.send(message)
         except ConnectionClosed:
-            print(ErrorMessages.SOCKET_ERROR, file=sys.stderr, flush=True)
+            socket_error = Messages.add_id(self.id, ErrorMessages.SOCKET_ERROR)
+            print(socket_error, file=sys.stderr, flush=True)
             if self.remote_socket is not None:
-                error = ErrorMessages.SOCKET_REMOTE_ERROR.format(id=self.id, peer_name=self.my_name, peer_ip=self.my_ip)
-                error_message = ErrorMessages.build_error_message(error, ErrorCodes.GENERIC)
+                socket_remote_error = ErrorMessages.SOCKET_REMOTE_ERROR.format(peer_name=self.my_name, peer_ip=self.my_ip)
+                socket_remote_error = Messages.add_id(self.id, socket_remote_error)
+                error_message = ErrorMessages.build_error_message(socket_remote_error, ErrorCodes.GENERIC)
                 try:
                     self.remote_socket.send(json.dumps(error_message))
                 except ConnectionClosed:
-                    error = ErrorMessages.SOCKET_REMOTE_ERROR.format(id=self.id, peer_name=self.peer_name, peer_ip=self.peer_ip)
-                    print(error, file=sys.stderr, flush=True)
+                    remote_is_closed = ErrorMessages.SOCKET_REMOTE_ERROR.format(peer_name=self.peer_name, peer_ip=self.peer_ip)
+                    remote_is_closed = Messages.add_id(self.id, remote_is_closed)
+                    print(remote_is_closed, file=sys.stderr, flush=True)
             self.close_sockets()
             sys.exit(1)
 
@@ -152,14 +155,16 @@ class ConnectionPair:
                 p = self.remote_socket.ping()
                 return p.wait(timeout=ack_timeout)
         except ConnectionClosed:
-            error = ErrorMessages.SOCKET_REMOTE_ERROR.format(id=self.id, peer_name=self.peer_name, peer_ip=self.peer_ip)
+            error = ErrorMessages.SOCKET_REMOTE_ERROR.format(peer_name=self.peer_name, peer_ip=self.peer_ip)
+            error = Messages.add_id(self.id, error)
             print(error, file=sys.stderr, flush=True)
             if not self.running_in_remote:
                 error_message = ErrorMessages.build_error_message(error, ErrorCodes.GENERIC)
                 try:
                     self.local_socket.send(json.dumps(error_message))
                 except ConnectionClosed:
-                    print(ErrorMessages.SOCKET_ERROR, file=sys.stderr, flush=True)
+                    socket_error = Messages.add_id(self.id, ErrorMessages.SOCKET_ERROR)
+                    print(socket_error, file=sys.stderr, flush=True)
             self.close_sockets()
             sys.exit(1)
 

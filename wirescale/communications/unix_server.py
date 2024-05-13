@@ -70,18 +70,19 @@ class UnixServer:
                         case ActionCodes.UPGRADE | ActionCodes.RECOVER:
                             pair = ConnectionPair(caller=TSManager.my_ip(), receiver=IPv4Address(message[MessageFields.PEER_IP]))
                             pair.unix_socket = websocket
+                            pair.id  # Sets the token property
                             if code == ActionCodes.UPGRADE:
-                                enqueueing = Messages.ENQUEUEING_TO.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip)
-                                start_processing = Messages.START_PROCESSING_TO.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip)
-                                next_message = Messages.NEXT_UPGRADE.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip)
-                                exclusive_message = Messages.EXCLUSIVE_SEMAPHORE_UPGRADE.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+                                enqueueing = Messages.ENQUEUEING_TO.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+                                start_processing = Messages.START_PROCESSING_TO.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+                                next_message = Messages.NEXT_UPGRADE.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+                                exclusive_message = Messages.EXCLUSIVE_SEMAPHORE_UPGRADE.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
                                 action = lambda: cls.upgrade(message, stack)
                             elif code == ActionCodes.RECOVER:
                                 interface = message[MessageFields.INTERFACE]
-                                enqueueing = Messages.ENQUEUEING_RECOVER.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
-                                start_processing = Messages.START_PROCESSING_RECOVER.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
-                                next_message = Messages.NEXT_RECOVER.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
-                                exclusive_message = Messages.EXCLUSIVE_SEMAPHORE_RECOVER.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
+                                enqueueing = Messages.ENQUEUEING_RECOVER.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
+                                start_processing = Messages.START_PROCESSING_RECOVER.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
+                                next_message = Messages.NEXT_RECOVER.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
+                                exclusive_message = Messages.EXCLUSIVE_SEMAPHORE_RECOVER.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface)
                                 action = lambda: cls.recover(message, stack)
                             Messages.send_info_message(local_message=enqueueing)
                             with ExitStack() as stack:
@@ -97,10 +98,8 @@ class UnixServer:
                                 action()
 
                 finally:
-                    pair = CONNECTION_PAIRS.pop(get_ident(), None)
-                    if pair is not None and pair.token is not None:
-                        end_message = Messages.END_SESSION.format(id=pair.id)
-                        print(end_message, flush=True)
+                    Messages.send_info_message(local_message=Messages.END_SESSION, send_to_local=False)
+                    CONNECTION_PAIRS.pop(get_ident(), None)
 
     @staticmethod
     def discard_connections(websocket: ServerConnection):

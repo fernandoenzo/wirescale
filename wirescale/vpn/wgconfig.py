@@ -219,9 +219,11 @@ class WGConfig:
             wgquick_messages = wgquick.stdout.split('\n')
             systemd_messages = [m for m in wgquick_messages if "running as unit" in m.lower()]
             collections.deque((Messages.send_info_message(local_message=m) for m in systemd_messages), maxlen=0)
-            print(Messages.SUCCESS.format(interface=self.interface), flush=True)
+            success = Messages.SUCCESS.format(interface=self.interface)
+            Messages.send_info_message(local_message=success, send_to_local=False)
         else:
             self.new_config_path.unlink()
-            print(ErrorMessages.FINAL_ERROR, file=sys.stderr, flush=True)
+            final_error = Messages.add_id(pair.id, ErrorMessages.FINAL_ERROR)
+            print(final_error, file=sys.stderr, flush=True)
         create_thread(TSManager.wait_tailscale_restarted, pair, stack)
         return wgquick

@@ -78,7 +78,7 @@ class TCPClient:
                             wgconfig.generate_new_config()
                             sent = pair.send_to_remote(json.dumps(TCPMessages.build_go()), ack_timeout=5)
                             if not sent:
-                                error = ErrorMessages.CONNECTION_LOST.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+                                error = ErrorMessages.CONNECTION_LOST.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
                                 ErrorMessages.send_error_message(local_message=error, error_code=ErrorCodes.TS_UNREACHABLE)
                             wgquick = wgconfig.upgrade()
                             pair.send_to_local(json.dumps(UnixMessages.build_upgrade_result(wgquick, wgconfig.interface)))
@@ -119,7 +119,7 @@ class TCPClient:
                             TCPMessages.process_recover_response(message, recover)
                             sent = pair.send_to_remote(json.dumps(TCPMessages.build_go()), ack_timeout=5)
                             if not sent:
-                                error = ErrorMessages.CONNECTION_LOST.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+                                error = ErrorMessages.CONNECTION_LOST.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
                                 ErrorMessages.send_error_message(local_message=error, error_code=ErrorCodes.TS_UNREACHABLE)
                             recover.recover()
                             pair.close_sockets()

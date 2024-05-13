@@ -42,12 +42,12 @@ class TCPServer:
                 cls.discard_connections()
                 message_token = json.loads(pair.tcp_socket.recv())
                 pair.token = message_token[MessageFields.TOKEN]
-                enqueueing = Messages.ENQUEUEING_FROM.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip)
-                enqueueing_remote = Messages.ENQUEUEING_REMOTE.format(id=pair.id, sender_name=pair.my_name, sender_ip=pair.my_ip)
+                enqueueing = Messages.ENQUEUEING_FROM.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+                enqueueing_remote = Messages.ENQUEUEING_REMOTE.format(sender_name=pair.my_name, sender_ip=pair.my_ip)
                 Messages.send_info_message(local_message=enqueueing, remote_message=enqueueing_remote)
                 with ExitStack() as stack:
                     stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.SERVER))
-                    next_message = Messages.NEXT_INCOMING.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+                    next_message = Messages.NEXT_INCOMING.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
                     Messages.send_info_message(local_message=next_message)
                     ACTIVE_SOCKETS.server_thread = get_ident()
                     ACTIVE_SOCKETS.waiter_switched.wait()
@@ -55,12 +55,12 @@ class TCPServer:
                     stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.EXCLUSIVE))
                     ACTIVE_SOCKETS.exclusive_socket = pair
                     ACTIVE_SOCKETS.waiter_server_switched.set()
-                    exclusive_message = Messages.EXCLUSIVE_SEMAPHORE_REMOTE.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+                    exclusive_message = Messages.EXCLUSIVE_SEMAPHORE_REMOTE.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
                     Messages.send_info_message(local_message=exclusive_message)
                     stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.WAIT_IF_SWITCHED))
                     cls.discard_connections()
-                    start_processing = Messages.START_PROCESSING_FROM.format(id=pair.id, peer_name=pair.peer_name, peer_ip=pair.peer_ip)
-                    start_processing_remote = Messages.START_PROCESSING_REMOTE.format(id=pair.id, sender_name=pair.my_name, sender_ip=pair.my_ip)
+                    start_processing = Messages.START_PROCESSING_FROM.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+                    start_processing_remote = Messages.START_PROCESSING_REMOTE.format(sender_name=pair.my_name, sender_ip=pair.my_ip)
                     for message in pair:
                         message = json.loads(message)
                         match message[MessageFields.CODE]:
@@ -78,10 +78,8 @@ class TCPServer:
                                 cls.recover(message)
 
             finally:
-                pair = CONNECTION_PAIRS.pop(get_ident(), None)
-                if pair is not None and pair.token is not None:
-                    end_message = Messages.END_SESSION.format(id=pair.id)
-                    Messages.send_info_message(local_message=end_message)
+                Messages.send_info_message(local_message=Messages.END_SESSION)
+                CONNECTION_PAIRS.pop(get_ident(), None)
 
     @staticmethod
     def discard_connections():

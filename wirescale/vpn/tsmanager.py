@@ -147,7 +147,8 @@ class TSManager:
         cls.check_running()
         pair = CONNECTION_PAIRS.get(get_ident())
         peer_name = pair.peer_name if pair is not None else cls.peer_name(ip)
-        print(Messages.CHECKING_ENDPOINT.format(peer_name=peer_name, peer_ip=ip), flush=True)
+        checking_endpoint = Messages.CHECKING_ENDPOINT.format(peer_name=peer_name, peer_ip=ip)
+        Messages.send_info_message(local_message=checking_endpoint, send_to_local=False)
         if not cls.wait_until_peer_is_online(ip, timeout=45):
             peer_is_offline = ErrorMessages.TS_PEER_OFFLINE.format(peer_name=peer_name, peer_ip=ip)
             ErrorMessages.send_error_message(local_message=peer_is_offline, error_code=ErrorCodes.TS_UNREACHABLE, exit_code=2)
@@ -156,7 +157,8 @@ class TSManager:
             no_endpoint = ErrorMessages.TS_NO_ENDPOINT.format(peer_name=peer_name, peer_ip=ip)
             ErrorMessages.send_error_message(local_message=no_endpoint, error_code=ErrorCodes.TS_UNREACHABLE, exit_code=2)
         else:
-            print(Messages.REACHABLE.format(peer_name=peer_name, peer_ip=ip), flush=True)
+            reachable = Messages.REACHABLE.format(peer_name=peer_name, peer_ip=ip)
+            Messages.send_info_message(local_message=reachable, send_to_local=False)
             endpoint = force_endpoint.stdout.split()[-3]
         return IPv4Address(endpoint.split(':')[0]), int(endpoint.split(':')[1])
 
