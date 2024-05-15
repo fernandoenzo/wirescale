@@ -274,6 +274,8 @@ class Messages:
 
     @staticmethod
     def add_id(uid: str, message: str) -> str:
+        if message.startswith(uid):
+            return message
         return f'{uid} - {message}'
 
     @staticmethod
