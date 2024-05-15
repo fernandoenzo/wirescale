@@ -87,13 +87,14 @@ class UnixServer:
                             Messages.send_info_message(local_message=enqueueing)
                             with ExitStack() as stack:
                                 stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.CLIENT))
+                                cls.discard_connections(websocket)
                                 Messages.send_info_message(local_message=next_message)
                                 ACTIVE_SOCKETS.client_thread = get_ident()
                                 ACTIVE_SOCKETS.waiter_switched.wait()
                                 stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.EXCLUSIVE))
+                                cls.discard_connections(websocket)
                                 ACTIVE_SOCKETS.exclusive_socket = pair
                                 Messages.send_info_message(local_message=exclusive_message)
-                                cls.discard_connections(websocket)
                                 Messages.send_info_message(local_message=start_processing)
                                 action()
 
@@ -119,9 +120,7 @@ class UnixServer:
         cls.SERVER.shutdown()
         print(Messages.SHUTDOWN_SET, flush=True)
         while active_count() > 3:
-            sleep(0)
-            with StaticMonitor.synchronized(uid=ActionCodes.UPGRADE):
-                pass
+            sleep(1)
         UDPServer.UDPDummy.close()
 
     @staticmethod
