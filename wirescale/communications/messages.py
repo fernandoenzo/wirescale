@@ -11,6 +11,7 @@ from threading import get_ident
 from typing import TYPE_CHECKING
 
 from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS
+from wirescale.version import VERSION
 
 if TYPE_CHECKING:
     from wirescale.vpn.recover import RecoverConfig
@@ -40,6 +41,7 @@ class MessageFields(StrEnum):
     START_TIME = auto()
     SUFFIX = auto()
     TOKEN = auto()
+    VERSION = auto()
     WG_IP = auto()
 
 
@@ -132,6 +134,7 @@ class TCPMessages:
             MessageFields.CODE: ActionCodes.TOKEN,
             MessageFields.ERROR_CODE: None,
             MessageFields.TOKEN: pair.token,
+            MessageFields.VERSION: VERSION,
         }
         pair.send_to_remote(json.dumps(res))
 
@@ -271,6 +274,7 @@ class Messages:
     START_PROCESSING_TO = "Starting to process the upgrade request for the peer '{peer_name}' ({peer_ip})"
     START_PROCESSING_RECOVER = "Starting to process the recover request for the peer '{peer_name}' ({peer_ip}) for interface '{interface}'"
     SUCCESS = "Success! Now you have a new working P2P connection through interface '{interface}'"
+    VERSION_MISMATCH = "Warning: Your wirescale version doesn't match the remote peer's one ({local_version} ≠ {remote_version}). Errors may occur"
 
     @staticmethod
     def add_id(uid: str, message: str) -> str:
@@ -286,6 +290,14 @@ class Messages:
             MessageFields.MESSAGE: info_message
         }
         return res
+
+    @classmethod
+    def process_version(cls, message: dict):
+        remote_version = message[MessageFields.VERSION]
+        if remote_version != VERSION:
+            local_message = cls.VERSION_MISMATCH.format(local_version=VERSION, remote_version=remote_version)
+            remote_message = cls.VERSION_MISMATCH.format(local_version=remote_version, remote_version=VERSION)
+            cls.send_info_message(local_message=local_message, remote_message=remote_message)
 
     @classmethod
     def send_info_message(cls, local_message: str = None, remote_message: str = None, code: ActionCodes = ActionCodes.INFO, send_to_local: bool = True, always_send_to_remote: bool = True):

@@ -45,6 +45,7 @@ class TCPServer:
                 enqueueing = Messages.ENQUEUEING_FROM.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
                 enqueueing_remote = Messages.ENQUEUEING_REMOTE.format(sender_name=pair.my_name, sender_ip=pair.my_ip)
                 Messages.send_info_message(local_message=enqueueing, remote_message=enqueueing_remote)
+                Messages.process_version(message_token)
                 with ExitStack() as stack:
                     stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.SERVER))
                     cls.discard_connections()
