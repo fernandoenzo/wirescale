@@ -11,7 +11,7 @@ from threading import get_ident
 from parallel_utils.thread import StaticMonitor
 from websockets.sync.server import serve, ServerConnection, WebSocketServer
 
-from wirescale.communications.checkers import check_addresses_in_allowedips, check_configfile, check_interface, check_wgconfig, match_psk, match_pubkeys
+from wirescale.communications.checkers import check_addresses_in_allowedips, check_behind_nat, check_configfile, check_interface, check_wgconfig, match_psk, match_pubkeys
 from wirescale.communications.common import CONNECTION_PAIRS, file_locker, Semaphores, SHUTDOWN, TCP_PORT
 from wirescale.communications.messages import ActionCodes, ErrorMessages, MessageFields, Messages, TCPMessages
 from wirescale.parsers.args import ARGS, ConnectionPair
@@ -106,6 +106,7 @@ class TCPServer:
         match_psk(wgconfig, remote_has_psk=message[MessageFields.HAS_PSK], remote_psk=message[MessageFields.PSK])
         check_addresses_in_allowedips(wgconfig)
         wgconfig.generate_new_config()
+        wgconfig.nat = check_behind_nat(IPv4Address(message[MessageFields.PUBLIC_IP]))
         upgrade_response = TCPMessages.build_upgrade_response(wgconfig)
         pair.send_to_remote(json.dumps(upgrade_response))
         for message in pair:
@@ -119,6 +120,7 @@ class TCPServer:
                     case ActionCodes.INFO:
                         print(message[MessageFields.MESSAGE], flush=True)
                     case ActionCodes.GO:
+                        wgconfig.nat = message[MessageFields.NAT]
                         wgquick = wgconfig.upgrade()
                         pair.close_sockets()
                         sys.exit(wgquick.returncode)
@@ -140,6 +142,7 @@ class TCPServer:
                     case ActionCodes.INFO:
                         print(message[MessageFields.MESSAGE], flush=True)
                     case ActionCodes.GO:
+                        recover.nat = message[MessageFields.NAT]
                         recover.recover()
                         pair.close_sockets()
                         sys.exit(0)

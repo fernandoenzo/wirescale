@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 from parallel_utils.thread import StaticMonitor
 from websockets.sync.client import ClientConnection, connect
 
-from wirescale.communications.checkers import check_addresses_in_allowedips, check_interface, match_pubkeys
+from wirescale.communications.checkers import check_addresses_in_allowedips, check_behind_nat, check_interface, match_pubkeys
 from wirescale.communications.common import CONNECTION_PAIRS, file_locker, Semaphores, TCP_PORT
 from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, MessageFields, Messages, TCPMessages, UnixMessages
 from wirescale.vpn.tsmanager import TSManager
@@ -76,7 +76,8 @@ class TCPClient:
                             wgconfig.remote_local_port = message[MessageFields.PORT]
                             wgconfig.remote_interface = message[MessageFields.INTERFACE]
                             wgconfig.generate_new_config()
-                            sent = pair.send_to_remote(json.dumps(TCPMessages.build_go()), ack_timeout=5)
+                            wgconfig.nat = message[MessageFields.NAT] and check_behind_nat(IPv4Address(message[MessageFields.PUBLIC_IP]))
+                            sent = pair.send_to_remote(json.dumps(TCPMessages.build_go(wgconfig)), ack_timeout=7)
                             if not sent:
                                 error = ErrorMessages.CONNECTION_LOST.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
                                 ErrorMessages.send_error_message(local_message=error, error_code=ErrorCodes.TS_UNREACHABLE)
@@ -117,7 +118,7 @@ class TCPClient:
                             Messages.send_info_message(local_message=message[MessageFields.MESSAGE])
                         case ActionCodes.RECOVER_RESPONSE:
                             TCPMessages.process_recover_response(message, recover)
-                            sent = pair.send_to_remote(json.dumps(TCPMessages.build_go()), ack_timeout=5)
+                            sent = pair.send_to_remote(json.dumps(TCPMessages.build_go(recover)), ack_timeout=7)
                             if not sent:
                                 error = ErrorMessages.CONNECTION_LOST.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
                                 ErrorMessages.send_error_message(local_message=error, error_code=ErrorCodes.TS_UNREACHABLE)

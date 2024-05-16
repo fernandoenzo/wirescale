@@ -37,6 +37,7 @@ class RecoverConfig:
         self.interface: str = interface
         self.is_remote: int = is_remote
         self.latest_handshake: int = latest_handshake
+        self.nat: bool = None
         self.nonce: bytes = os.urandom(12)
         self.new_port: int = TSManager.local_port()
         self.private_key: X25519PrivateKey = None
@@ -67,8 +68,8 @@ class RecoverConfig:
             error = ErrorMessages.IP_MISMATCH.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface, autoremove_ip=autoremove_ip_receiver)
             error_remote = ErrorMessages.REMOTE_IP_MISMATCH.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_ip=pair.peer_ip, interface=interface)
             ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
-        recover = RecoverConfig(interface=interface, latest_handshake=latest_handshake, is_remote=args[5], wg_ip=IPv4Address(args[4]), current_port=int(args[7]), remote_interface=args[8],
-                                remote_port=int(args[9]))
+        recover = RecoverConfig(interface=interface, latest_handshake=latest_handshake, is_remote=args[5], wg_ip=IPv4Address(args[4]), current_port=int(args[7]), remote_interface=args[9],
+                                remote_port=int(args[10]))
         check_recover_config(recover)
         recover.load_keys()
         with file_locker():
@@ -161,9 +162,11 @@ class RecoverConfig:
             is_active = subprocess.run(['systemctl', 'is-active', f'autoremove-{self.interface}.service'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
             tries -= 1
             sleep(1)
+        nat = int(self.nat)
         subprocess.run(['systemctl', 'stop', f'autoremove-{self.interface}.service'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(['systemctl', 'reset-failed', f'autoremove-{self.interface}.service'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         systemd = subprocess.run(['systemd-run', '-u', f'autoremove-{self.interface}', '/bin/sh', '/run/wirescale/wirescale-autoremove', 'autoremove',
-                                  self.interface, str(pair.peer_ip), self.remote_pubkey_str, str(self.wg_ip), str(self.is_remote), str(self.start_time),
-                                  str(self.new_port), self.remote_interface, str(self.remote_port)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                                  self.interface, str(pair.peer_ip), self.remote_pubkey_str, str(self.wg_ip), str(self.is_remote),
+                                  str(self.start_time), str(self.new_port), str(nat), self.remote_interface, str(self.remote_port)],
+                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         Messages.send_info_message(local_message=f'Launching autoremove subprocess. {systemd.stdout.strip()}')

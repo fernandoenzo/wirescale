@@ -6,9 +6,10 @@ import json
 import os
 import sys
 from enum import auto, IntEnum, StrEnum, unique
+from ipaddress import IPv4Address
 from subprocess import CompletedProcess
 from threading import get_ident
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS
 from wirescale.version import VERSION
@@ -30,8 +31,10 @@ class MessageFields(StrEnum):
     INTERFACE = auto()
     LATEST_HANDSHAKE = auto()
     MESSAGE = auto()
+    NAT = auto()
     NONCE = auto()
     PEER_IP = auto()
+    PUBLIC_IP = auto()
     PORT = auto()
     PSK = auto()
     PUBKEY = auto()
@@ -148,6 +151,7 @@ class TCPMessages:
             MessageFields.INTERFACE: wgconfig.interface,
             MessageFields.PORT: wgconfig.listen_port,
             MessageFields.PSK: wgconfig.psk if not wgconfig.has_psk else None,
+            MessageFields.PUBLIC_IP: str(wgconfig.endpoint[0]),
             MessageFields.PUBKEY: wgconfig.public_key,
             MessageFields.REMOTE_PUBKEY: wgconfig.remote_pubkey,
         }
@@ -160,16 +164,19 @@ class TCPMessages:
             MessageFields.ERROR_CODE: None,
             MessageFields.ADDRESSES: [str(ip) for ip in wgconfig.addresses],
             MessageFields.INTERFACE: wgconfig.interface,
+            MessageFields.NAT: wgconfig.nat,
             MessageFields.PORT: wgconfig.listen_port,
+            MessageFields.PUBLIC_IP: str(wgconfig.endpoint[0]),
             MessageFields.PUBKEY: wgconfig.public_key,
             MessageFields.START_TIME: wgconfig.start_time,
         }
         return res
 
     @staticmethod
-    def build_go() -> dict:
+    def build_go(config: Union['WGConfig', 'RecoverConfig']) -> dict:
         res = {
             MessageFields.CODE: ActionCodes.GO,
+            MessageFields.NAT: config.nat,
             MessageFields.ERROR_CODE: None,
         }
         return res
@@ -185,6 +192,7 @@ class TCPMessages:
         encrypted = {
             MessageFields.LATEST_HANDSHAKE: recover.latest_handshake,
             MessageFields.PORT: recover.remote_port,
+            MessageFields.PUBLIC_IP: str(recover.endpoint[0]),
             MessageFields.REMOTE_INTERFACE: recover.interface,
             MessageFields.REMOTE_PORT: recover.new_port,
         }
@@ -201,6 +209,8 @@ class TCPMessages:
             MessageFields.NONCE: BytesStrConverter.raw_bytes_to_str64(recover.nonce),
         }
         encrypted = {
+            MessageFields.NAT: recover.nat,
+            MessageFields.PUBLIC_IP: str(recover.endpoint[0]),
             MessageFields.REMOTE_PORT: recover.new_port,
             MessageFields.START_TIME: recover.start_time,
         }
@@ -210,7 +220,7 @@ class TCPMessages:
 
     @staticmethod
     def process_recover(message: dict) -> 'RecoverConfig':
-        from wirescale.communications.checkers import check_recover_config, get_latest_handshake
+        from wirescale.communications.checkers import check_behind_nat, check_recover_config, get_latest_handshake
         from wirescale.vpn.recover import RecoverConfig
         pair = CONNECTION_PAIRS[get_ident()]
         interface = message[MessageFields.INTERFACE]
@@ -229,10 +239,12 @@ class TCPMessages:
         recover.remote_port = message[MessageFields.REMOTE_PORT]
         recover.remote_interface = message[MessageFields.REMOTE_INTERFACE]
         check_recover_config(recover)
+        recover.nat = check_behind_nat(IPv4Address(message[MessageFields.PUBLIC_IP]))
         return recover
 
     @staticmethod
     def process_recover_response(message: dict, recover: 'RecoverConfig'):
+        from wirescale.communications.checkers import check_behind_nat
         pair = CONNECTION_PAIRS[get_ident()]
         recover.nonce = BytesStrConverter.str64_to_raw_bytes(message[MessageFields.NONCE])
         try:
@@ -245,6 +257,7 @@ class TCPMessages:
         message.update(decrypted)
         recover.remote_port = message[MessageFields.REMOTE_PORT]
         recover.start_time = message[MessageFields.START_TIME]
+        recover.nat = message[MessageFields.NAT] and check_behind_nat(IPv4Address(message[MessageFields.PUBLIC_IP]))
 
 
 class Messages:

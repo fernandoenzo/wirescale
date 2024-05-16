@@ -41,6 +41,7 @@ class WGConfig:
         self.endpoint: Tuple[IPv4Address, int] = None
         self.table = self.get_field('Interface', 'Table')
         self.mtu = self.get_field('Interface', 'MTU')
+        self.nat: bool = None
         self.fwmark = self.get_field('Interface', 'FwMark')
         self.allowed_ips = self.get_allowed_ips()
         self.public_key = self.generate_wg_pubkey(self.private_key)
@@ -114,17 +115,19 @@ class WGConfig:
         self.add_script('postdown', postdown_input_port, first_place=True)
 
     def first_handshake(self):
-        handshake = (rf"""/bin/sh -c 'count=0; while [ $count -le 10 ]; do handshake=$(wg show %i latest-handshakes | awk -v pubkey="{self.remote_pubkey}" '\''$1 == pubkey {{print $2}}'\''); """
+        handshake = (rf"""/bin/sh -c 'count=0; while [ $count -le 14 ]; do handshake=$(wg show %i latest-handshakes | awk -v pubkey="{self.remote_pubkey}" '\''$1 == pubkey {{print $2}}'\''); """
                      "if [ $handshake -eq 0 ]; then sleep 0.5; count=$((count+1)); else exit 0; fi; done; exit 1'")
         self.add_script('postup', handshake, first_place=True)
 
     def autoremove_interface(self):
         pair = CONNECTION_PAIRS[get_ident()]
         running_in_remote = int(pair.running_in_remote)
+        nat = int(self.nat)
         subprocess.run(['systemctl', 'reset-failed', f'autoremove-{self.interface}'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         systemd = subprocess.run(['systemd-run', '-u', f'autoremove-{self.interface}', '/bin/sh', '/run/wirescale/wirescale-autoremove', 'autoremove',
-                                  self.interface, str(pair.peer_ip), self.remote_pubkey, next(str(ip) for ip in self.remote_addresses), str(running_in_remote), str(self.start_time),
-                                  str(self.listen_port), self.remote_interface, str(self.remote_local_port)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                                  self.interface, str(pair.peer_ip), self.remote_pubkey, next(str(ip) for ip in self.remote_addresses), str(running_in_remote),
+                                  str(self.start_time), str(self.listen_port), str(nat), self.remote_interface, str(self.remote_local_port)],
+                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         Messages.send_info_message(local_message=f'Launching autoremove subprocess. {systemd.stdout.strip()}')
 
     def autoremove_configfile(self):

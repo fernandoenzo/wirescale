@@ -120,7 +120,7 @@ class UnixServer:
         cls.SERVER.shutdown()
         print(Messages.SHUTDOWN_SET, flush=True)
         while active_count() > 3:
-            sleep(1)
+            sleep(0.5)
         UDPServer.UDPDummy.close()
 
     @staticmethod

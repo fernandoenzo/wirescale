@@ -5,10 +5,13 @@
 import subprocess
 from _socket import if_nametoindex
 from configparser import ConfigParser
+from ipaddress import IPv4Address, IPv4Interface
 from pathlib import Path
 from threading import get_ident
 from time import sleep
 from typing import Tuple, TYPE_CHECKING
+
+from netifaces import AF_INET, ifaddresses, interfaces
 
 from wirescale.communications.common import CONNECTION_PAIRS
 from wirescale.communications.messages import ErrorCodes, ErrorMessages
@@ -55,6 +58,11 @@ def check_configfile(config: str) -> Path:
     pair = CONNECTION_PAIRS[get_ident()]
     remote_error = ErrorMessages.REMOTE_CONFIG_PATH_ERROR.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
     ErrorMessages.send_error_message(local_message=error, remote_message=remote_error, error_code=ErrorCodes.CONFIG_PATH_ERROR, always_send_to_remote=False)
+
+
+def check_behind_nat(ip: IPv4Address) -> bool:
+    local_addresses = (IPv4Interface(y[0]['addr'] + '/' + y[0]['netmask']) for x in interfaces() if (y := ifaddresses(x).get(AF_INET)) is not None)
+    return ip not in (x.ip for x in local_addresses)
 
 
 def check_recover_config(recover: 'RecoverConfig'):

@@ -154,8 +154,9 @@ autoremove() {
   is_remote=$5
   start_time=$6
   local_port=$7
-  remote_interface=$8
-  remote_port=$9
+  nat=$8
+  remote_interface=$9
+  remote_port=${10}
   stop_after=$((60 * 75))
   lockfile="/run/wirescale/control/locker-$interface"
   flag_file="/run/wirescale/control/$interface-stop"
@@ -165,6 +166,10 @@ autoremove() {
   last_received=0
 
   rm -rf "$flag_file"
+
+  if [ "$nat" -eq 0 ]; then
+    autoremove_three_min
+  fi
 
   ping_keepalive "$start_time" &
 
