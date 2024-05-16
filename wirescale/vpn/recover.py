@@ -86,14 +86,14 @@ class RecoverConfig:
     def modify_wgconfig(self):
         with open(self.runfile, 'r') as f:
             text = f.read()
-        dport = '--dport {port}'
+        # dport = '--dport {port}'
         listen_port = 'ListenPort = {port}'
         orig_listen_port = listen_port.format(port=self.current_port)
         new_listen_port = listen_port.format(port=self.new_port)
-        orig_dport = dport.format(port=self.current_port)
-        new_dport = dport.format(port=self.new_port)
+        # orig_dport = dport.format(port=self.current_port)
+        # new_dport = dport.format(port=self.new_port)
         text = re.sub(rf'^{orig_listen_port}', new_listen_port, text, flags=re.IGNORECASE | re.MULTILINE)
-        text = re.sub(orig_dport, new_dport, text, flags=re.IGNORECASE)
+        # text = re.sub(orig_dport, new_dport, text, flags=re.IGNORECASE)
         with open(self.runfile, 'w') as f:
             f.write(text)
 
@@ -132,7 +132,7 @@ class RecoverConfig:
 
     def recover(self):
         self.modify_wgconfig()
-        self.fix_iptables()
+        # self.fix_iptables()
         pair = CONNECTION_PAIRS[get_ident()]
         stack = ExitStack()
         stack.enter_context(file_locker())

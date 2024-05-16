@@ -163,7 +163,7 @@ class WGConfig:
         interface, peer, allowedips = 'Interface', 'Peer', 'AllowedIPs'
         new_config.add_section(interface)
         new_config.add_section(peer)
-        self.add_iptables()
+        # self.add_iptables()
         self.first_handshake()
         self.autoremove_configfile()
         repeatable_fields = [field for field in self.repeatable_fields if field != allowedips]
