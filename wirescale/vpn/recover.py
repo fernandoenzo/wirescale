@@ -22,7 +22,7 @@ from parallel_utils.thread import create_thread
 
 from wirescale.communications.checkers import check_recover_config, get_latest_handshake
 from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS, file_locker
-from wirescale.communications.messages import ActionCodes, ErrorMessages, Messages
+from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, Messages
 from wirescale.parsers.args import ConnectionPair
 from wirescale.vpn.tsmanager import TSManager
 
@@ -148,7 +148,7 @@ class RecoverConfig:
         updated = self.check_updated_handshake()
         if not updated:
             error = ErrorMessages.HANDSHAKE_FAILED.format(interface=self.interface)
-            ErrorMessages.send_error_message(local_message=error)
+            ErrorMessages.send_error_message(local_message=error, error_code=ErrorCodes.TS_UNREACHABLE)
         if pair.running_in_remote:
             subprocess.run(['systemctl', 'stop', f'autoremove-{self.interface}.service'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         success_message = Messages.RECOVER_SUCCES.format(interface=self.interface)
