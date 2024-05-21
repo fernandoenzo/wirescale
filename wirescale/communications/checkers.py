@@ -205,3 +205,11 @@ def get_latest_handshake(interface: str) -> int:
         if pair is not None:
             remote_error = ErrorMessages.REMOTE_WG_INTERFACE_MISSING.format(my_name=pair.my_name, my_ip=pair.my_ip, interface=interface)
         ErrorMessages.send_error_message(local_message=error, remote_message=remote_error)
+
+
+def check_updated_handshake(interface: str, latest_handshake: int = 0, timeout: int = 10) -> bool:
+    sleep_time = 0.5
+    while not (updated := get_latest_handshake(interface) != latest_handshake) and timeout > 0:
+        timeout -= sleep_time
+        sleep(sleep_time)
+    return updated

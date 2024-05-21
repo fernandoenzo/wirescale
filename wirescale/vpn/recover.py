@@ -20,7 +20,7 @@ from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from parallel_utils.thread import create_thread
 
-from wirescale.communications.checkers import check_recover_config, get_latest_handshake
+from wirescale.communications.checkers import check_recover_config, check_updated_handshake
 from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS, file_locker
 from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, Messages
 from wirescale.parsers.args import ConnectionPair
@@ -123,13 +123,6 @@ class RecoverConfig:
         decrypted = BytesStrConverter.bytes_to_str(decrypted)
         return decrypted
 
-    def check_updated_handshake(self, timeout: int = 10) -> bool:
-        sleep_time = 0.5
-        while not (updated := get_latest_handshake(self.interface) != self.latest_handshake) and timeout > 0:
-            timeout -= sleep_time
-            sleep(sleep_time)
-        return updated
-
     def recover(self):
         self.modify_wgconfig()
         # self.fix_iptables()
@@ -145,9 +138,9 @@ class RecoverConfig:
         TSManager.start()
         create_thread(TSManager.wait_tailscale_restarted, pair, stack)
         Messages.send_info_message(local_message=f"Checking latest handshake of interface '{self.interface}' after changing the endpoint...")
-        updated = self.check_updated_handshake()
+        updated = check_updated_handshake(self.interface, self.latest_handshake)
         if not updated:
-            error = ErrorMessages.HANDSHAKE_FAILED.format(interface=self.interface)
+            error = ErrorMessages.HANDSHAKE_FAILED_RECOVER.format(interface=self.interface)
             ErrorMessages.send_error_message(local_message=error, error_code=ErrorCodes.TS_UNREACHABLE)
         if pair.running_in_remote:
             subprocess.run(['systemctl', 'stop', f'autoremove-{self.interface}.service'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

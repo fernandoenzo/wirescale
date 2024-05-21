@@ -164,7 +164,7 @@ class WGConfig:
         new_config.add_section(interface)
         new_config.add_section(peer)
         # self.add_iptables()
-        self.first_handshake()
+        # self.first_handshake()
         self.autoremove_configfile()
         repeatable_fields = [field for field in self.repeatable_fields if field != allowedips]
         for field in repeatable_fields:
@@ -208,6 +208,7 @@ class WGConfig:
         return text
 
     def upgrade(self) -> CompletedProcess[str]:
+        from wirescale.communications.checkers import check_updated_handshake
         pair = CONNECTION_PAIRS[get_ident()]
         stack = ExitStack()
         stack.enter_context(file_locker())
@@ -218,6 +219,10 @@ class WGConfig:
         Messages.send_info_message(local_message='Starting tailscale...')
         TSManager.start()
         if wgquick.returncode == 0:
+            updated = check_updated_handshake(self.interface)
+            if not updated:
+                error = ErrorMessages.HANDSHAKE_FAILED.format(interface=self.interface)
+                ErrorMessages.send_error_message(local_message=error)
             self.autoremove_interface()
             wgquick_messages = wgquick.stdout.split('\n')
             systemd_messages = [m for m in wgquick_messages if "running as unit" in m.lower()]
