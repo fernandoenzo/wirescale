@@ -5,7 +5,7 @@
 import json
 import os
 import sys
-from enum import auto, IntEnum, StrEnum, unique
+from enum import auto, StrEnum, unique
 from ipaddress import IPv4Address
 from subprocess import CompletedProcess
 from threading import get_ident
@@ -48,7 +48,8 @@ class MessageFields(StrEnum):
     WG_IP = auto()
 
 
-class ActionCodes(IntEnum):
+@unique
+class ActionCodes(StrEnum):
     ACK = auto()
     GO = auto()
     HELLO = auto()
@@ -62,7 +63,8 @@ class ActionCodes(IntEnum):
     UPGRADE_RESPONSE = auto()
 
 
-class ErrorCodes(IntEnum):
+@unique
+class ErrorCodes(StrEnum):
     CLOSED = auto()
     CONFIG_PATH_ERROR = auto()
     FINAL_ERROR = auto()
