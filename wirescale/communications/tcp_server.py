@@ -121,9 +121,9 @@ class TCPServer:
                         print(message[MessageFields.MESSAGE], flush=True)
                     case ActionCodes.GO:
                         wgconfig.nat = message[MessageFields.NAT]
-                        wgquick = wgconfig.upgrade()
+                        wgconfig.upgrade()
                         pair.close_sockets()
-                        sys.exit(wgquick.returncode)
+                        sys.exit(0)
 
     @classmethod
     def recover(cls, message: dict):

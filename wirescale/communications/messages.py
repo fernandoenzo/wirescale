@@ -7,7 +7,6 @@ import os
 import sys
 from enum import auto, StrEnum, unique
 from ipaddress import IPv4Address
-from subprocess import CompletedProcess
 from threading import get_ident
 from typing import TYPE_CHECKING, Union
 
@@ -67,7 +66,6 @@ class ActionCodes(StrEnum):
 class ErrorCodes(StrEnum):
     CLOSED = auto()
     CONFIG_PATH_ERROR = auto()
-    FINAL_ERROR = auto()
     GENERIC = auto()
     HANDSHAKE_MISMATCH = auto()
     INTERFACE_EXISTS = auto()
@@ -87,19 +85,6 @@ class UnixMessages:
             MessageFields.PEER_IP: str(args.PAIR.peer_ip),
             MessageFields.SUFFIX: args.SUFFIX,
         }
-        return res
-
-    @staticmethod
-    def build_upgrade_result(wgquick: CompletedProcess[str], interface: str) -> dict:
-        res = {}
-        if wgquick.returncode == 0:
-            res[MessageFields.CODE] = ActionCodes.SUCCESS
-            res[MessageFields.ERROR_CODE] = None
-            res[MessageFields.INTERFACE] = interface
-        else:
-            res[MessageFields.CODE] = None
-            res[MessageFields.ERROR_CODE] = ErrorCodes.FINAL_ERROR
-            res[MessageFields.ERROR_MESSAGE] = wgquick.stdout.strip()
         return res
 
     @staticmethod

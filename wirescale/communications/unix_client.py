@@ -63,10 +63,6 @@ class UnixClient:
                             upgrade_subparser.error(str(ArgumentError(interface_argument, error)))
                         case ErrorCodes.CONFIG_PATH_ERROR:
                             upgrade_subparser.error(str(ArgumentError(config_argument, error)))
-                        case ErrorCodes.FINAL_ERROR:
-                            print(error, file=sys.stderr, flush=True)
-                            print(ErrorMessages.FINAL_ERROR, file=sys.stderr, flush=True)
-                            sys.exit(1)
                         case _:
                             print(error, file=sys.stderr, flush=True)
                             sys.exit(1)
@@ -75,7 +71,7 @@ class UnixClient:
                         case ActionCodes.INFO:
                             print(message[MessageFields.MESSAGE], flush=True)
                         case ActionCodes.SUCCESS:
-                            print(Messages.SUCCESS.format(interface=message[MessageFields.INTERFACE]), flush=True)
+                            print(message[MessageFields.MESSAGE], flush=True)
                             ConnectionPair.close_socket(cls.CLIENT)
                             sys.exit(0)
 

@@ -5,7 +5,6 @@
 import collections
 import re
 import subprocess
-import sys
 from configparser import ConfigParser
 from contextlib import ExitStack
 from datetime import datetime
@@ -19,7 +18,7 @@ from typing import Dict, FrozenSet, Tuple
 from parallel_utils.thread import create_thread
 
 from wirescale.communications.common import CONNECTION_PAIRS, file_locker, subprocess_run_tmpfile
-from wirescale.communications.messages import ErrorMessages, Messages
+from wirescale.communications.messages import ActionCodes, ErrorMessages, Messages
 from wirescale.vpn.tsmanager import TSManager
 
 
@@ -218,20 +217,18 @@ class WGConfig:
         wgquick = subprocess_run_tmpfile(['wg-quick', 'up', str(self.new_config_path)], stderr=STDOUT)
         Messages.send_info_message(local_message='Starting tailscale...')
         TSManager.start()
+        create_thread(TSManager.wait_tailscale_restarted, pair, stack)
         if wgquick.returncode == 0:
             updated = check_updated_handshake(self.interface)
             if not updated:
                 error = ErrorMessages.HANDSHAKE_FAILED.format(interface=self.interface)
+                subprocess.run(['wg-quick', 'down', str(self.new_config_path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 ErrorMessages.send_error_message(local_message=error)
             self.autoremove_interface()
-            wgquick_messages = wgquick.stdout.split('\n')
-            systemd_messages = [m for m in wgquick_messages if "running as unit" in m.lower()]
-            collections.deque((Messages.send_info_message(local_message=m) for m in systemd_messages), maxlen=0)
             success = Messages.SUCCESS.format(interface=self.interface)
-            Messages.send_info_message(local_message=success, send_to_local=False)
+            Messages.send_info_message(local_message=success, code=ActionCodes.SUCCESS)
         else:
             self.new_config_path.unlink()
-            final_error = Messages.add_id(pair.id, ErrorMessages.FINAL_ERROR)
-            print(final_error, file=sys.stderr, flush=True)
-        create_thread(TSManager.wait_tailscale_restarted, pair, stack)
-        return wgquick
+            final_error = '\n'.join(Messages.add_id(pair.id, m) for m in wgquick.stdout.strip().split('\n'))
+            final_error = final_error.strip() + '\n' + Messages.add_id(pair.id, ErrorMessages.FINAL_ERROR)
+            ErrorMessages.send_error_message(local_message=final_error)

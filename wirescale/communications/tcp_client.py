@@ -81,10 +81,9 @@ class TCPClient:
                             if not sent:
                                 error = ErrorMessages.CONNECTION_LOST.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
                                 ErrorMessages.send_error_message(local_message=error, error_code=ErrorCodes.TS_UNREACHABLE)
-                            wgquick = wgconfig.upgrade()
-                            pair.send_to_local(json.dumps(UnixMessages.build_upgrade_result(wgquick, wgconfig.interface)))
+                            wgconfig.upgrade()
                             pair.close_sockets()
-                            sys.exit(wgquick.returncode)
+                            sys.exit(0)
 
     @classmethod
     def recover(cls, recover: 'RecoverConfig', stack: ExitStack):
