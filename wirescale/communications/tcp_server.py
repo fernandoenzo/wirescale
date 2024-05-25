@@ -13,8 +13,9 @@ from websockets.sync.server import serve, ServerConnection, WebSocketServer
 
 from wirescale.communications.checkers import check_addresses_in_allowedips, check_behind_nat, check_configfile, check_interface, check_wgconfig, match_psk, match_pubkeys
 from wirescale.communications.common import CONNECTION_PAIRS, file_locker, Semaphores, SHUTDOWN, TCP_PORT
+from wirescale.communications.connection_pair import ConnectionPair
 from wirescale.communications.messages import ActionCodes, ErrorMessages, MessageFields, Messages, TCPMessages
-from wirescale.parsers.args import ARGS, ConnectionPair
+from wirescale.parsers.args import ARGS
 from wirescale.vpn.tsmanager import TSManager
 from wirescale.vpn.watch import ACTIVE_SOCKETS
 

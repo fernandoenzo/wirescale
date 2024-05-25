@@ -10,9 +10,10 @@ from websockets import ConnectionClosedOK
 from websockets.sync.client import ClientConnection, unix_connect
 
 from wirescale.communications.common import SOCKET_PATH
+from wirescale.communications.connection_pair import ConnectionPair
 from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, MessageFields, Messages, UnixMessages
 from wirescale.parsers import upgrade_subparser
-from wirescale.parsers.args import ARGS, ConnectionPair
+from wirescale.parsers.args import ARGS
 from wirescale.parsers.parsers import config_argument, interface_argument
 from wirescale.vpn.recover import RecoverConfig
 

@@ -11,7 +11,7 @@ from wirescale.communications.common import CONNECTION_PAIRS, Semaphores, SHUTDO
 from wirescale.communications.messages import Messages
 
 if TYPE_CHECKING:
-    from wirescale.parsers.args import ConnectionPair
+    from wirescale.communications.connection_pair import ConnectionPair
 
 
 class ActiveSockets:

@@ -13,7 +13,7 @@ from threading import Event
 from typing import Dict, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from wirescale.parsers.args import ConnectionPair
+    from wirescale.communications.connection_pair import ConnectionPair
 
 CONNECTION_PAIRS: Dict[int, 'ConnectionPair'] = {}
 SHUTDOWN = Event()

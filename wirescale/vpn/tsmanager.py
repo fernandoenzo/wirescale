@@ -18,7 +18,7 @@ from wirescale.communications.common import CONNECTION_PAIRS
 from wirescale.communications.messages import ErrorCodes, ErrorMessages, Messages
 
 if TYPE_CHECKING:
-    from wirescale.parsers.args import ConnectionPair
+    from wirescale.communications.connection_pair import ConnectionPair
 
 
 class TSManager:

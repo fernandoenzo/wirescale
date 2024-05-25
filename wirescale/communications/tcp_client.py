@@ -14,7 +14,7 @@ from websockets.sync.client import ClientConnection, connect
 
 from wirescale.communications.checkers import check_addresses_in_allowedips, check_behind_nat, check_interface, match_pubkeys
 from wirescale.communications.common import CONNECTION_PAIRS, file_locker, Semaphores, TCP_PORT
-from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, MessageFields, Messages, TCPMessages, UnixMessages
+from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, MessageFields, Messages, TCPMessages
 from wirescale.vpn.tsmanager import TSManager
 from wirescale.vpn.watch import ACTIVE_SOCKETS
 

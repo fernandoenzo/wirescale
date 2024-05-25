@@ -17,11 +17,11 @@ from websockets.sync.server import ServerConnection, unix_serve, WebSocketServer
 
 from wirescale.communications.checkers import check_configfile, check_interface, check_recover_config, check_wgconfig
 from wirescale.communications.common import CONNECTION_PAIRS, Semaphores, SHUTDOWN, SOCKET_PATH
+from wirescale.communications.connection_pair import ConnectionPair
 from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, MessageFields, Messages
 from wirescale.communications.tcp_client import TCPClient
 from wirescale.communications.tcp_server import TCPServer
 from wirescale.communications.udp_server import UDPServer
-from wirescale.parsers.args import ConnectionPair
 from wirescale.vpn.recover import RecoverConfig
 from wirescale.vpn.tsmanager import TSManager
 from wirescale.vpn.watch import ACTIVE_SOCKETS

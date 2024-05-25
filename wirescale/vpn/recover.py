@@ -23,7 +23,7 @@ from parallel_utils.thread import create_thread
 from wirescale.communications.checkers import check_recover_config, check_updated_handshake
 from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS, file_locker
 from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, Messages
-from wirescale.parsers.args import ConnectionPair
+from wirescale.communications.connection_pair import ConnectionPair
 from wirescale.vpn.tsmanager import TSManager
 
 

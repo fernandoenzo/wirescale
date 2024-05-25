@@ -11,7 +11,7 @@ from datetime import datetime
 from io import StringIO
 from ipaddress import ip_address, ip_network, IPv4Address, IPv4Network, IPv6Address, IPv6Network
 from pathlib import Path
-from subprocess import CompletedProcess, STDOUT
+from subprocess import STDOUT
 from threading import get_ident
 from typing import Dict, FrozenSet, Tuple
 
@@ -206,7 +206,7 @@ class WGConfig:
 
         return text
 
-    def upgrade(self) -> CompletedProcess[str]:
+    def upgrade(self):
         from wirescale.communications.checkers import check_updated_handshake
         pair = CONNECTION_PAIRS[get_ident()]
         stack = ExitStack()
