@@ -52,6 +52,10 @@ class TSManager:
         return cls.status()['BackendState'].lower() != 'NeedsLogin'.lower()
 
     @classmethod
+    def is_starting(cls) -> bool:
+        return cls.status()['BackendState'].lower() != 'Starting'.lower()
+
+    @classmethod
     def is_stopped(cls) -> bool:
         return cls.status()['BackendState'].lower() == 'Stopped'.lower()
 
@@ -67,7 +71,6 @@ class TSManager:
     @classmethod
     def check_running(cls):
         cls.check_service_running()
-        timeout = 5
         sleep_time = 0.5
         while not cls.has_state():
             sleep(sleep_time)
@@ -75,11 +78,10 @@ class TSManager:
             ErrorMessages.send_error_message(local_message=ErrorMessages.TS_NO_LOGGED)
         if cls.is_stopped():
             ErrorMessages.send_error_message(local_message=ErrorMessages.TS_STOPPED)
-        while not cls.is_running():
-            timeout -= sleep_time
+        while cls.is_starting():
             sleep(sleep_time)
-            if timeout <= 0 and not cls.is_running():
-                ErrorMessages.send_error_message(local_message=ErrorMessages.TS_NOT_RUNNING)
+        if not cls.is_running():
+            ErrorMessages.send_error_message(local_message=ErrorMessages.TS_NOT_RUNNING)
 
     @classmethod
     @lru_cache(maxsize=None)
