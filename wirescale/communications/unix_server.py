@@ -51,7 +51,6 @@ class UnixServer:
 
     @classmethod
     def run_server(cls):
-        UDPServer.occupy_port_41641()
         cls.set_socket()
         cls.SERVER = unix_serve(sock=cls.SOCKET, handler=cls.handler)
         with cls.SERVER:

@@ -53,7 +53,7 @@ class TSManager:
 
     @classmethod
     def is_starting(cls) -> bool:
-        return cls.status()['BackendState'].lower() != 'Starting'.lower()
+        return cls.status()['BackendState'].lower() == 'Starting'.lower()
 
     @classmethod
     def is_stopped(cls) -> bool:

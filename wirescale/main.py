@@ -12,6 +12,7 @@ from parallel_utils.thread import create_thread
 from wirescale.__main__ import SCRIPT_PATH
 from wirescale.communications.messages import ErrorMessages
 from wirescale.communications.tcp_server import TCPServer
+from wirescale.communications.udp_server import UDPServer
 from wirescale.communications.unix_client import UnixClient
 from wirescale.communications.unix_server import UnixServer
 from wirescale.parsers import top_parser
@@ -55,6 +56,7 @@ def main():
                 print('Error: Wirescale needs a UNIX socket supplied by systemd', file=sys.stderr, flush=True)
                 sys.exit(1)
             copy_script()
+            UDPServer.occupy_port_41641()
             tcp_thread = create_thread(TCPServer.run_server)
             unix_thread = create_thread(UnixServer.run_server)
             watch_thread = create_thread(ACTIVE_SOCKETS.watch)
