@@ -67,14 +67,19 @@ class TSManager:
     @classmethod
     def check_running(cls):
         cls.check_service_running()
+        timeout = 5
+        sleep_time = 0.5
         while not cls.has_state():
-            sleep(0.5)
+            sleep(sleep_time)
         if not cls.is_logged():
             ErrorMessages.send_error_message(local_message=ErrorMessages.TS_NO_LOGGED)
         if cls.is_stopped():
             ErrorMessages.send_error_message(local_message=ErrorMessages.TS_STOPPED)
-        if not cls.is_running():
-            ErrorMessages.send_error_message(local_message=ErrorMessages.TS_NOT_RUNNING)
+        while not cls.is_running():
+            timeout -= sleep_time
+            sleep(sleep_time)
+            if timeout <= 0 and not cls.is_running():
+                ErrorMessages.send_error_message(local_message=ErrorMessages.TS_NOT_RUNNING)
 
     @classmethod
     @lru_cache(maxsize=None)
