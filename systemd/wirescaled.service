@@ -1,7 +1,8 @@
 [Unit]
 Description=Wirescale service
-After=network.target
+After=network.target tailscaled.service
 BindsTo=wirescaled.socket
+Wants=tailscaled.service
 
 [Service]
 ExecStart=wirescale daemon start
