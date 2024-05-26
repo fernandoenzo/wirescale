@@ -61,9 +61,9 @@ class UnixClient:
                     error = message[MessageFields.ERROR_MESSAGE]
                     match error_code:
                         case ErrorCodes.INTERFACE_EXISTS:
-                            upgrade_subparser.error(str(ArgumentError(interface_argument, error)))
+                            upgrade_subparser.error(str(ArgumentError(interface_argument, error[9:])))
                         case ErrorCodes.CONFIG_PATH_ERROR:
-                            upgrade_subparser.error(str(ArgumentError(config_argument, error)))
+                            upgrade_subparser.error(str(ArgumentError(config_argument, error[9:])))
                         case _:
                             print(error, file=sys.stderr, flush=True)
                             sys.exit(1)

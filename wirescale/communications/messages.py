@@ -328,7 +328,7 @@ class ErrorMessages:
     FINAL_ERROR = 'Something went wrong and, finally, it was not possible to establish the P2P connection'
     HANDSHAKE_FAILED = "Error: Handshake with interface '{interface}' failed"
     HANDSHAKE_FAILED_RECOVER = "Error: Handshake with interface '{interface}' failed after changing its endpoint. Will try again in 30 seconds"
-    INTERFACE_EXISTS = "Error: A network interface '{interface}' already exists and Wirescale was started with the --no-suffix option"
+    INTERFACE_EXISTS = "a network interface '{interface}' already exists and Wirescale was started with the --no-suffix option"
     IP_MISMATCH = "Error: Remote peer '{peer_name}' ({peer_ip}) IP address mismatch with the 'autoremove-{interface}' systemd unit's registered IP ({autoremove_ip})"
     LATEST_HANDSHAKE_MISMATCH = "Error: The latest handshake of interface '{interface}' has been updated since the recover request was made. Discarding request"
     MISSING_ADDRESS = "Error: 'Address' option missing in 'Interface' section of file '{config_file}'"

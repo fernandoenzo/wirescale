@@ -15,7 +15,9 @@ daemon_subparser = subparsers.add_parser('daemon', help='commands for systemd to
 order_subparser = daemon_subparser.add_subparsers(dest='command', required=True)
 order_subparser.add_parser('start', help="start the daemon. Must be run by systemd", add_help=False)
 order_subparser.add_parser('stop', help="stop the daemon. Must be run with sudo", add_help=False)
-daemon_subparser.add_argument('--no-suffix', action='store_true', help='prevent numeric suffix addition to existing interface names during new ones setup')
+daemon_subparser.add_argument('--suffix', action=BooleanOptionalAction, default=True,
+                              help='add numeric suffix to new interfaces with existing names.\n'
+                                   'Enabled by default')
 
 down_subparser = subparsers.add_parser('down', help='deactivates a WireGuard interface set up by wirescale', formatter_class=CustomArgumentFormatter)
 down_subparser.add_argument('interface', type=check_existing_conf, help="shortcut for 'wg-quick down /run/wirescale/{interface}.conf'")
