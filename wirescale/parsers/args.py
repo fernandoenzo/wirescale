@@ -15,6 +15,7 @@ class ARGS:
     DAEMON: bool = None
     DOWN: Path = None
     INTERFACE: str = None
+    IPTABLES: bool = None
     LATEST_HANDSHAKE: int = None
     PAIR: ConnectionPair = None
     RECOVER: bool = None
@@ -32,6 +33,7 @@ def parse_args():
     ARGS.RECOVER = args.get('opt') == 'recover'
     ARGS.START = args.get('command') == 'start'
     ARGS.STOP = args.get('command') == 'stop'
+    ARGS.IPTABLES = args.get('iptables')
     ARGS.SUFFIX = args.get('suffix')
     if ARGS.UPGRADE:
         peer_ip = args.get('peer')

@@ -15,7 +15,10 @@ daemon_subparser = subparsers.add_parser('daemon', help='commands for systemd to
 order_subparser = daemon_subparser.add_subparsers(dest='command', required=True)
 order_subparser.add_parser('start', help="start the daemon. Must be run by systemd", add_help=False)
 order_subparser.add_parser('stop', help="stop the daemon. Must be run with sudo", add_help=False)
-daemon_subparser.add_argument('--suffix', action=BooleanOptionalAction, default=True,
+daemon_subparser.add_argument('--iptables', action=BooleanOptionalAction,
+                              help='add iptables rules that allow incoming traffic through the new network interface. Use this only if the connection is unstable.\n'
+                                   'Disabled by default')
+daemon_subparser.add_argument('--suffix', action=BooleanOptionalAction,
                               help='add numeric suffix to new interfaces with existing names.\n'
                                    'Enabled by default')
 
@@ -27,7 +30,10 @@ upgrade_subparser.add_argument('peer', type=check_peer, help='either the Tailsca
 config_argument = upgrade_subparser.add_argument('--config', '-c', metavar='wgconf',
                                                  help='path to a WireGuard config template.\n'
                                                       'Defaults to /etc/wirescale/{peername}.conf\n')
-upgrade_subparser.add_argument('--suffix', action=BooleanOptionalAction, default=True,
+upgrade_subparser.add_argument('--iptables', action=BooleanOptionalAction,
+                               help='add iptables rules that allow incoming traffic through the new network interface. Use this only if the connection is unstable.\n'
+                                    'Disabled by default')
+upgrade_subparser.add_argument('--suffix', action=BooleanOptionalAction,
                                help='add numeric suffix to new interfaces with existing names.\n'
                                     'Enabled by default')
 interface_argument = upgrade_subparser.add_argument('--interface', '-i', metavar='iface', type=interface_name_validator,
