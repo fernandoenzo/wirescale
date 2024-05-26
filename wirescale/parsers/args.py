@@ -17,7 +17,6 @@ class ARGS:
     INTERFACE: str = None
     LATEST_HANDSHAKE: int = None
     PAIR: ConnectionPair = None
-    PORT: int = None
     RECOVER: bool = None
     START: bool = None
     STOP: bool = None
