@@ -10,6 +10,7 @@ from pathlib import Path
 from threading import get_ident
 from time import sleep
 from typing import Tuple, TYPE_CHECKING
+from urllib.parse import unquote, urlparse
 
 from netifaces import AF_INET, ifaddresses, interfaces
 
@@ -38,9 +39,9 @@ def next_interface_with_suffix(name: str) -> Tuple[str, int]:
     return name_with_suffix, counter
 
 
-def check_interface(interface: str, suffix: bool) -> Tuple[str, int]:
+def check_interface(interface: str, allow_suffix: bool) -> Tuple[str, int]:
     pair = CONNECTION_PAIRS[get_ident()]
-    if not suffix and interface_exists(interface):
+    if not allow_suffix and interface_exists(interface):
         error = ErrorMessages.INTERFACE_EXISTS.format(interface=interface)
         remote_error = ErrorMessages.REMOTE_INTERFACE_EXISTS.format(my_name=pair.my_name, my_ip=pair.my_ip, interface=interface)
         ErrorMessages.send_error_message(local_message=error, remote_message=remote_error, error_code=ErrorCodes.INTERFACE_EXISTS, always_send_to_remote=False)
@@ -48,6 +49,11 @@ def check_interface(interface: str, suffix: bool) -> Tuple[str, int]:
 
 
 def check_configfile(config: str) -> Path:
+    if config.startswith('file://'):
+        try:
+            config = unquote(urlparse(config).path)
+        except:
+            pass
     config = Path(config)
     if not config.exists():
         error = f"path '{config}' does not exist"
@@ -57,7 +63,7 @@ def check_configfile(config: str) -> Path:
         return config.resolve()
     pair = CONNECTION_PAIRS[get_ident()]
     remote_error = ErrorMessages.REMOTE_CONFIG_PATH_ERROR.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
-    ErrorMessages.send_error_message(local_message=error, remote_message=remote_error, error_code=ErrorCodes.CONFIG_PATH_ERROR, always_send_to_remote=False)
+    ErrorMessages.send_error_message(local_message=error, remote_message=remote_error, error_code=ErrorCodes.CONFIG_PATH_ERROR)
 
 
 def check_behind_nat(ip: IPv4Address) -> bool:
@@ -137,7 +143,7 @@ def test_wgconfig(wgconfig: WGConfig) -> str | None:
     if wgquick.returncode != 0:
         res = wgquick.stderr
     else:
-        subprocess.run(['wg-quick', 'down', str(wgconfig.new_config_path)], capture_output=True, text=True)
+        subprocess.run(['wg-quick', 'down', str(wgconfig.new_config_path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     wgconfig.new_config_path.unlink(missing_ok=False)
     return res
 

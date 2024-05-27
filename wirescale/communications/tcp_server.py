@@ -94,10 +94,12 @@ class TCPServer:
     @classmethod
     def upgrade(cls, message: dict):
         pair = CONNECTION_PAIRS[get_ident()]
-        interface, suffix = check_interface(interface=pair.peer_name, suffix=ARGS.SUFFIX)
+        interface, _ = check_interface(interface=pair.peer_name, allow_suffix=True)
         config = check_configfile(config=f'/etc/wirescale/{pair.peer_name}.conf')
         wgconfig = check_wgconfig(config, interface)
-        wgconfig.suffix = suffix
+        wgconfig.allow_suffix = wgconfig.allow_suffix if wgconfig.allow_suffix is not None else ARGS.ALLOW_SUFFIX if ARGS.ALLOW_SUFFIX is not None else False
+        wgconfig.iptables = wgconfig.iptables if wgconfig.iptables is not None else ARGS.IPTABLES if ARGS.IPTABLES is not None else False
+        wgconfig.interface, wgconfig.suffix = check_interface(interface=pair.peer_name, allow_suffix=wgconfig.allow_suffix)
         with file_locker():
             wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)
         wgconfig.remote_addresses = frozenset(ip_address(ip) for ip in message[MessageFields.ADDRESSES])

@@ -157,6 +157,9 @@ autoremove() {
   nat=$8
   remote_interface=$9
   remote_port=${10}
+  allow_suffix=${11}
+  iptables=${12}
+  config_file=${13}
   stop_after=$((60 * 75))
   lockfile="/run/wirescale/control/locker-$interface"
   flag_file="/run/wirescale/control/$interface-stop"
@@ -225,6 +228,7 @@ new_upgrade() {
     wirescale upgrade --interface "$interface" --no-suffix "$ts_ip"
     status=$?
     echo ""
+    sleep 15
   done
 }
 

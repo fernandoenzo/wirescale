@@ -34,6 +34,7 @@ class WGConfig:
         self.counters: Dict = {}
         self.read_config()
         self.addresses = self.get_addresses()
+        self.allow_suffix: bool = self.get_wirescale_boolean_field(field='suffix')
         self.remote_addresses: FrozenSet[IPv4Address | IPv6Address] = None
         self.private_key = self.get_field('Interface', 'PrivateKey') or self.generate_wg_privkey()
         self.listen_port = TSManager.local_port()
@@ -43,6 +44,7 @@ class WGConfig:
         self.nat: bool = None
         self.fwmark = self.get_field('Interface', 'FwMark')
         self.allowed_ips = self.get_allowed_ips()
+        self.iptables: bool = self.get_wirescale_boolean_field(field='iptables')
         self.public_key = self.generate_wg_pubkey(self.private_key)
         self.remote_interface: str = None
         self.remote_local_port: int = None
@@ -120,12 +122,13 @@ class WGConfig:
 
     def autoremove_interface(self):
         pair = CONNECTION_PAIRS[get_ident()]
-        running_in_remote = int(pair.running_in_remote)
+        running_in_remote, allow_suffix, iptables = int(pair.running_in_remote), int(self.allow_suffix), int(self.iptables)
         nat = int(self.nat)
         subprocess.run(['systemctl', 'reset-failed', f'autoremove-{self.interface}'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         systemd = subprocess.run(['systemd-run', '-u', f'autoremove-{self.interface}', '/bin/sh', '/run/wirescale/wirescale-autoremove', 'autoremove',
                                   self.interface, str(pair.peer_ip), self.remote_pubkey, next(str(ip) for ip in self.remote_addresses), str(running_in_remote),
-                                  str(self.start_time), str(self.listen_port), str(nat), self.remote_interface, str(self.remote_local_port)],
+                                  str(self.start_time), str(self.listen_port), str(nat), self.remote_interface, str(self.remote_local_port), str(allow_suffix),
+                                  str(iptables), self.file_path.as_uri()],
                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         Messages.send_info_message(local_message=f'Launching autoremove subprocess. {systemd.stdout.strip()}')
 
@@ -162,7 +165,8 @@ class WGConfig:
         interface, peer, allowedips = 'Interface', 'Peer', 'AllowedIPs'
         new_config.add_section(interface)
         new_config.add_section(peer)
-        # self.add_iptables()
+        if self.iptables:
+            self.add_iptables()
         # self.first_handshake()
         self.autoremove_configfile()
         repeatable_fields = [field for field in self.repeatable_fields if field != allowedips]
@@ -182,6 +186,23 @@ class WGConfig:
             new_config.set(peer, f'{allowedips}{i}_', value)
         new_config = self.write_config(new_config, self.suffix)
         self.new_config_path.write_text(new_config, encoding='utf-8')
+
+    def get_wirescale_boolean_field(self, field):
+        ws = 'Wirescale'
+        section = next((section for section in self.config.sections() if section.lower() == ws.lower()), None)
+        if section is None:
+            return None
+        value = self.get_field(section_name=section, field=field)
+        if value is None:
+            return value
+        self.config.set(section=section, option=field, value=value.strip())
+        try:
+            return self.config.getboolean(section=section, option=field)
+        except:
+            pair = CONNECTION_PAIRS[get_ident()]
+            error = ErrorMessages.BAD_WS_CONFIG.format(field=field, config_file=self.file_path)
+            error_remote = ErrorMessages.REMOTE_BAD_WS_CONFIG.format(field=field, my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
+            ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
 
     @property
     def new_config_path(self):

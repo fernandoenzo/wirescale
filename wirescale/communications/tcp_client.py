@@ -35,7 +35,7 @@ class TCPClient:
                     return None
 
     @classmethod
-    def upgrade(cls, wgconfig: 'WGConfig', interface: str, stack: ExitStack, suffix: bool):
+    def upgrade(cls, wgconfig: 'WGConfig', interface: str, stack: ExitStack):
         pair = CONNECTION_PAIRS[get_ident()]
         try:
             pair.tcp_socket = cls.connect(uri=pair.peer_ip)
@@ -62,7 +62,7 @@ class TCPClient:
                             ACTIVE_SOCKETS.exclusive_socket = pair
                             with file_locker():
                                 wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)
-                            wgconfig.interface, wgconfig.suffix = check_interface(interface=interface, suffix=suffix)
+                            wgconfig.interface, wgconfig.suffix = check_interface(interface=interface, allow_suffix=wgconfig.allow_suffix)
                             wgconfig.listen_port = TSManager.local_port()
                             upgrade_message = TCPMessages.build_upgrade(wgconfig)
                             pair.send_to_remote(json.dumps(upgrade_message))

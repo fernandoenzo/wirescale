@@ -3,7 +3,7 @@
 
 
 VERSION = '1.0.0'
-DATE = '2024 May 26'
+DATE = '2024 May 28'
 
 version_msg = f'''wirescale {VERSION} ({DATE})
 Copyright © 2024 Fernando Enzo Guarini

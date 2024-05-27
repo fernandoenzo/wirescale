@@ -22,19 +22,20 @@ from parallel_utils.thread import create_thread
 
 from wirescale.communications.checkers import check_recover_config, check_updated_handshake
 from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS, file_locker
-from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, Messages
 from wirescale.communications.connection_pair import ConnectionPair
+from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, Messages
 from wirescale.vpn.tsmanager import TSManager
 
 
 class RecoverConfig:
 
-    def __init__(self, interface: str, is_remote: int, latest_handshake: int, current_port: int, remote_interface: str, remote_port: int, wg_ip: IPv4Address):
+    def __init__(self, interface: str, iptables: bool, is_remote: int, latest_handshake: int, current_port: int, remote_interface: str, remote_port: int, wg_ip: IPv4Address):
         self.current_port: int = current_port
         self.derived_key: bytes = None
         self.endpoint: Tuple[IPv4Address, int] = None
         self.chacha: ChaCha20Poly1305 = None
         self.interface: str = interface
+        self.iptables: bool = iptables
         self.is_remote: int = is_remote
         self.latest_handshake: int = latest_handshake
         self.nat: bool = None
@@ -68,8 +69,8 @@ class RecoverConfig:
             error = ErrorMessages.IP_MISMATCH.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface, autoremove_ip=autoremove_ip_receiver)
             error_remote = ErrorMessages.REMOTE_IP_MISMATCH.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_ip=pair.peer_ip, interface=interface)
             ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
-        recover = RecoverConfig(interface=interface, latest_handshake=latest_handshake, is_remote=args[5], wg_ip=IPv4Address(args[4]), current_port=int(args[7]), remote_interface=args[9],
-                                remote_port=int(args[10]))
+        recover = RecoverConfig(interface=interface, latest_handshake=latest_handshake, is_remote=args[5], iptables=bool(int(args[12])), wg_ip=IPv4Address(args[4]),
+                                current_port=int(args[7]), remote_interface=args[9], remote_port=int(args[10]))
         check_recover_config(recover)
         recover.load_keys()
         with file_locker():
@@ -86,14 +87,14 @@ class RecoverConfig:
     def modify_wgconfig(self):
         with open(self.runfile, 'r') as f:
             text = f.read()
-        # dport = '--dport {port}'
+        dport = '--dport {port}'
         listen_port = 'ListenPort = {port}'
         orig_listen_port = listen_port.format(port=self.current_port)
         new_listen_port = listen_port.format(port=self.new_port)
-        # orig_dport = dport.format(port=self.current_port)
-        # new_dport = dport.format(port=self.new_port)
+        orig_dport = dport.format(port=self.current_port)
+        new_dport = dport.format(port=self.new_port)
         text = re.sub(rf'^{orig_listen_port}', new_listen_port, text, flags=re.IGNORECASE | re.MULTILINE)
-        # text = re.sub(orig_dport, new_dport, text, flags=re.IGNORECASE)
+        text = re.sub(orig_dport, new_dport, text, flags=re.IGNORECASE)
         with open(self.runfile, 'w') as f:
             f.write(text)
 
@@ -125,7 +126,8 @@ class RecoverConfig:
 
     def recover(self):
         self.modify_wgconfig()
-        # self.fix_iptables()
+        if self.iptables:
+            self.fix_iptables()
         pair = CONNECTION_PAIRS[get_ident()]
         stack = ExitStack()
         stack.enter_context(file_locker())

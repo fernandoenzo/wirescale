@@ -124,11 +124,15 @@ class UnixServer:
 
     @staticmethod
     def upgrade(message: dict, stack: ExitStack):
-        interface, suffix = message[MessageFields.INTERFACE], message[MessageFields.SUFFIX]
-        wg_interface, _ = check_interface(interface=interface, suffix=suffix)
+        allow_suffix, interface, iptables = message[MessageFields.ALLOW_SUFFIX], message[MessageFields.INTERFACE], message[MessageFields.IPTABLES]
+        allow_suffix_tmp = allow_suffix if allow_suffix is not None else True
+        wg_interface, _ = check_interface(interface=interface, allow_suffix=allow_suffix_tmp)
         config = check_configfile(config=message[MessageFields.CONFIG])
         wgconfig = check_wgconfig(config, wg_interface)
-        TCPClient.upgrade(wgconfig=wgconfig, interface=interface, stack=stack, suffix=suffix)
+        wgconfig.iptables = iptables if iptables is not None else wgconfig.iptables if wgconfig.iptables is not None else False
+        wgconfig.allow_suffix = allow_suffix if allow_suffix is not None else wgconfig.allow_suffix if wgconfig.allow_suffix is not None else False
+        check_interface(interface=interface, allow_suffix=wgconfig.allow_suffix)
+        TCPClient.upgrade(wgconfig=wgconfig, interface=interface, stack=stack)
 
     @staticmethod
     def recover(message: dict, stack: ExitStack):

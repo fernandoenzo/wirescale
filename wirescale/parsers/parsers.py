@@ -20,7 +20,7 @@ daemon_subparser.add_argument('--iptables', action=BooleanOptionalAction,
                                    'Disabled by default')
 daemon_subparser.add_argument('--suffix', action=BooleanOptionalAction,
                               help='add numeric suffix to new interfaces with existing names.\n'
-                                   'Enabled by default')
+                                   'Disabled by default')
 
 down_subparser = subparsers.add_parser('down', help='deactivates a WireGuard interface set up by wirescale', formatter_class=CustomArgumentFormatter)
 down_subparser.add_argument('interface', type=check_existing_conf, help="shortcut for 'wg-quick down /run/wirescale/{interface}.conf'")
@@ -35,7 +35,7 @@ upgrade_subparser.add_argument('--iptables', action=BooleanOptionalAction,
                                     'Disabled by default')
 upgrade_subparser.add_argument('--suffix', action=BooleanOptionalAction,
                                help='add numeric suffix to new interfaces with existing names.\n'
-                                    'Enabled by default')
+                                    'Disabled by default')
 interface_argument = upgrade_subparser.add_argument('--interface', '-i', metavar='iface', type=interface_name_validator,
                                                     help='interface name that WireGuard will set up. Defaults to {peername}')
 

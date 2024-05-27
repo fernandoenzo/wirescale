@@ -14,6 +14,7 @@ from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS
 from wirescale.version import VERSION
 
 if TYPE_CHECKING:
+    from wirescale.parsers.args import ARGS
     from wirescale.vpn.recover import RecoverConfig
     from wirescale.vpn.wgconfig import WGConfig
 
@@ -21,6 +22,7 @@ if TYPE_CHECKING:
 @unique
 class MessageFields(StrEnum):
     ADDRESSES = auto()
+    ALLOW_SUFFIX = auto()
     CODE = auto()
     CONFIG = auto()
     ENCRYPTED = auto()
@@ -28,6 +30,7 @@ class MessageFields(StrEnum):
     ERROR_MESSAGE = auto()
     HAS_PSK = auto()
     INTERFACE = auto()
+    IPTABLES = auto()
     LATEST_HANDSHAKE = auto()
     MESSAGE = auto()
     NAT = auto()
@@ -41,7 +44,6 @@ class MessageFields(StrEnum):
     REMOTE_PORT = auto()
     REMOTE_PUBKEY = auto()
     START_TIME = auto()
-    SUFFIX = auto()
     TOKEN = auto()
     VERSION = auto()
     WG_IP = auto()
@@ -76,14 +78,15 @@ class UnixMessages:
     STOP_MESSAGE = {MessageFields.CODE: ActionCodes.STOP, MessageFields.ERROR_CODE: None}
 
     @staticmethod
-    def build_upgrade_option(args) -> dict:
+    def build_upgrade_option(args: 'ARGS') -> dict:
         res = {
             MessageFields.CODE: ActionCodes.UPGRADE,
             MessageFields.ERROR_CODE: None,
             MessageFields.CONFIG: args.CONFIGFILE,
             MessageFields.INTERFACE: args.INTERFACE,
+            MessageFields.IPTABLES: args.IPTABLES,
             MessageFields.PEER_IP: str(args.PAIR.peer_ip),
-            MessageFields.SUFFIX: args.SUFFIX,
+            MessageFields.ALLOW_SUFFIX: args.ALLOW_SUFFIX,
         }
         return res
 
@@ -321,6 +324,7 @@ class ErrorMessages:
     BAD_FORMAT_PRIVKEY = "Error: The private key has not the correct length or format in file '{config_file}'"
     BAD_FORMAT_PSK = "Error: The pre-shared key has not the correct length or format in file '{config_file}'"
     BAD_FORMAT_PUBKEY = "Error: The public key has not the correct length or format in file '{config_file}'"
+    BAD_WS_CONFIG = "Error: Invalid value for the '{field}' field in the 'Wirescale' section of file '{config_file}'"
     CANT_DECRYPT = "Error: Couldn't decrypt the recover message sent by remote peer '{peer_name}' ({peer_ip})"
     CLOSED = 'Error: Wirescale is shutting down and is no longer accepting new requests'
     CLOSING_SOCKET = "Error: Connection is broken. Closing socket"
@@ -328,7 +332,7 @@ class ErrorMessages:
     FINAL_ERROR = 'Something went wrong and, finally, it was not possible to establish the P2P connection'
     HANDSHAKE_FAILED = "Error: Handshake with interface '{interface}' failed"
     HANDSHAKE_FAILED_RECOVER = "Error: Handshake with interface '{interface}' failed after changing its endpoint. Will try again in 30 seconds"
-    INTERFACE_EXISTS = "a network interface '{interface}' already exists and Wirescale was started with the --no-suffix option"
+    INTERFACE_EXISTS = "a network interface '{interface}' already exists"
     IP_MISMATCH = "Error: Remote peer '{peer_name}' ({peer_ip}) IP address mismatch with the 'autoremove-{interface}' systemd unit's registered IP ({autoremove_ip})"
     LATEST_HANDSHAKE_MISMATCH = "Error: The latest handshake of interface '{interface}' has been updated since the recover request was made. Discarding request"
     MISSING_ADDRESS = "Error: 'Address' option missing in 'Interface' section of file '{config_file}'"
@@ -342,11 +346,12 @@ class ErrorMessages:
     REMOTE_BAD_FORMAT_PRIVKEY = "Error: The private key has not the correct length or format in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'"
     REMOTE_BAD_FORMAT_PSK = "Error: The pre-shared key has not the correct length or format in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'"
     REMOTE_BAD_FORMAT_PUBKEY = "Error: The public key has not the correct length or format in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'"
+    REMOTE_BAD_WS_CONFIG = "Error: Invalid value for the '{field}' field in the 'Wirescale' section in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'"
     REMOTE_CANT_DECRYPT = "Error: Remote peer '{my_name}' ({my_ip}) couldn't decrypt our recover message"
     REMOTE_CLOSED = "Error: Wirescale instance at '{my_name}' ({my_ip}) has been set to stop receiving requests"
     REMOTE_CONFIG_ERROR = "Error: Remote peer '{my_name}' ({my_ip}) has a syntax error in its configuration file for '{peer_name}'"
     REMOTE_CONFIG_PATH_ERROR = "Error: Remote peer '{my_name}' ({my_ip}) cannot locate a configuration file for '{peer_name}'"
-    REMOTE_INTERFACE_EXISTS = "Error: A network interface '{interface}' already exists on peer '{my_name}' ({my_ip}) and its Wirescale was started with the --no-suffix option"
+    REMOTE_INTERFACE_EXISTS = "Error: A network interface '{interface}' already exists on peer '{my_name}' ({my_ip})"
     REMOTE_IP_MISMATCH = "Error: Remote peer '{my_name}' ({my_ip}) has registered a different IP address in its 'autoremove-{interface}' systemd unit than ours ({peer_ip})"
     REMOTE_LATEST_HANDSHAKE_MISMATCH = ("Error: The latest handshake of remote interface '{interface}' from remote peer '{my_name}' ({my_ip}) has been updated since the recover "
                                         "request was made. Discarding request.")

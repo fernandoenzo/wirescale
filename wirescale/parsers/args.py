@@ -11,6 +11,7 @@ from wirescale.vpn.tsmanager import TSManager
 
 
 class ARGS:
+    ALLOW_SUFFIX: bool = None
     CONFIGFILE: str = None
     DAEMON: bool = None
     DOWN: Path = None
@@ -21,7 +22,6 @@ class ARGS:
     RECOVER: bool = None
     START: bool = None
     STOP: bool = None
-    SUFFIX: bool = None
     UPGRADE: bool = None
 
 
@@ -34,7 +34,7 @@ def parse_args():
     ARGS.START = args.get('command') == 'start'
     ARGS.STOP = args.get('command') == 'stop'
     ARGS.IPTABLES = args.get('iptables')
-    ARGS.SUFFIX = args.get('suffix')
+    ARGS.ALLOW_SUFFIX = args.get('suffix')
     if ARGS.UPGRADE:
         peer_ip = args.get('peer')
         ARGS.PAIR = ConnectionPair(caller=TSManager.my_ip(), receiver=peer_ip)
