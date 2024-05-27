@@ -219,6 +219,15 @@ autoremove_three_min() {
   exit 0
 }
 
+new_upgrade() {
+  status=1
+  while [ $status -ne 0 ]; do
+    wirescale upgrade --interface "$interface" --no-suffix "$ts_ip"
+    status=$?
+    echo ""
+  done
+}
+
 # Ensure at least one argument (the function name) was provided
 if [ "$#" -eq 0 ]; then
   echo "Error: You must provide the function name as the first argument."
