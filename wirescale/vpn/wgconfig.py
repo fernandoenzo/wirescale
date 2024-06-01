@@ -17,7 +17,7 @@ from typing import Dict, FrozenSet, Tuple
 
 from parallel_utils.thread import create_thread
 
-from wirescale.communications.common import CONNECTION_PAIRS, file_locker, subprocess_run_tmpfile
+from wirescale.communications.common import CONNECTION_PAIRS, file_locker, subprocess_run_tmpfile, systemd_autoremove
 from wirescale.communications.messages import ActionCodes, ErrorMessages, Messages
 from wirescale.vpn.tsmanager import TSManager
 
@@ -124,18 +124,6 @@ class WGConfig:
         handshake = (rf"""/bin/sh -c 'count=0; while [ $count -le 14 ]; do handshake=$(wg show %i latest-handshakes | awk -v pubkey="{self.remote_pubkey}" '\''$1 == pubkey {{print $2}}'\''); """
                      "if [ $handshake -eq 0 ]; then sleep 0.5; count=$((count+1)); else exit 0; fi; done; exit 1'")
         self.add_script('postup', handshake, first_place=True)
-
-    def autoremove_interface(self):
-        pair = CONNECTION_PAIRS[get_ident()]
-        running_in_remote, iptables = int(pair.running_in_remote), int(self.iptables)
-        nat = int(self.nat)
-        subprocess.run(['systemctl', 'reset-failed', f'autoremove-{self.interface}'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        systemd = subprocess.run(['systemd-run', '-u', f'autoremove-{self.interface}', '/bin/sh', '/run/wirescale/wirescale-autoremove', 'autoremove',
-                                  self.interface, str(pair.peer_ip), self.remote_pubkey, next(str(ip) for ip in self.remote_addresses), str(running_in_remote),
-                                  str(self.start_time), str(self.listen_port), str(nat), self.remote_interface, str(self.remote_local_port), str(iptables),
-                                  self.file_path.as_uri()],
-                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-        Messages.send_info_message(local_message=f'Launching autoremove subprocess. {systemd.stdout.strip()}')
 
     def autoremove_configfile(self):
         remove_configfile = f'rm -f {self.configfile}'
@@ -250,7 +238,7 @@ class WGConfig:
                 error = ErrorMessages.HANDSHAKE_FAILED.format(interface=self.interface)
                 subprocess.run(['wg-quick', 'down', str(self.new_config_path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 ErrorMessages.send_error_message(local_message=error)
-            self.autoremove_interface()
+            systemd_autoremove(config=self, pair=pair)
             success = Messages.SUCCESS.format(interface=self.interface)
             Messages.send_info_message(local_message=success, code=ActionCodes.SUCCESS)
         else:

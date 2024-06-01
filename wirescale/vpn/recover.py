@@ -12,7 +12,6 @@ from functools import cached_property
 from ipaddress import IPv4Address
 from pathlib import Path
 from threading import get_ident
-from time import sleep
 from typing import Tuple
 
 from cryptography.hazmat.primitives import hashes
@@ -21,8 +20,8 @@ from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from parallel_utils.thread import create_thread
 
-from wirescale.communications.checkers import check_recover_config, check_updated_handshake
-from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS, file_locker
+from wirescale.communications.checkers import check_configfile, check_updated_handshake
+from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS, file_locker, systemd_autoremove
 from wirescale.communications.connection_pair import ConnectionPair
 from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, Messages
 from wirescale.vpn.tsmanager import TSManager
@@ -30,21 +29,22 @@ from wirescale.vpn.tsmanager import TSManager
 
 class RecoverConfig:
 
-    def __init__(self, interface: str, iptables: bool, is_remote: int, latest_handshake: int, current_port: int, remote_interface: str, remote_port: int, wg_ip: IPv4Address):
+    def __init__(self, interface: str, iptables: bool, running_in_remote: bool, latest_handshake: int, current_port: int, remote_interface: str, remote_port: int, wg_ip: IPv4Address):
         self.current_port: int = current_port
         self.derived_key: bytes = None
         self.endpoint: Tuple[IPv4Address, int] = None
         self.chacha: ChaCha20Poly1305 = None
+        self.config_file: Path = None
         self.interface: str = interface
         self.iptables: bool = iptables
-        self.is_remote: int = is_remote
+        self.running_in_remote: bool = running_in_remote
         self.latest_handshake: int = latest_handshake
         self.nat: bool = None
         self.nonce: bytes = os.urandom(12)
         self.new_port: int = TSManager.local_port()
         self.private_key: X25519PrivateKey = None
         self.remote_interface: str = remote_interface
-        self.remote_port: int = remote_port
+        self.remote_local_port: int = remote_port
         self.remote_pubkey: X25519PublicKey = None
         self.remote_pubkey_str: str = None
         self.psk: bytes = None
@@ -69,9 +69,9 @@ class RecoverConfig:
             error = ErrorMessages.IP_MISMATCH.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface, autoremove_ip=autoremove_ip_receiver)
             error_remote = ErrorMessages.REMOTE_IP_MISMATCH.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_ip=pair.peer_ip, interface=interface)
             ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
-        recover = RecoverConfig(interface=interface, latest_handshake=latest_handshake, is_remote=args[5], iptables=bool(int(args[12])), wg_ip=IPv4Address(args[4]),
+        recover = RecoverConfig(interface=interface, latest_handshake=latest_handshake, running_in_remote=bool(int(args[5])), iptables=bool(int(args[11])), wg_ip=IPv4Address(args[4]),
                                 current_port=int(args[7]), remote_interface=args[9], remote_port=int(args[10]))
-        check_recover_config(recover)
+        recover.config_file = check_configfile(config=args[12])
         recover.load_keys()
         with file_locker():
             recover.endpoint = TSManager.peer_endpoint(pair.peer_ip)
@@ -148,24 +148,8 @@ class RecoverConfig:
             subprocess.run(['systemctl', 'stop', f'autoremove-{self.interface}.service'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         success_message = Messages.RECOVER_SUCCES.format(interface=self.interface)
         Messages.send_info_message(local_message=success_message, code=ActionCodes.SUCCESS)
-        create_thread(self.autoremove_interface, pair)
+        create_thread(systemd_autoremove, config=self, pair=pair)
 
     @cached_property
     def runfile(self):
         return Path(f'/run/wirescale/{self.interface}.conf')
-
-    def autoremove_interface(self, pair: 'ConnectionPair'):
-        tries = 20
-        is_active = 0
-        while is_active == 0 and tries > 0:
-            is_active = subprocess.run(['systemctl', 'is-active', f'autoremove-{self.interface}.service'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
-            tries -= 1
-            sleep(1)
-        nat = int(self.nat)
-        subprocess.run(['systemctl', 'stop', f'autoremove-{self.interface}.service'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.run(['systemctl', 'reset-failed', f'autoremove-{self.interface}.service'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        systemd = subprocess.run(['systemd-run', '-u', f'autoremove-{self.interface}', '/bin/sh', '/run/wirescale/wirescale-autoremove', 'autoremove',
-                                  self.interface, str(pair.peer_ip), self.remote_pubkey_str, str(self.wg_ip), str(self.is_remote),
-                                  str(self.start_time), str(self.new_port), str(nat), self.remote_interface, str(self.remote_port)],
-                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-        Messages.send_info_message(local_message=f'Launching autoremove subprocess. {systemd.stdout.strip()}')

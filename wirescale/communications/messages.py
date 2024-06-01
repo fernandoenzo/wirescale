@@ -181,7 +181,7 @@ class TCPMessages:
         }
         encrypted = {
             MessageFields.LATEST_HANDSHAKE: recover.latest_handshake,
-            MessageFields.PORT: recover.remote_port,
+            MessageFields.PORT: recover.remote_local_port,
             MessageFields.PUBLIC_IP: str(recover.endpoint[0]),
             MessageFields.REMOTE_INTERFACE: recover.interface,
             MessageFields.REMOTE_PORT: recover.new_port,
@@ -226,7 +226,7 @@ class TCPMessages:
         decrypted = json.loads(decrypted)
         message.update(decrypted)
         recover.current_port = message[MessageFields.PORT]
-        recover.remote_port = message[MessageFields.REMOTE_PORT]
+        recover.remote_local_port = message[MessageFields.REMOTE_PORT]
         recover.remote_interface = message[MessageFields.REMOTE_INTERFACE]
         check_recover_config(recover)
         recover.nat = check_behind_nat(IPv4Address(message[MessageFields.PUBLIC_IP]))
@@ -245,7 +245,7 @@ class TCPMessages:
             ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
         decrypted = json.loads(decrypted)
         message.update(decrypted)
-        recover.remote_port = message[MessageFields.REMOTE_PORT]
+        recover.remote_local_port = message[MessageFields.REMOTE_PORT]
         recover.start_time = message[MessageFields.START_TIME]
         recover.nat = message[MessageFields.NAT] and check_behind_nat(IPv4Address(message[MessageFields.PUBLIC_IP]))
 

@@ -62,7 +62,7 @@ assure_connection() {
 assure_keepalive() {
   start_time=$1
 
-  if [ "$is_remote" -eq 1 ]; then
+  if [ "$running_in_remote" -eq 1 ]; then
     start_time=$(((start_time + 30) % 60))
   fi
 
@@ -95,7 +95,7 @@ ping_keepalive() {
   ping_periodic &
 
   while check_interface_and_file && [ $(($(date +%s) - start_time_func)) -lt "$stop_after" ]; do
-    if [ "$is_remote" -eq 1 ]; then
+    if [ "$running_in_remote" -eq 1 ]; then
       sleep_times=$(get_sleep_times "$start_time")
       sleep "$(calculate_sleep_time "$sleep_times")"
     else
@@ -151,7 +151,7 @@ autoremove() {
   ts_ip=$2
   remote_pubkey=$3
   wg_ip=$4
-  is_remote=$5
+  running_in_remote=$5
   start_time=$6
   local_port=$7
   nat=$8
@@ -162,7 +162,7 @@ autoremove() {
   stop_after=$((60 * 75))
   lockfile="/run/wirescale/control/locker-$interface"
   flag_file="/run/wirescale/control/$interface-stop"
-  export interface ts_ip remote_pubkey wg_ip is_remote local_port remove_interface remote_port stop_after lockfile flag_file
+  export interface ts_ip remote_pubkey wg_ip running_in_remote local_port remove_interface remote_port stop_after lockfile flag_file
 
   start_time_func=$(date +%s)
   last_received=0
