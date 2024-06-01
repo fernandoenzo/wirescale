@@ -11,7 +11,7 @@ from threading import get_ident
 from parallel_utils.thread import StaticMonitor
 from websockets.sync.server import serve, ServerConnection, WebSocketServer
 
-from wirescale.communications.checkers import check_addresses_in_allowedips, check_behind_nat, check_configfile, check_interface, check_wgconfig, match_psk, match_pubkeys
+from wirescale.communications.checkers import check_addresses_in_allowedips, check_behind_nat, check_configfile, check_interface, check_wgconfig, match_psk, match_pubkeys, test_wgconfig
 from wirescale.communications.common import CONNECTION_PAIRS, file_locker, Semaphores, SHUTDOWN, TCP_PORT
 from wirescale.communications.connection_pair import ConnectionPair
 from wirescale.communications.messages import ActionCodes, ErrorMessages, MessageFields, Messages, TCPMessages
@@ -81,6 +81,7 @@ class TCPServer:
                                 cls.recover(message)
 
             finally:
+                pair.close_sockets()
                 Messages.send_info_message(local_message=Messages.END_SESSION)
                 CONNECTION_PAIRS.pop(get_ident(), None)
 
@@ -94,12 +95,13 @@ class TCPServer:
     @classmethod
     def upgrade(cls, message: dict):
         pair = CONNECTION_PAIRS[get_ident()]
-        interface, _ = check_interface(interface=pair.peer_name, allow_suffix=True)
         config = check_configfile(config=f'/etc/wirescale/{pair.peer_name}.conf')
-        wgconfig = check_wgconfig(config, interface)
+        wgconfig = check_wgconfig(config)
+        wgconfig.interface = wgconfig.interface or pair.peer_name
         wgconfig.allow_suffix = wgconfig.allow_suffix if wgconfig.allow_suffix is not None else ARGS.ALLOW_SUFFIX if ARGS.ALLOW_SUFFIX is not None else False
+        wgconfig.interface, wgconfig.suffix = check_interface(interface=wgconfig.interface, allow_suffix=wgconfig.allow_suffix)
+        test_wgconfig(wgconfig)
         wgconfig.iptables = wgconfig.iptables if wgconfig.iptables is not None else ARGS.IPTABLES if ARGS.IPTABLES is not None else False
-        wgconfig.interface, wgconfig.suffix = check_interface(interface=pair.peer_name, allow_suffix=wgconfig.allow_suffix)
         with file_locker():
             wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)
         wgconfig.remote_addresses = frozenset(ip_address(ip) for ip in message[MessageFields.ADDRESSES])
@@ -125,7 +127,6 @@ class TCPServer:
                     case ActionCodes.GO:
                         wgconfig.nat = message[MessageFields.NAT]
                         wgconfig.upgrade()
-                        pair.close_sockets()
                         sys.exit(0)
 
     @classmethod
@@ -147,5 +148,4 @@ class TCPServer:
                     case ActionCodes.GO:
                         recover.nat = message[MessageFields.NAT]
                         recover.recover()
-                        pair.close_sockets()
                         sys.exit(0)

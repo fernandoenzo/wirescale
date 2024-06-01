@@ -15,7 +15,7 @@ from parallel_utils.thread import StaticMonitor
 from websockets import ConnectionClosed
 from websockets.sync.server import ServerConnection, unix_serve, WebSocketServer
 
-from wirescale.communications.checkers import check_configfile, check_interface, check_recover_config, check_wgconfig
+from wirescale.communications.checkers import check_configfile, check_interface, check_recover_config, check_wgconfig, test_wgconfig
 from wirescale.communications.common import CONNECTION_PAIRS, Semaphores, SHUTDOWN, SOCKET_PATH
 from wirescale.communications.connection_pair import ConnectionPair
 from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, MessageFields, Messages
@@ -98,6 +98,9 @@ class UnixServer:
                                 action()
 
                 finally:
+                    pair = CONNECTION_PAIRS.get(get_ident())
+                    if pair is not None:
+                        pair.close_sockets()
                     Messages.send_info_message(local_message=Messages.END_SESSION, send_to_local=False)
                     CONNECTION_PAIRS.pop(get_ident(), None)
 
@@ -124,14 +127,15 @@ class UnixServer:
 
     @staticmethod
     def upgrade(message: dict, stack: ExitStack):
+        pair = CONNECTION_PAIRS[get_ident()]
         allow_suffix, interface, iptables = message[MessageFields.ALLOW_SUFFIX], message[MessageFields.INTERFACE], message[MessageFields.IPTABLES]
-        allow_suffix_tmp = allow_suffix if allow_suffix is not None else True
-        wg_interface, _ = check_interface(interface=interface, allow_suffix=allow_suffix_tmp)
         config = check_configfile(config=message[MessageFields.CONFIG])
-        wgconfig = check_wgconfig(config, wg_interface)
-        wgconfig.iptables = iptables if iptables is not None else wgconfig.iptables if wgconfig.iptables is not None else False
+        wgconfig = check_wgconfig(config)
+        interface = interface or wgconfig.interface or pair.peer_name
         wgconfig.allow_suffix = allow_suffix if allow_suffix is not None else wgconfig.allow_suffix if wgconfig.allow_suffix is not None else False
-        check_interface(interface=interface, allow_suffix=wgconfig.allow_suffix)
+        wgconfig.interface, wgconfig.suffix = check_interface(interface=interface, allow_suffix=wgconfig.allow_suffix)
+        test_wgconfig(wgconfig)
+        wgconfig.iptables = iptables if iptables is not None else wgconfig.iptables if wgconfig.iptables is not None else False
         TCPClient.upgrade(wgconfig=wgconfig, interface=interface, stack=stack)
 
     @staticmethod

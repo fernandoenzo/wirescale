@@ -88,14 +88,13 @@ def check_recover_config(recover: 'RecoverConfig'):
         ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
 
 
-def check_wgconfig(config: Path, interface: str) -> WGConfig:
+def check_wgconfig(config: Path) -> WGConfig:
     pair = CONNECTION_PAIRS[get_ident()]
     try:
         wgconfig = WGConfig(config)
     except Exception as error:
         remote_error = ErrorMessages.REMOTE_CONFIG_ERROR.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
         ErrorMessages.send_error_message(local_message=str(error), remote_message=remote_error, always_send_to_remote=False)
-    wgconfig.interface = interface
     if wgconfig.addresses is None:
         error = ErrorMessages.MISSING_ADDRESS.format(config_file=wgconfig.file_path)
         remote_error = ErrorMessages.REMOTE_MISSING_ADDRESS.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
@@ -112,15 +111,11 @@ def check_wgconfig(config: Path, interface: str) -> WGConfig:
         error = ErrorMessages.BAD_FORMAT_PUBKEY.format(config_file=wgconfig.file_path)
         remote_error = ErrorMessages.REMOTE_BAD_FORMAT_PUBKEY.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
     else:
-        error = test_wgconfig(wgconfig)
-        if error is None:
-            return wgconfig
-        remote_error = ErrorMessages.REMOTE_CONFIG_ERROR.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
+        return wgconfig
     ErrorMessages.send_error_message(local_message=error, remote_message=remote_error, always_send_to_remote=False)
 
 
-def test_wgconfig(wgconfig: WGConfig) -> str | None:
-    res = None
+def test_wgconfig(wgconfig: WGConfig):
     test_config = ConfigParser(interpolation=None)
     test_config.optionxform = lambda option: option
     interface, peer = 'Interface', 'Peer'
@@ -140,12 +135,16 @@ def test_wgconfig(wgconfig: WGConfig) -> str | None:
     test_config = WGConfig.write_config(test_config, wgconfig.suffix)
     wgconfig.new_config_path.write_text(test_config, encoding='utf-8')
     wgquick = subprocess.run(['wg-quick', 'up', str(wgconfig.new_config_path)], capture_output=True, text=True)
-    if wgquick.returncode != 0:
-        res = wgquick.stderr
-    else:
-        subprocess.run(['wg-quick', 'down', str(wgconfig.new_config_path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    wgconfig.new_config_path.unlink(missing_ok=False)
-    return res
+    try:
+        if wgquick.returncode != 0:
+            pair = CONNECTION_PAIRS[get_ident()]
+            error = wgquick.stderr
+            remote_error = ErrorMessages.REMOTE_CONFIG_ERROR.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
+            ErrorMessages.send_error_message(local_message=error, remote_message=remote_error, always_send_to_remote=False)
+        else:
+            subprocess.run(['wg-quick', 'down', str(wgconfig.new_config_path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    finally:
+        wgconfig.new_config_path.unlink(missing_ok=False)
 
 
 def match_pubkeys(wgconfig: WGConfig, remote_pubkey: str, my_pubkey: str | None):

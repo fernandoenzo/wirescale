@@ -39,7 +39,7 @@ def parse_args():
         peer_ip = args.get('peer')
         ARGS.PAIR = ConnectionPair(caller=TSManager.my_ip(), receiver=peer_ip)
         ARGS.CONFIGFILE = args.get('config') if args.get('config') is not None and args.get('config').split() else f'/etc/wirescale/{ARGS.PAIR.peer_name}.conf'
-        ARGS.INTERFACE = args.get('interface') or ARGS.PAIR.peer_name
+        ARGS.INTERFACE = args.get('interface')
     if ARGS.RECOVER:
         ARGS.INTERFACE = args.get('interface')
         ARGS.LATEST_HANDSHAKE = get_latest_handshake(ARGS.INTERFACE)

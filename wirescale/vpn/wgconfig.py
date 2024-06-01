@@ -27,7 +27,6 @@ class WGConfig:
     configfile = Path('/run/wirescale/%i.conf')
 
     def __init__(self, file_path: Path | str):
-        self.interface: str = None
         self.file_path: Path = file_path if isinstance(file_path, Path) else Path(file_path)
         self.config: ConfigParser = ConfigParser(interpolation=None)
         self.config.optionxform = lambda option: option
@@ -44,6 +43,7 @@ class WGConfig:
         self.nat: bool = None
         self.fwmark = self.get_field('Interface', 'FwMark')
         self.allowed_ips = self.get_allowed_ips()
+        self.interface: str = self.get_field('Wirescale', 'interface', missing_ok=True)
         self.iptables: bool = self.get_wirescale_boolean_field(field='iptables')
         self.public_key = self.generate_wg_pubkey(self.private_key)
         self.remote_interface: str = None
@@ -72,9 +72,14 @@ class WGConfig:
             self.counters[field] = suffix[0] - 1
         self.config.read_string(text)
 
-    def get_field(self, section_name: str, field: str) -> str | Tuple[str, ...] | None:
+    def get_field(self, section_name: str, field: str, missing_ok=False) -> str | Tuple[str, ...] | None:
         field = field.lower()
-        section = next(section for section in self.config.sections() if section.lower() == section_name.lower())
+        try:
+            section = next(section for section in self.config.sections() if section.lower() == section_name.lower())
+        except StopIteration as e:
+            if missing_ok:
+                return
+            raise e
         if field not in self.repeatable_fields:
             return next((value for (name, value) in self.config.items(section) if name.lower() == field), None)
         return tuple(value for (name, value) in self.config.items(section) if name.lower().startswith(field))
