@@ -52,6 +52,10 @@ class RecoverConfig:
         self.start_time: int = datetime.now().second
         self.wg_ip: IPv4Address = wg_ip
 
+    @cached_property
+    def runfile(self):
+        return Path(f'/run/wirescale/{self.interface}.conf')
+
     @classmethod
     def create_from_autoremove(cls, interface: str, latest_handshake: int):
         pair = CONNECTION_PAIRS.get(get_ident())
@@ -142,6 +146,7 @@ class RecoverConfig:
         Messages.send_info_message(local_message=f"Checking latest handshake of interface '{self.interface}' after changing the endpoint...")
         updated = check_updated_handshake(self.interface, self.latest_handshake)
         if not updated:
+            self.undo_recover()
             error = ErrorMessages.HANDSHAKE_FAILED_RECOVER.format(interface=self.interface)
             ErrorMessages.send_error_message(local_message=error, error_code=ErrorCodes.TS_UNREACHABLE)
         if pair.running_in_remote:
@@ -150,6 +155,10 @@ class RecoverConfig:
         Messages.send_info_message(local_message=success_message, code=ActionCodes.SUCCESS)
         create_thread(systemd_autoremove, config=self, pair=pair)
 
-    @cached_property
-    def runfile(self):
-        return Path(f'/run/wirescale/{self.interface}.conf')
+    def undo_recover(self):
+        self.new_port, self.current_port = self.current_port, self.new_port
+        self.modify_wgconfig()
+        if self.iptables:
+            self.fix_iptables()
+        subprocess.run(['wg', 'set', self.interface, 'listen-port', str(self.new_port)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(['wg', 'set', self.interface, 'peer', self.remote_pubkey_str, 'endpoint', f'{self.endpoint[0]}:{self.endpoint[1]}'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

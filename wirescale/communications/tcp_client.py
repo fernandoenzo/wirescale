@@ -82,7 +82,6 @@ class TCPClient:
                                 error = ErrorMessages.CONNECTION_LOST.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
                                 ErrorMessages.send_error_message(local_message=error, error_code=ErrorCodes.TS_UNREACHABLE)
                             wgconfig.upgrade()
-                            pair.close_sockets()
                             sys.exit(0)
 
     @classmethod
@@ -122,5 +121,4 @@ class TCPClient:
                                 error = ErrorMessages.CONNECTION_LOST.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
                                 ErrorMessages.send_error_message(local_message=error, error_code=ErrorCodes.TS_UNREACHABLE)
                             recover.recover()
-                            pair.close_sockets()
                             sys.exit(0)
