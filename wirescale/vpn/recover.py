@@ -8,6 +8,7 @@ import re
 import subprocess
 from contextlib import ExitStack
 from datetime import datetime
+from functools import cached_property
 from ipaddress import IPv4Address
 from pathlib import Path
 from threading import get_ident
@@ -46,7 +47,6 @@ class RecoverConfig:
         self.remote_port: int = remote_port
         self.remote_pubkey: X25519PublicKey = None
         self.remote_pubkey_str: str = None
-        self.runfile = Path(f'/run/wirescale/{interface}.conf')
         self.psk: bytes = None
         self.shared_key: bytes = None
         self.start_time: int = datetime.now().second
@@ -149,6 +149,10 @@ class RecoverConfig:
         success_message = Messages.RECOVER_SUCCES.format(interface=self.interface)
         Messages.send_info_message(local_message=success_message, code=ActionCodes.SUCCESS)
         create_thread(self.autoremove_interface, pair)
+
+    @cached_property
+    def runfile(self):
+        return Path(f'/run/wirescale/{self.interface}.conf')
 
     def autoremove_interface(self, pair: 'ConnectionPair'):
         tries = 20

@@ -81,8 +81,7 @@ def check_recover_config(recover: 'RecoverConfig'):
         error = ErrorMessages.PORT_MISMATCH.format(interface=recover.interface, port=recover.current_port)
         error_remote = ErrorMessages.REMOTE_PORT_MISMATCH.format(peer_name=pair.my_name, peer_ip=pair.my_ip, interface=recover.interface, port=recover.current_port)
         ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
-    runfile = Path(f'/run/wirescale/{recover.interface}.conf')
-    if not runfile.exists() or not runfile.is_file():
+    if not recover.runfile.exists() or not recover.runfile.is_file():
         error = ErrorMessages.RUNFILE_MISSING.format(interface=recover.interface)
         error_remote = ErrorMessages.REMOTE_RUNFILE_MISSING.format(my_name=pair.my_name, my_ip=pair.my_ip, interface=recover.interface)
         ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
