@@ -136,6 +136,7 @@ class UnixServer:
         wgconfig.interface, wgconfig.suffix = check_interface(interface=interface, allow_suffix=wgconfig.allow_suffix)
         test_wgconfig(wgconfig)
         wgconfig.iptables = iptables if iptables is not None else wgconfig.iptables if wgconfig.iptables is not None else False
+        wgconfig.expected_interface = message[MessageFields.EXPECTED_INTERFACE]
         TCPClient.upgrade(wgconfig=wgconfig, interface=interface, stack=stack)
 
     @staticmethod

@@ -34,6 +34,7 @@ class WGConfig:
         self.read_config()
         self.addresses = self.get_addresses()
         self.allow_suffix: bool = self.get_wirescale_boolean_field(field='suffix')
+        self.expected_interface: str = None
         self.remote_addresses: FrozenSet[IPv4Address | IPv6Address] = None
         self.private_key = self.get_field('Interface', 'PrivateKey') or self.generate_wg_privkey()
         self.listen_port = TSManager.local_port()

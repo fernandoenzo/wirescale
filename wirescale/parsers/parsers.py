@@ -38,8 +38,9 @@ upgrade_subparser.add_argument('--suffix', action=BooleanOptionalAction,
                                     'Disabled by default')
 interface_argument = upgrade_subparser.add_argument('--interface', '-i', metavar='iface', type=interface_name_validator,
                                                     help='interface name that WireGuard will set up. Defaults to {peername}')
-upgrade_subparser.add_argument('--remote-interface', metavar='r_iface',
-                               help='specifies the expected remote interface name. If the remote peer does not use this interface name, the connection attempt will be aborted')
+upgrade_subparser.add_argument('--remote-interface', default=None, metavar='r_iface',
+                               help='expected remote interface name. If the remote peer does not use this interface name, the connection attempt will be aborted.\n'
+                                    'Intended for internal use only')
 upgrade_subparser.add_argument('--recover-tries', type=int, metavar='N',
                                help='number of automatic recovery attempts if the connection drops, before the network interface is brought down. '
                                     'Negative values indicate unlimited attempts.\nDefault is 3')

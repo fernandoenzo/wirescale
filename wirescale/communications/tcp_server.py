@@ -100,6 +100,11 @@ class TCPServer:
         wgconfig.interface = wgconfig.interface or pair.peer_name
         wgconfig.allow_suffix = wgconfig.allow_suffix if wgconfig.allow_suffix is not None else ARGS.ALLOW_SUFFIX if ARGS.ALLOW_SUFFIX is not None else False
         wgconfig.interface, wgconfig.suffix = check_interface(interface=wgconfig.interface, allow_suffix=wgconfig.allow_suffix)
+        expected_interface = message[MessageFields.EXPECTED_INTERFACE]
+        if expected_interface is not None and wgconfig.interface != expected_interface:
+            error = ErrorMessages.INTERFACE_MISMATCH.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+            remote_error = ErrorMessages.REMOTE_INTERFACE_MISMATCH.format(my_name=pair.my_name, my_ip=pair.my_ip, interface=expected_interface)
+            ErrorMessages.send_error_message(local_message=error, remote_message=remote_error)
         test_wgconfig(wgconfig)
         wgconfig.iptables = wgconfig.iptables if wgconfig.iptables is not None else ARGS.IPTABLES if ARGS.IPTABLES is not None else False
         with file_locker():

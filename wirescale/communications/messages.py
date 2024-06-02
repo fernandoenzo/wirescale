@@ -28,6 +28,7 @@ class MessageFields(StrEnum):
     ENCRYPTED = auto()
     ERROR_CODE = auto()
     ERROR_MESSAGE = auto()
+    EXPECTED_INTERFACE = auto()
     HAS_PSK = auto()
     INTERFACE = auto()
     IPTABLES = auto()
@@ -83,6 +84,7 @@ class UnixMessages:
             MessageFields.CODE: ActionCodes.UPGRADE,
             MessageFields.ERROR_CODE: None,
             MessageFields.CONFIG: args.CONFIGFILE,
+            MessageFields.EXPECTED_INTERFACE: args.EXPECTED_INTERFACE,
             MessageFields.INTERFACE: args.INTERFACE,
             MessageFields.IPTABLES: args.IPTABLES,
             MessageFields.PEER_IP: str(args.PAIR.peer_ip),
@@ -137,6 +139,7 @@ class TCPMessages:
             MessageFields.CODE: ActionCodes.UPGRADE,
             MessageFields.ERROR_CODE: None,
             MessageFields.ADDRESSES: [str(ip) for ip in wgconfig.addresses],
+            MessageFields.EXPECTED_INTERFACE: wgconfig.expected_interface,
             MessageFields.HAS_PSK: wgconfig.has_psk,
             MessageFields.INTERFACE: wgconfig.interface,
             MessageFields.PORT: wgconfig.listen_port,
@@ -333,6 +336,7 @@ class ErrorMessages:
     HANDSHAKE_FAILED = "Error: Handshake with interface '{interface}' failed"
     HANDSHAKE_FAILED_RECOVER = "Error: Handshake with interface '{interface}' failed after changing its endpoint. Will try again in 30 seconds"
     INTERFACE_EXISTS = "Error: A network interface '{interface}' already exists"
+    INTERFACE_MISMATCH = "Error: Remote peer '{peer_name}' ({peer_ip}) expects a network interface name that does not match the one we are assigning"
     IP_MISMATCH = "Error: Remote peer '{peer_name}' ({peer_ip}) IP address mismatch with the 'autoremove-{interface}' systemd unit's registered IP ({autoremove_ip})"
     LATEST_HANDSHAKE_MISMATCH = "Error: The latest handshake of interface '{interface}' has been updated since the recover request was made. Discarding request"
     MISSING_ADDRESS = "Error: 'Address' option missing in 'Interface' section of file '{config_file}'"
@@ -352,6 +356,7 @@ class ErrorMessages:
     REMOTE_CONFIG_ERROR = "Error: Remote peer '{my_name}' ({my_ip}) has a syntax error in its configuration file for '{peer_name}'"
     REMOTE_CONFIG_PATH_ERROR = "Error: Remote peer '{my_name}' ({my_ip}) cannot locate a configuration file for '{peer_name}'"
     REMOTE_INTERFACE_EXISTS = "Error: A network interface '{interface}' already exists in remote peer '{my_name}' ({my_ip})"
+    REMOTE_INTERFACE_MISMATCH = "Error: Remote peer '{my_name}' ({my_ip}) is not assigning the expected name '{interface}' to its network interface"
     REMOTE_IP_MISMATCH = "Error: Remote peer '{my_name}' ({my_ip}) has registered a different IP address in its 'autoremove-{interface}' systemd unit than ours ({peer_ip})"
     REMOTE_LATEST_HANDSHAKE_MISMATCH = ("Error: The latest handshake of remote interface '{interface}' from remote peer '{my_name}' ({my_ip}) has been updated since the recover "
                                         "request was made. Discarding request.")

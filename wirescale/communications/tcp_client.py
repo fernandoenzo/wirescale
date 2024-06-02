@@ -27,11 +27,11 @@ class TCPClient:
 
     @staticmethod
     def connect(uri: IPv4Address) -> ClientConnection:
-        for i in range(2):
+        for i in range(3):
             try:
                 return connect(uri=f'ws://{uri}:{TCP_PORT}')
             except TimeoutError:
-                if i == 1:
+                if i == 2:
                     return None
 
     @classmethod
