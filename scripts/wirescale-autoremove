@@ -112,7 +112,8 @@ ping_keepalive() {
 
 recover() {
   wait_time=30
-  while { ip link show "$interface"; } > /dev/null 2>&1; do
+  tries="$recover_tries"
+  while { ip link show "$interface"; } > /dev/null 2>&1 && [ "$tries" -ne 0 ]; do
     echo "Trying to force a new endpoint..."
     wirescale recover "$interface"
     status=$?
@@ -132,18 +133,24 @@ recover() {
       systemctl restart autoremove-"$interface".service
     fi
     sleep "$wait_time"
+    if [ "$tries" -gt 0 ]; then
+      tries=$((tries - 1))
+    fi
   done
 }
 
 remove_interface() {
+  if ! { ip link show "$interface"; } > /dev/null 2>&1; then
+    echo "Interface $interface does not exist"
+    exit 0
+  fi
   echo "Removing interface $interface"
   (
     flock 9
     wg-quick down "/run/wirescale/$interface.conf"
   ) 9> "$lockfile"
 
-  rm -rf "$lockfile"
-  exit 0
+  rm -rf "$lockfile" "$flag_file"
 }
 
 autoremove() {
@@ -159,10 +166,12 @@ autoremove() {
   remote_port=${10}
   iptables=${11}
   config_file=${12}
+  recover_tries=${13}
+  recreate_tries=${14}
   stop_after=$((60 * 75))
   lockfile="/run/wirescale/control/locker-$interface"
   flag_file="/run/wirescale/control/$interface-stop"
-  export interface ts_ip remote_pubkey wg_ip running_in_remote local_port remove_interface remote_port stop_after lockfile flag_file
+  export interface ts_ip remote_pubkey wg_ip running_in_remote local_port remote_interface remote_port iptables config_file recover_tries recreate_tries stop_after lockfile flag_file
 
   start_time_func=$(date +%s)
   last_received=0
@@ -203,8 +212,8 @@ autoremove() {
     sleep 30
   done
 
-  recover
-  remove_interface
+  finish
+  exit 0
 }
 
 autoremove_three_min() {
@@ -212,8 +221,7 @@ autoremove_three_min() {
   while { ip link show "$interface"; } > /dev/null 2>&1; do
     if ! latest_handshake_less_than "$interface" "$remote_pubkey" 180; then
       echo "Connection broken. More than three minutes without handshake."
-      recover
-      remove_interface
+      finish
     fi
     sleep 30
   done
@@ -221,13 +229,44 @@ autoremove_three_min() {
   exit 0
 }
 
+finish() {
+  recover
+  remove_interface
+  if [ "$recreate_tries" -ne 0 ]; then
+    echo "Launching a unit to create a new tunnel with the same settings"
+    systemd-run -u recreate-"$interface" /bin/sh /run/wirescale/wirescale-autoremove new_upgrade "$interface" "$ts_ip" \
+      "$remote_interface" "$iptables" "$config_file" "$recover_tries" "$recreate_tries"
+  fi
+}
+
 new_upgrade() {
+  interface=$1
+  ts_ip=$2
+  remote_interface=$3
+  iptables=$4
+  config_file=$5
+  recover_tries=$6
+  recreate_tries=$7
   status=1
-  while [ $status -ne 0 ]; do
-    wirescale upgrade --interface "$interface" --no-suffix "$ts_ip"
+  tries="$recreate_tries"
+  call="wirescale upgrade --no-suffix --interface $interface --remote-interface $remote_interface --config $config_file \
+        --recover-tries $recover_tries --recreate-tries $recreate_tries"
+  if [ "$iptables" -eq 0 ]; then
+    call="$call --no-iptables"
+  else
+    call="$call --iptables"
+  fi
+  call="$call $ts_ip"
+  while [ "$status" -ne 0 ] && [ "$tries" -ne 0 ]; do
+    eval "$call"
     status=$?
-    echo ""
-    sleep 15
+    if [ "$status" -eq 2 ]; then
+      exit 0
+    fi
+    if [ "$tries" -gt 0 ]; then
+      tries=$((tries - 1))
+    fi
+    sleep 20
   done
 }
 

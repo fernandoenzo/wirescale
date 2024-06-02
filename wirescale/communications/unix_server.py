@@ -129,6 +129,7 @@ class UnixServer:
     def upgrade(message: dict, stack: ExitStack):
         pair = CONNECTION_PAIRS[get_ident()]
         allow_suffix, interface, iptables = message[MessageFields.ALLOW_SUFFIX], message[MessageFields.INTERFACE], message[MessageFields.IPTABLES]
+        recover_tries, recreate_tries = message[MessageFields.RECOVER_TRIES], message[MessageFields.RECREATE_TRIES]
         config = check_configfile(config=message[MessageFields.CONFIG])
         wgconfig = check_wgconfig(config)
         interface = interface or wgconfig.interface or pair.peer_name
@@ -136,6 +137,8 @@ class UnixServer:
         wgconfig.interface, wgconfig.suffix = check_interface(interface=interface, allow_suffix=wgconfig.allow_suffix)
         test_wgconfig(wgconfig)
         wgconfig.iptables = iptables if iptables is not None else wgconfig.iptables if wgconfig.iptables is not None else False
+        wgconfig.recover_tries = recover_tries if recover_tries is not None else wgconfig.recover_tries if wgconfig.recover_tries is not None else 3
+        wgconfig.recreate_tries = recreate_tries if recreate_tries is not None else wgconfig.recreate_tries if wgconfig.recreate_tries is not None else 0
         wgconfig.expected_interface = message[MessageFields.EXPECTED_INTERFACE]
         TCPClient.upgrade(wgconfig=wgconfig, interface=interface, stack=stack)
 

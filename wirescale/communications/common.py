@@ -94,7 +94,7 @@ def systemd_autoremove(config: Union['WGConfig', 'RecoverConfig'], pair: 'Connec
     config_file: Path = config.config_file if hasattr(config, 'config_file') else config.file_path
 
     args = [config.interface, str(pair.peer_ip), remote_pubkey, str(wg_ip), str(int(running_in_remote)), str(config.start_time), str(listen_port), str(int(config.nat)),
-            config.remote_interface, str(config.remote_local_port), str(int(config.iptables)), config_file.as_uri()]
+            config.remote_interface, str(config.remote_local_port), str(int(config.iptables)), config_file.as_uri(), str(config.recover_tries), str(config.recreate_tries)]
 
     systemd = subprocess.run(['systemd-run', '-u', unit, '/bin/sh', '/run/wirescale/wirescale-autoremove', 'autoremove', *args],
                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)

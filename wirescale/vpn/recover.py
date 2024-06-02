@@ -43,6 +43,8 @@ class RecoverConfig:
         self.nonce: bytes = os.urandom(12)
         self.new_port: int = TSManager.local_port()
         self.private_key: X25519PrivateKey = None
+        self.recover_tries: int = None
+        self.recreate_tries: int = None
         self.remote_interface: str = remote_interface
         self.remote_local_port: int = remote_port
         self.remote_pubkey: X25519PublicKey = None
@@ -76,6 +78,8 @@ class RecoverConfig:
         recover = RecoverConfig(interface=interface, latest_handshake=latest_handshake, running_in_remote=bool(int(args[5])), iptables=bool(int(args[11])), wg_ip=IPv4Address(args[4]),
                                 current_port=int(args[7]), remote_interface=args[9], remote_port=int(args[10]))
         recover.config_file = check_configfile(config=args[12])
+        recover.recover_tries = int(args[13])
+        recover.recreate_tries = int(args[14])
         recover.load_keys()
         with file_locker():
             recover.endpoint = TSManager.peer_endpoint(pair.peer_ip)

@@ -20,6 +20,8 @@ class ARGS:
     LATEST_HANDSHAKE: int = None
     PAIR: ConnectionPair = None
     RECOVER: bool = None
+    RECOVER_TRIES: int = None
+    RECREATE_TRIES: int = None
     EXPECTED_INTERFACE: str = None
     START: bool = None
     STOP: bool = None
@@ -42,6 +44,8 @@ def parse_args():
         ARGS.CONFIGFILE = args.get('config') if args.get('config') is not None and args.get('config').split() else f'/etc/wirescale/{ARGS.PAIR.peer_name}.conf'
         ARGS.INTERFACE = args.get('interface')
         ARGS.EXPECTED_INTERFACE = args.get('remote_interface')
+        ARGS.RECOVER_TRIES = args.get('recover_tries')
+        ARGS.RECREATE_TRIES = args.get('recreate_tries')
     if ARGS.RECOVER:
         ARGS.INTERFACE = args.get('interface')
         ARGS.LATEST_HANDSHAKE = get_latest_handshake(ARGS.INTERFACE)

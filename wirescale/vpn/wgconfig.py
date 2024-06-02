@@ -27,13 +27,13 @@ class WGConfig:
     configfile = Path('/run/wirescale/%i.conf')
 
     def __init__(self, file_path: Path | str):
-        self.file_path: Path = file_path if isinstance(file_path, Path) else Path(file_path)
+        self.file_path: Path = file_path.resolve() if isinstance(file_path, Path) else Path(file_path).resolve()
         self.config: ConfigParser = ConfigParser(interpolation=None)
         self.config.optionxform = lambda option: option
         self.counters: Dict = {}
         self.read_config()
         self.addresses = self.get_addresses()
-        self.allow_suffix: bool = self.get_wirescale_boolean_field(field='suffix')
+        self.allow_suffix: bool = self.get_wirescale_field(field='suffix', func=self.config.getboolean)
         self.expected_interface: str = None
         self.remote_addresses: FrozenSet[IPv4Address | IPv6Address] = None
         self.private_key = self.get_field('Interface', 'PrivateKey') or self.generate_wg_privkey()
@@ -44,9 +44,11 @@ class WGConfig:
         self.nat: bool = None
         self.fwmark = self.get_field('Interface', 'FwMark')
         self.allowed_ips = self.get_allowed_ips()
-        self.interface: str = self.get_field('Wirescale', 'interface', missing_ok=True)
-        self.iptables: bool = self.get_wirescale_boolean_field(field='iptables')
+        self.interface: str = self.get_wirescale_field(field='interface')
+        self.iptables: bool = self.get_wirescale_field(field='iptables', func=self.config.getboolean)
         self.public_key = self.generate_wg_pubkey(self.private_key)
+        self.recover_tries: int = self.get_wirescale_field(field='recover-tries', func=self.config.getint)
+        self.recreate_tries: int = self.get_wirescale_field(field='recreate-tries', func=self.config.getint)
         self.remote_interface: str = None
         self.remote_local_port: int = None
         self.remote_pubkey: str = self.get_field('Peer', 'PublicKey')
@@ -73,12 +75,12 @@ class WGConfig:
             self.counters[field] = suffix[0] - 1
         self.config.read_string(text)
 
-    def get_field(self, section_name: str, field: str, missing_ok=False) -> str | Tuple[str, ...] | None:
+    def get_field(self, section_name: str, field: str, missing_section_ok=False) -> str | Tuple[str, ...] | None:
         field = field.lower()
         try:
             section = next(section for section in self.config.sections() if section.lower() == section_name.lower())
         except StopIteration as e:
-            if missing_ok:
+            if missing_section_ok:
                 return
             raise e
         if field not in self.repeatable_fields:
@@ -181,17 +183,17 @@ class WGConfig:
         new_config = self.write_config(new_config, self.suffix)
         self.new_config_path.write_text(new_config, encoding='utf-8')
 
-    def get_wirescale_boolean_field(self, field):
+    def get_wirescale_field(self, field, func=None):
         ws = 'Wirescale'
         section = next((section for section in self.config.sections() if section.lower() == ws.lower()), None)
         if section is None:
             return None
         value = self.get_field(section_name=section, field=field)
-        if value is None:
+        if value is None or func is None:
             return value
-        self.config.set(section=section, option=field, value=value.strip())
+        self.config.set(section=section, option=field, value=value)
         try:
-            return self.config.getboolean(section=section, option=field)
+            return func(section=section, option=field)
         except:
             pair = CONNECTION_PAIRS[get_ident()]
             error = ErrorMessages.BAD_WS_CONFIG.format(field=field, config_file=self.file_path)

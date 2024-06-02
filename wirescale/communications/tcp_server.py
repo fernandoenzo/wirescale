@@ -117,6 +117,8 @@ class TCPServer:
         check_addresses_in_allowedips(wgconfig)
         wgconfig.generate_new_config()
         wgconfig.nat = check_behind_nat(IPv4Address(message[MessageFields.PUBLIC_IP]))
+        wgconfig.recover_tries = wgconfig.recover_tries if wgconfig.recover_tries is not None else ARGS.RECOVER_TRIES if ARGS.RECOVER_TRIES is not None else 3
+        wgconfig.recreate_tries = wgconfig.recreate_tries if wgconfig.recreate_tries is not None else ARGS.RECREATE_TRIES if ARGS.RECREATE_TRIES is not None else 0
         upgrade_response = TCPMessages.build_upgrade_response(wgconfig)
         pair.send_to_remote(json.dumps(upgrade_response))
         for message in pair:

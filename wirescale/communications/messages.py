@@ -41,6 +41,8 @@ class MessageFields(StrEnum):
     PORT = auto()
     PSK = auto()
     PUBKEY = auto()
+    RECOVER_TRIES = auto()
+    RECREATE_TRIES = auto()
     REMOTE_INTERFACE = auto()
     REMOTE_PORT = auto()
     REMOTE_PUBKEY = auto()
@@ -83,12 +85,14 @@ class UnixMessages:
         res = {
             MessageFields.CODE: ActionCodes.UPGRADE,
             MessageFields.ERROR_CODE: None,
+            MessageFields.ALLOW_SUFFIX: args.ALLOW_SUFFIX,
             MessageFields.CONFIG: args.CONFIGFILE,
             MessageFields.EXPECTED_INTERFACE: args.EXPECTED_INTERFACE,
             MessageFields.INTERFACE: args.INTERFACE,
             MessageFields.IPTABLES: args.IPTABLES,
             MessageFields.PEER_IP: str(args.PAIR.peer_ip),
-            MessageFields.ALLOW_SUFFIX: args.ALLOW_SUFFIX,
+            MessageFields.RECOVER_TRIES: args.RECOVER_TRIES,
+            MessageFields.RECREATE_TRIES: args.RECREATE_TRIES,
         }
         return res
 
