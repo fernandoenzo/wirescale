@@ -38,6 +38,14 @@ upgrade_subparser.add_argument('--suffix', action=BooleanOptionalAction,
                                     'Disabled by default')
 interface_argument = upgrade_subparser.add_argument('--interface', '-i', metavar='iface', type=interface_name_validator,
                                                     help='interface name that WireGuard will set up. Defaults to {peername}')
+upgrade_subparser.add_argument('--remote-interface', metavar='r_iface',
+                               help='specifies the expected remote interface name. If the remote peer does not use this interface name, the connection attempt will be aborted')
+upgrade_subparser.add_argument('--recover-tries', type=int, metavar='N',
+                               help='number of automatic recovery attempts if the connection drops, before the network interface is brought down. '
+                                    'Negative values indicate unlimited attempts.\nDefault is 3')
+upgrade_subparser.add_argument('--recreate-tries', type=int, metavar='N',
+                               help='number of tries to create a new tunnel if the network interface was brought down after failing at recovering it. '
+                                    'Negative values indicate unlimited retries.\nDefault is 0')
 
 recover_subparser = subparsers.add_parser('recover', help='recover a dropped connection by forcing a new hole punching', formatter_class=CustomArgumentFormatter)
 recover_subparser.add_argument('interface', type=check_existing_conf_and_systemd, help='local WireGuard interface to recover')
