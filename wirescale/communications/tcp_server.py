@@ -123,18 +123,14 @@ class TCPServer:
         pair.send_to_remote(json.dumps(upgrade_response))
         for message in pair:
             message = json.loads(message)
-            if message[MessageFields.ERROR_CODE]:
-                print(message[MessageFields.ERROR_MESSAGE], file=sys.stderr, flush=True)
-                pair.close_sockets()
-                sys.exit(1)
-            elif code := message[MessageFields.CODE]:
-                match code:
-                    case ActionCodes.INFO:
-                        print(message[MessageFields.MESSAGE], flush=True)
-                    case ActionCodes.GO:
-                        wgconfig.nat = message[MessageFields.NAT]
-                        wgconfig.upgrade()
-                        sys.exit(0)
+            ErrorMessages.process_error_message(message)
+            match message[MessageFields.CODE]:
+                case ActionCodes.INFO:
+                    print(message[MessageFields.MESSAGE], flush=True)
+                case ActionCodes.GO:
+                    wgconfig.nat = message[MessageFields.NAT]
+                    wgconfig.upgrade()
+                    sys.exit(0)
 
     @classmethod
     def recover(cls, message: dict):
@@ -144,15 +140,11 @@ class TCPServer:
         pair.send_to_remote(json.dumps(recover_response))
         for message in pair:
             message = json.loads(message)
-            if message[MessageFields.ERROR_CODE]:
-                print(message[MessageFields.ERROR_MESSAGE], file=sys.stderr, flush=True)
-                pair.close_sockets()
-                sys.exit(1)
-            elif code := message[MessageFields.CODE]:
-                match code:
-                    case ActionCodes.INFO:
-                        print(message[MessageFields.MESSAGE], flush=True)
-                    case ActionCodes.GO:
-                        recover.nat = message[MessageFields.NAT]
-                        recover.recover()
-                        sys.exit(0)
+            ErrorMessages.process_error_message(message)
+            match message[MessageFields.CODE]:
+                case ActionCodes.INFO:
+                    print(message[MessageFields.MESSAGE], flush=True)
+                case ActionCodes.GO:
+                    recover.nat = message[MessageFields.NAT]
+                    recover.recover()
+                    sys.exit(0)

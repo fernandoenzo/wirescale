@@ -266,7 +266,7 @@ new_upgrade() {
     if [ "$tries" -gt 0 ]; then
       tries=$((tries - 1))
     fi
-    sleep 20
+    sleep 60
   done
 }
 

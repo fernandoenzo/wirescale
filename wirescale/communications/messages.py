@@ -5,6 +5,7 @@
 import json
 import os
 import sys
+from argparse import ArgumentError
 from enum import auto, StrEnum, unique
 from ipaddress import IPv4Address
 from threading import get_ident
@@ -14,7 +15,6 @@ from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS
 from wirescale.version import VERSION
 
 if TYPE_CHECKING:
-    from wirescale.parsers.args import ARGS
     from wirescale.vpn.recover import RecoverConfig
     from wirescale.vpn.wgconfig import WGConfig
 
@@ -81,18 +81,19 @@ class UnixMessages:
     STOP_MESSAGE = {MessageFields.CODE: ActionCodes.STOP, MessageFields.ERROR_CODE: None}
 
     @staticmethod
-    def build_upgrade_option(args: 'ARGS') -> dict:
+    def build_upgrade_option() -> dict:
+        from wirescale.parsers.args import ARGS
         res = {
             MessageFields.CODE: ActionCodes.UPGRADE,
             MessageFields.ERROR_CODE: None,
-            MessageFields.ALLOW_SUFFIX: args.ALLOW_SUFFIX,
-            MessageFields.CONFIG: args.CONFIGFILE,
-            MessageFields.EXPECTED_INTERFACE: args.EXPECTED_INTERFACE,
-            MessageFields.INTERFACE: args.INTERFACE,
-            MessageFields.IPTABLES: args.IPTABLES,
-            MessageFields.PEER_IP: str(args.PAIR.peer_ip),
-            MessageFields.RECOVER_TRIES: args.RECOVER_TRIES,
-            MessageFields.RECREATE_TRIES: args.RECREATE_TRIES,
+            MessageFields.ALLOW_SUFFIX: ARGS.ALLOW_SUFFIX,
+            MessageFields.CONFIG: ARGS.CONFIGFILE,
+            MessageFields.EXPECTED_INTERFACE: ARGS.EXPECTED_INTERFACE,
+            MessageFields.INTERFACE: ARGS.INTERFACE,
+            MessageFields.IPTABLES: ARGS.IPTABLES,
+            MessageFields.PEER_IP: str(ARGS.PAIR.peer_ip),
+            MessageFields.RECOVER_TRIES: ARGS.RECOVER_TRIES,
+            MessageFields.RECREATE_TRIES: ARGS.RECREATE_TRIES,
         }
         return res
 
@@ -397,6 +398,35 @@ class ErrorMessages:
             MessageFields.ERROR_MESSAGE: error_message
         }
         return res
+
+    @staticmethod
+    def process_error_message(message: dict):
+        from wirescale.parsers.parsers import config_argument, interface_argument, upgrade_subparser
+        pair = CONNECTION_PAIRS[get_ident()]
+        if error_code := message[MessageFields.ERROR_CODE]:
+            text = message[MessageFields.ERROR_MESSAGE]
+            if pair.running_in_remote:  # TCP Server
+                print(text, file=sys.stderr, flush=True)
+                pair.close_sockets()
+                sys.exit(1)
+            if pair.tcp_socket is not None:  # Unix Server
+                ErrorMessages.send_error_message(local_message=text, error_code=error_code)
+            else:  # Unix Client
+                pair.close_sockets()
+                match error_code:
+                    case ErrorCodes.INTERFACE_EXISTS:
+                        upgrade_subparser.error(str(ArgumentError(interface_argument, text[9:])))  # exit code 2
+                    case ErrorCodes.CONFIG_PATH_ERROR:
+                        upgrade_subparser.error(str(ArgumentError(config_argument, text[9:])))  # exit code 2
+                    case ErrorCodes.TS_UNREACHABLE:
+                        print(text, file=sys.stderr, flush=True)
+                        sys.exit(3)
+                    case ErrorCodes.HANDSHAKE_MISMATCH:
+                        print(text, file=sys.stderr, flush=True)
+                        sys.exit(4)
+                    case _:
+                        print(text, file=sys.stderr, flush=True)
+                        sys.exit(1)
 
     @classmethod
     def send_error_message(cls, local_message: str = None, remote_message: str = None, error_code: ErrorCodes = ErrorCodes.GENERIC, send_to_local: bool = True,

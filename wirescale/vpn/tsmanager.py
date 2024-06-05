@@ -158,11 +158,11 @@ class TSManager:
         Messages.send_info_message(local_message=checking_endpoint, send_to_local=False)
         if not cls.wait_until_peer_is_online(ip, timeout=45):
             peer_is_offline = ErrorMessages.TS_PEER_OFFLINE.format(peer_name=peer_name, peer_ip=ip)
-            ErrorMessages.send_error_message(local_message=peer_is_offline, error_code=ErrorCodes.TS_UNREACHABLE, exit_code=2)
+            ErrorMessages.send_error_message(local_message=peer_is_offline, error_code=ErrorCodes.TS_UNREACHABLE, exit_code=3)
         force_endpoint = subprocess.run(['tailscale', 'ping', '-c', '30', str(ip)], capture_output=True, text=True)
         if force_endpoint.returncode != 0:
             no_endpoint = ErrorMessages.TS_NO_ENDPOINT.format(peer_name=peer_name, peer_ip=ip)
-            ErrorMessages.send_error_message(local_message=no_endpoint, error_code=ErrorCodes.TS_UNREACHABLE, exit_code=2)
+            ErrorMessages.send_error_message(local_message=no_endpoint, error_code=ErrorCodes.TS_UNREACHABLE, exit_code=3)
         else:
             reachable = Messages.REACHABLE.format(peer_name=peer_name, peer_ip=ip)
             Messages.send_info_message(local_message=reachable, send_to_local=False)
