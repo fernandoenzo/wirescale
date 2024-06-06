@@ -53,7 +53,7 @@ assure_connection() {
 
   listen_port=$(wg show "$interface" listen-port)
   endpoint=$(wg show "$interface" endpoints | awk -v pubkey="$remote_pubkey" '$1 == pubkey {print $2}')
-  [ -z "$endpoint" ] && echo "Interface $interface has no peer with public key $remote_pubkey" && return 0
+  [ -z "$endpoint" ] && echo "Interface '$interface' has no peer with public key '$remote_pubkey'" && return 0
   wg set "$interface" listen-port 0
   { cat "$file" | socat UDP:"$endpoint",sourceport="$listen_port" -; } > /dev/null 2>&1
   wg set "$interface" listen-port "$listen_port"
