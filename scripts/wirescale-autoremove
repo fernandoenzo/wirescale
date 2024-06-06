@@ -155,23 +155,25 @@ remove_interface() {
 
 autoremove() {
   interface=$1
-  ts_ip=$2
-  remote_pubkey=$3
-  wg_ip=$4
-  running_in_remote=$5
-  start_time=$6
-  local_port=$7
-  nat=$8
-  remote_interface=$9
-  remote_port=${10}
-  iptables=${11}
-  config_file=${12}
-  recover_tries=${13}
-  recreate_tries=${14}
+  suffix=$2
+  ts_ip=$3
+  remote_pubkey=$4
+  wg_ip=$5
+  running_in_remote=$6
+  start_time=$7
+  local_port=$8
+  nat=$9
+  remote_interface=${10}
+  remote_port=${11}
+  iptables=${12}
+  config_file=${13}
+  recover_tries=${14}
+  recreate_tries=${15}
   stop_after=$((60 * 75))
   lockfile="/run/wirescale/control/locker-$interface"
   flag_file="/run/wirescale/control/$interface-stop"
-  export interface ts_ip remote_pubkey wg_ip running_in_remote local_port remote_interface remote_port iptables config_file recover_tries recreate_tries stop_after lockfile flag_file
+  export interface suffix ts_ip remote_pubkey wg_ip running_in_remote local_port remote_interface remote_port
+  export iptables config_file recover_tries recreate_tries stop_after lockfile flag_file
 
   start_time_func=$(date +%s)
   last_received=0
@@ -234,23 +236,27 @@ finish() {
   remove_interface
   if [ "$recreate_tries" -ne 0 ]; then
     echo "Launching a unit to create a new tunnel with the same settings"
-    systemd-run -u recreate-"$interface" /bin/sh /run/wirescale/wirescale-autoremove new_upgrade "$interface" "$ts_ip" \
+    systemd-run -u recreate-"$interface" /bin/sh /run/wirescale/wirescale-autoremove new_upgrade "$interface" "$suffix" "$ts_ip" \
       "$remote_interface" "$iptables" "$config_file" "$recover_tries" "$recreate_tries"
   fi
 }
 
 new_upgrade() {
-  interface=$1
-  ts_ip=$2
-  remote_interface=$3
-  iptables=$4
-  config_file=$5
-  recover_tries=$6
-  recreate_tries=$7
+  suffix=$2
+  interface=$(echo "$1" | sed "s/$suffix\$//")
+  ts_ip=$3
+  remote_interface=$4
+  iptables=$5
+  config_file=$6
+  recover_tries=$7
+  recreate_tries=$8
   status=1
   tries="$recreate_tries"
   call="wirescale upgrade --no-suffix --interface $interface --remote-interface $remote_interface --config $config_file \
         --recover-tries $recover_tries --recreate-tries $recreate_tries"
+  if [ "$suffix" -ne 0 ]; then
+    call="$call --suffix-number $suffix"
+  fi
   if [ "$iptables" -eq 0 ]; then
     call="$call --no-iptables"
   else

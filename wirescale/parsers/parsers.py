@@ -5,7 +5,7 @@
 from argparse import ArgumentParser, BooleanOptionalAction
 
 from wirescale.parsers.utils import CustomArgumentFormatter
-from wirescale.parsers.validators import check_existing_conf, check_existing_conf_and_systemd, check_peer, interface_name_validator
+from wirescale.parsers.validators import check_existing_conf, check_existing_conf_and_systemd, check_peer, check_positive, interface_name_validator
 from wirescale.version import version_msg
 
 top_parser = ArgumentParser(prog='wirescale', description='Upgrade your existing Tailscale connection by transitioning to pure WireGuard', formatter_class=CustomArgumentFormatter)
@@ -36,9 +36,12 @@ upgrade_subparser.add_argument('--iptables', action=BooleanOptionalAction,
 upgrade_subparser.add_argument('--suffix', action=BooleanOptionalAction,
                                help='add numeric suffix to new interfaces with existing names.\n'
                                     'Disabled by default')
+upgrade_subparser.add_argument('--suffix-number', type=check_positive, metavar='N',
+                               help='append this numeric suffix to the interface name.\n'
+                                    'Intended for internal use only')
 interface_argument = upgrade_subparser.add_argument('--interface', '-i', metavar='iface', type=interface_name_validator,
                                                     help='interface name that WireGuard will set up. Defaults to {peername}')
-upgrade_subparser.add_argument('--remote-interface', default=None, metavar='r_iface',
+upgrade_subparser.add_argument('--remote-interface', metavar='r_iface',
                                help='expected remote interface name. If the remote peer does not use this interface name, the connection attempt will be aborted.\n'
                                     'Intended for internal use only')
 upgrade_subparser.add_argument('--recover-tries', type=int, metavar='N',

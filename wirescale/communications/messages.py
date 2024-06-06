@@ -47,6 +47,7 @@ class MessageFields(StrEnum):
     REMOTE_PORT = auto()
     REMOTE_PUBKEY = auto()
     START_TIME = auto()
+    SUFFIX_NUMBER = auto()
     TOKEN = auto()
     VERSION = auto()
     WG_IP = auto()
@@ -94,6 +95,7 @@ class UnixMessages:
             MessageFields.PEER_IP: str(ARGS.PAIR.peer_ip),
             MessageFields.RECOVER_TRIES: ARGS.RECOVER_TRIES,
             MessageFields.RECREATE_TRIES: ARGS.RECREATE_TRIES,
+            MessageFields.SUFFIX_NUMBER: ARGS.SUFFIX_NUMBER,
         }
         return res
 

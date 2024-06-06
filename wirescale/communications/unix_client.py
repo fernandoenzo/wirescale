@@ -20,19 +20,20 @@ class UnixClient:
     def connect(cls):
         try:
             print(Messages.CONNECTING_UNIX, flush=True)
-            ARGS.PAIR.unix_socket = unix_connect(path=str(SOCKET_PATH))
+            connect = unix_connect(path=str(SOCKET_PATH))
             print(Messages.CONNECTED_UNIX, flush=True)
+            return connect
         except:
             print(ErrorMessages.UNIX_SOCKET, file=sys.stderr, flush=True)
             sys.exit(2)
 
     @classmethod
     def stop(cls):
-        cls.connect()
-        with ARGS.PAIR.local_socket:
-            ARGS.PAIR.send_to_local(json.dumps(UnixMessages.STOP_MESSAGE))
+        unix_socket = cls.connect()
+        with unix_socket:
+            unix_socket.send(json.dumps(UnixMessages.STOP_MESSAGE))
             try:
-                message: dict = json.loads(ARGS.PAIR.local_socket.recv(timeout=40))
+                message: dict = json.loads(unix_socket.recv(timeout=40))
                 if message[MessageFields.ERROR_CODE] == ErrorCodes.CLOSED:
                     print(message[MessageFields.ERROR_MESSAGE], file=sys.stderr, flush=True)
                     sys.exit(1)
@@ -44,8 +45,8 @@ class UnixClient:
 
     @classmethod
     def upgrade(cls):
-        cls.connect()
         pair = ARGS.PAIR
+        pair.unix_socket = cls.connect()
         with pair.local_socket:
             message: dict = UnixMessages.build_upgrade_option()
             pair.send_to_local(json.dumps(message))
@@ -63,8 +64,8 @@ class UnixClient:
     @classmethod
     def recover(cls):
         recover = RecoverConfig.create_from_autoremove(interface=ARGS.INTERFACE, latest_handshake=ARGS.LATEST_HANDSHAKE)
-        cls.connect()
         pair = ARGS.PAIR
+        pair.unix_socket = cls.connect()
         with pair.local_socket:
             message: dict = UnixMessages.build_recover(recover)
             pair.send_to_local(json.dumps(message))

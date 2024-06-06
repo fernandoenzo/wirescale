@@ -25,6 +25,7 @@ class ARGS:
     EXPECTED_INTERFACE: str = None
     START: bool = None
     STOP: bool = None
+    SUFFIX_NUMBER: int = None
     UPGRADE: bool = None
 
 
@@ -46,6 +47,9 @@ def parse_args():
         ARGS.EXPECTED_INTERFACE = args.get('remote_interface')
         ARGS.RECOVER_TRIES = args.get('recover_tries')
         ARGS.RECREATE_TRIES = args.get('recreate_tries')
+        ARGS.SUFFIX_NUMBER = args.get('suffix_number')
+        if ARGS.SUFFIX_NUMBER is not None:
+            ARGS.ALLOW_SUFFIX = False
     if ARGS.RECOVER:
         ARGS.INTERFACE = args.get('interface')
         ARGS.LATEST_HANDSHAKE = get_latest_handshake(ARGS.INTERFACE)

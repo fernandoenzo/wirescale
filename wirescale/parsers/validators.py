@@ -13,6 +13,13 @@ from wirescale.communications.messages import ErrorMessages
 from wirescale.vpn.tsmanager import TSManager
 
 
+def check_positive(value):
+    value = int(value)
+    if value < 0:
+        raise ArgumentTypeError(f'{value} is not a non-negative integer')
+    return value
+
+
 def check_peer(value) -> IPv4Address:
     value = value.strip()
     if not value:

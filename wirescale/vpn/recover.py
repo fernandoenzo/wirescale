@@ -52,6 +52,7 @@ class RecoverConfig:
         self.psk: bytes = None
         self.shared_key: bytes = None
         self.start_time: int = datetime.now().second
+        self.suffix: int = None
         self.wg_ip: IPv4Address = wg_ip
 
     @cached_property
@@ -69,17 +70,18 @@ class RecoverConfig:
                 error_remote = ErrorMessages.REMOTE_MISSING_AUTOREMOVE.format(my_name=pair.my_name, my_ip=pair.my_ip, interface=interface)
             ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
         args = re.search(r'(\sautoremove.*?);', exec_start).group(1).strip().split()
-        autoremove_ip_receiver = IPv4Address(args[2])
+        autoremove_ip_receiver = IPv4Address(args[3])
         pair = pair or ConnectionPair(caller=TSManager.my_ip(), receiver=autoremove_ip_receiver)
         if autoremove_ip_receiver != pair.peer_ip:
             error = ErrorMessages.IP_MISMATCH.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface, autoremove_ip=autoremove_ip_receiver)
             error_remote = ErrorMessages.REMOTE_IP_MISMATCH.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_ip=pair.peer_ip, interface=interface)
             ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
-        recover = RecoverConfig(interface=interface, latest_handshake=latest_handshake, running_in_remote=bool(int(args[5])), iptables=bool(int(args[11])), wg_ip=IPv4Address(args[4]),
-                                current_port=int(args[7]), remote_interface=args[9], remote_port=int(args[10]))
-        recover.config_file = check_configfile(config=args[12])
-        recover.recover_tries = int(args[13])
-        recover.recreate_tries = int(args[14])
+        recover = RecoverConfig(interface=interface, latest_handshake=latest_handshake, running_in_remote=bool(int(args[6])), iptables=bool(int(args[12])), wg_ip=IPv4Address(args[5]),
+                                current_port=int(args[8]), remote_interface=args[10], remote_port=int(args[11]))
+        recover.config_file = check_configfile(config=args[13])
+        recover.recover_tries = int(args[14])
+        recover.recreate_tries = int(args[15])
+        recover.suffix = int(args[2])
         recover.load_keys()
         with file_locker():
             recover.endpoint = TSManager.peer_endpoint(pair.peer_ip)
