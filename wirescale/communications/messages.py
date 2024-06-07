@@ -431,8 +431,8 @@ class ErrorMessages:
                         sys.exit(1)
 
     @classmethod
-    def send_error_message(cls, local_message: str = None, remote_message: str = None, error_code: ErrorCodes = ErrorCodes.GENERIC, send_to_local: bool = True,
-                           always_send_to_remote: bool = True, exit_code: int | None = 1):
+    def send_error_message(cls, local_message: str = None, remote_message: str = None, error_code: ErrorCodes = ErrorCodes.GENERIC, remote_code: ErrorCodes = ErrorCodes.GENERIC,
+                           send_to_local: bool = True, always_send_to_remote: bool = True, exit_code: int | None = 1):
         pair = CONNECTION_PAIRS.get(get_ident())
         if pair is not None and pair.token is not None:
             local_message = Messages.add_id(pair.id, local_message) if local_message is not None else None
@@ -444,7 +444,7 @@ class ErrorMessages:
                 local_message = cls.build_error_message(local_message, error_code)
                 pair.send_to_local(json.dumps(local_message))
             if pair.remote_socket is not None and remote_message is not None and (pair.running_in_remote or always_send_to_remote):
-                remote_message = cls.build_error_message(remote_message, error_code)
+                remote_message = cls.build_error_message(remote_message, remote_code)
                 pair.send_to_remote(json.dumps(remote_message))
             pair.close_sockets()
         if exit_code is not None:
