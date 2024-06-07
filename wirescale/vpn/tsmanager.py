@@ -127,6 +127,8 @@ class TSManager:
         while not cls.has_state():
             sleep(0.5)
         check_ping = subprocess.run(['tailscale', 'ping', '-c', '1', '--until-direct=false', '--timeout', f'{timeout}s', str(ip)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if check_ping.returncode == 0:
+            check_ping = subprocess.run(['ping', '-c', '1', '-W', str(timeout), str(ip)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return check_ping.returncode == 0
 
     @classmethod
