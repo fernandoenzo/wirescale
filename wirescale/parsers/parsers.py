@@ -51,7 +51,8 @@ upgrade_subparser.add_argument('--recreate-tries', type=int, metavar='N',
                                help='number of tries to create a new tunnel if the network interface was brought down after failing at recovering it. '
                                     'Negative values indicate unlimited retries.\nDefault is 0')
 
-recover_subparser = subparsers.add_parser('recover', help='recover a dropped connection by forcing a new hole punching', formatter_class=CustomArgumentFormatter)
+recover_subparser = subparsers.add_parser('recover', formatter_class=CustomArgumentFormatter,
+                                          help='recover a dropped connection by forcing a new hole punching.\nIntended for internal use only')
 recover_subparser.add_argument('interface', type=check_existing_conf_and_systemd, help='local WireGuard interface to recover')
 
 top_parser.add_argument('--version', '-v', help='print version information and exit', action='version', version=version_msg)
