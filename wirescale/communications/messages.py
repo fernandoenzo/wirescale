@@ -407,11 +407,7 @@ class ErrorMessages:
         pair = CONNECTION_PAIRS[get_ident()]
         if error_code := message[MessageFields.ERROR_CODE]:
             text = message[MessageFields.ERROR_MESSAGE]
-            if pair.running_in_remote:  # TCP Server
-                print(text, file=sys.stderr, flush=True)
-                pair.close_sockets()
-                sys.exit(1)
-            if pair.tcp_socket is not None:  # Unix Server
+            if pair.running_in_remote or pair.tcp_socket is not None:  # TCP Server or Unix Server
                 ErrorMessages.send_error_message(local_message=text, error_code=error_code)
             else:  # Unix Client
                 pair.close_sockets()
