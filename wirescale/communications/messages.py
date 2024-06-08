@@ -401,14 +401,14 @@ class ErrorMessages:
         }
         return res
 
-    @staticmethod
-    def process_error_message(message: dict):
+    @classmethod
+    def process_error_message(cls, message: dict):
         from wirescale.parsers.parsers import config_argument, interface_argument, upgrade_subparser
         pair = CONNECTION_PAIRS[get_ident()]
         if error_code := message[MessageFields.ERROR_CODE]:
             text = message[MessageFields.ERROR_MESSAGE]
             if pair.running_in_remote or pair.tcp_socket is not None:  # TCP Server or Unix Server
-                ErrorMessages.send_error_message(local_message=text, error_code=error_code)
+                cls.send_error_message(local_message=text, error_code=error_code)
             else:  # Unix Client
                 pair.close_sockets()
                 match error_code:
@@ -417,14 +417,11 @@ class ErrorMessages:
                     case ErrorCodes.CONFIG_PATH_ERROR:
                         upgrade_subparser.error(str(ArgumentError(config_argument, text[9:])))  # exit code 2
                     case ErrorCodes.TS_UNREACHABLE:
-                        print(text, file=sys.stderr, flush=True)
-                        sys.exit(3)
+                        cls.send_error_message(local_message=text, send_to_local=False, exit_code=3)
                     case ErrorCodes.HANDSHAKE_MISMATCH:
-                        print(text, file=sys.stderr, flush=True)
-                        sys.exit(4)
+                        cls.send_error_message(local_message=text, send_to_local=False, exit_code=4)
                     case _:
-                        print(text, file=sys.stderr, flush=True)
-                        sys.exit(1)
+                        cls.send_error_message(local_message=text, send_to_local=False, exit_code=1)
 
     @classmethod
     def send_error_message(cls, local_message: str = None, remote_message: str = None, error_code: ErrorCodes = ErrorCodes.GENERIC, remote_code: ErrorCodes = ErrorCodes.GENERIC,
