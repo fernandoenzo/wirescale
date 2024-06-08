@@ -4,11 +4,12 @@
 
 import json
 import sys
+from threading import get_ident
 
 from websockets import ConnectionClosedOK
 from websockets.sync.client import unix_connect
 
-from wirescale.communications.common import SOCKET_PATH
+from wirescale.communications.common import CONNECTION_PAIRS, SOCKET_PATH
 from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, MessageFields, Messages, UnixMessages
 from wirescale.parsers.args import ARGS
 from wirescale.vpn.recover import RecoverConfig
@@ -64,7 +65,7 @@ class UnixClient:
     @classmethod
     def recover(cls):
         recover = RecoverConfig.create_from_autoremove(interface=ARGS.INTERFACE, latest_handshake=ARGS.LATEST_HANDSHAKE)
-        pair = ARGS.PAIR
+        pair = CONNECTION_PAIRS[get_ident()]
         pair.unix_socket = cls.connect()
         with pair.local_socket:
             message: dict = UnixMessages.build_recover(recover)
