@@ -215,17 +215,16 @@ autoremove() {
   done
 
   finish
-  exit 0
 }
 
 autoremove_three_min() {
   echo "Launching autoremove function to check for handshakes older than 3 minutes"
   while { ip link show "$interface"; } > /dev/null 2>&1; do
-    if ! latest_handshake_less_than "$interface" "$remote_pubkey" 180; then
+    if ! latest_handshake_less_than "$interface" "$remote_pubkey" 150; then
       echo "Connection broken. More than three minutes without handshake."
       finish
     fi
-    sleep 30
+    sleep 15
   done
 
   exit 0
@@ -239,6 +238,7 @@ finish() {
     systemd-run -u recreate-"$interface" /bin/sh /run/wirescale/wirescale-autoremove new_upgrade "$interface" "$suffix" "$ts_ip" \
       "$remote_interface" "$iptables" "$config_file" "$recover_tries" "$recreate_tries"
   fi
+  exit 0
 }
 
 new_upgrade() {
