@@ -29,7 +29,8 @@ from wirescale.vpn.tsmanager import TSManager
 
 class RecoverConfig:
 
-    def __init__(self, interface: str, iptables: bool, running_in_remote: bool, latest_handshake: int, current_port: int, remote_interface: str, remote_port: int, wg_ip: IPv4Address):
+    def __init__(self, interface: str, iptables: bool, running_in_remote: bool, latest_handshake: int, current_port: int,
+                 recover_tries: int, recreate_tries: int, remote_interface: str, remote_port: int, suffix: int, wg_ip: IPv4Address):
         self.current_port: int = current_port
         self.derived_key: bytes = None
         self.endpoint: Tuple[IPv4Address, int] = None
@@ -43,8 +44,8 @@ class RecoverConfig:
         self.nonce: bytes = os.urandom(12)
         self.new_port: int = TSManager.local_port()
         self.private_key: X25519PrivateKey = None
-        self.recover_tries: int = None
-        self.recreate_tries: int = None
+        self.recover_tries: int = recover_tries
+        self.recreate_tries: int = recreate_tries
         self.remote_interface: str = remote_interface
         self.remote_local_port: int = remote_port
         self.remote_pubkey: X25519PublicKey = None
@@ -52,7 +53,7 @@ class RecoverConfig:
         self.psk: bytes = None
         self.shared_key: bytes = None
         self.start_time: int = datetime.now().second
-        self.suffix: int = None
+        self.suffix: int = suffix
         self.wg_ip: IPv4Address = wg_ip
 
     @cached_property
@@ -77,11 +78,9 @@ class RecoverConfig:
             error_remote = ErrorMessages.REMOTE_IP_MISMATCH.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_ip=pair.peer_ip, interface=interface)
             ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
         recover = RecoverConfig(interface=interface, latest_handshake=latest_handshake, running_in_remote=bool(int(args[6])), iptables=bool(int(args[12])), wg_ip=IPv4Address(args[5]),
-                                current_port=int(args[8]), remote_interface=args[10], remote_port=int(args[11]))
+                                current_port=int(args[8]), recover_tries=int(args[14]), recreate_tries=int(args[15]), remote_interface=args[10], remote_port=int(args[11]),
+                                suffix=int(args[2]))
         recover.config_file = check_configfile(config=args[13])
-        recover.recover_tries = int(args[14])
-        recover.recreate_tries = int(args[15])
-        recover.suffix = int(args[2])
         recover.load_keys()
         with file_locker():
             recover.endpoint = TSManager.peer_endpoint(pair.peer_ip)
