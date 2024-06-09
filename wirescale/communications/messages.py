@@ -415,11 +415,14 @@ class ErrorMessages:
                     case ErrorCodes.INTERFACE_EXISTS:
                         upgrade_subparser.error(str(ArgumentError(interface_argument, text[9:])))  # exit code 2
                     case ErrorCodes.CONFIG_PATH_ERROR:
-                        upgrade_subparser.error(str(ArgumentError(config_argument, text[9:])))  # exit code 2
+                        try:
+                            upgrade_subparser.error(str(ArgumentError(config_argument, text[9:])))  # exit code 2 is captured
+                        finally:
+                            sys.exit(3)
                     case ErrorCodes.TS_UNREACHABLE:
-                        cls.send_error_message(local_message=text, send_to_local=False, exit_code=3)
-                    case ErrorCodes.HANDSHAKE_MISMATCH:
                         cls.send_error_message(local_message=text, send_to_local=False, exit_code=4)
+                    case ErrorCodes.HANDSHAKE_MISMATCH:
+                        cls.send_error_message(local_message=text, send_to_local=False, exit_code=5)
                     case _:
                         cls.send_error_message(local_message=text, send_to_local=False, exit_code=1)
 
