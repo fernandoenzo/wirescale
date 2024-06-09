@@ -17,8 +17,9 @@ from typing import Dict, FrozenSet, Tuple
 
 from parallel_utils.thread import create_thread
 
-from wirescale.communications.common import CONNECTION_PAIRS, file_locker, subprocess_run_tmpfile, systemd_autoremove
+from wirescale.communications.common import CONNECTION_PAIRS, file_locker, subprocess_run_tmpfile
 from wirescale.communications.messages import ActionCodes, ErrorMessages, Messages
+from wirescale.communications.systemd import Systemd
 from wirescale.vpn.tsmanager import TSManager
 
 
@@ -241,7 +242,7 @@ class WGConfig:
                 error = ErrorMessages.HANDSHAKE_FAILED.format(interface=self.interface)
                 subprocess.run(['wg-quick', 'down', str(self.new_config_path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 ErrorMessages.send_error_message(local_message=error)
-            systemd_autoremove(config=self, pair=pair)
+            Systemd.launch_autoremove(config=self, pair=pair)
             success = Messages.SUCCESS.format(interface=self.interface)
             Messages.send_info_message(local_message=success, code=ActionCodes.SUCCESS)
         else:

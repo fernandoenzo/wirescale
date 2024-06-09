@@ -348,7 +348,7 @@ class ErrorMessages:
     LATEST_HANDSHAKE_MISMATCH = "Error: The latest handshake of interface '{interface}' has been updated since the recover request was made. Discarding request"
     MISSING_ADDRESS = "Error: 'Address' option missing in 'Interface' section of file '{config_file}'"
     MISSING_ALLOWEDIPS = "Error: 'AllowedIPs' option missing in 'Peer' section of file '{config_file}'"
-    MISSING_AUTOREMOVE = "Error: systemd unit 'autoremove-{interface}' is not active"
+    MISSING_UNIT = "Error: systemd unit '{unit}' is not active"
     PORT_MISMATCH = "Error: WireGuard interface '{interface}' is not listening on port {port}"
     PSK_MISMATCH = ("Error: Peer '{name_without_psk}' ({ip_without_psk}) does not have a pre-shared key for '{name_with_psk}' ({ip_with_psk}), but '{name_with_psk}' has one configured for "
                     "'{name_without_psk}'. Ensure key consistency.")
@@ -369,7 +369,7 @@ class ErrorMessages:
                                         "request was made. Discarding request.")
     REMOTE_MISSING_ADDRESS = "Error: 'Address' option missing in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'"
     REMOTE_MISSING_ALLOWEDIPS = "Error: 'AllowedIPs' option missing in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'"
-    REMOTE_MISSING_AUTOREMOVE = "Error: systemd unit 'autoremove-{interface}' is not active in remote peer '{my_name}' ({my_ip})"
+    REMOTE_MISSING_UNIT = "Error: systemd unit '{unit}' is not active in remote peer '{my_name}' ({my_ip})"
     REMOTE_MISSING_WIRESCALE = "Error: Remote peer '{peer_name}' ({peer_ip}) does not have Wirescale running"
     REMOTE_PORT_MISMATCH = "Error: WireGuard interface '{interface}' is not listening on local port {port} in remote peer '{peer_name}' ({peer_ip})"
     REMOTE_RUNFILE_MISSING = "Error: File '/run/wirescale/{interface}.conf' does not exist or is not a regular file in remote peer '{my_name}' ({my_ip})"
@@ -413,7 +413,7 @@ class ErrorMessages:
                 pair.close_sockets()
                 match error_code:
                     case ErrorCodes.INTERFACE_EXISTS:
-                        upgrade_subparser.error(str(ArgumentError(interface_argument, text[9:])))  # exit code 2
+                        upgrade_subparser.error(str(ArgumentError(interface_argument, text[16:])))  # exit code 2
                     case ErrorCodes.CONFIG_PATH_ERROR:
                         try:
                             upgrade_subparser.error(str(ArgumentError(config_argument, text[9:])))  # exit code 2 is captured

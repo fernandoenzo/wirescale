@@ -5,11 +5,14 @@
 import re
 import subprocess
 from argparse import ArgumentTypeError
+from contextlib import redirect_stderr
+from io import StringIO
 from ipaddress import IPv4Address
 from pathlib import Path
 
 from wirescale.communications.common import file_locker
 from wirescale.communications.messages import ErrorMessages
+from wirescale.communications.systemd import Systemd
 from wirescale.vpn.tsmanager import TSManager
 
 
@@ -49,17 +52,19 @@ def check_existing_wg_interface(value):
     res = subprocess.run(['wg', 'show', value, 'listen-port'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
     if res != 0:
         error = ErrorMessages.WG_INTERFACE_MISSING.format(interface=value)
-        raise ArgumentTypeError(error)
+        raise ArgumentTypeError(error[7:])
     return value
 
 
 def check_existing_conf_and_systemd(value) -> str:
     check_existing_wg_interface(value)
     check_existing_conf(value)
-    is_active = subprocess.run(['systemctl', 'is-active', f'autoremove-{value}'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
-    if is_active != 0:
-        error = ErrorMessages.MISSING_AUTOREMOVE.format(interface=value)
-        raise ArgumentTypeError(error)
+    unit = f'autoremove-{value}'
+    try:
+        with redirect_stderr(StringIO()) as error:
+            Systemd.check_active(unit)
+    except SystemExit:
+        raise ArgumentTypeError(error.getvalue()[7:])
     return value
 
 

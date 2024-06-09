@@ -21,9 +21,10 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from parallel_utils.thread import create_thread
 
 from wirescale.communications.checkers import check_configfile, check_updated_handshake
-from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS, file_locker, systemd_autoremove
+from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS, file_locker
 from wirescale.communications.connection_pair import ConnectionPair
 from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, Messages
+from wirescale.communications.systemd import Systemd
 from wirescale.vpn.tsmanager import TSManager
 
 
@@ -63,14 +64,8 @@ class RecoverConfig:
     @classmethod
     def create_from_autoremove(cls, interface: str, latest_handshake: int):
         pair = CONNECTION_PAIRS.get(get_ident())
-        exec_start = subprocess.run(['systemctl', 'show', '-p', 'ExecStart', f'autoremove-{interface}'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True).stdout.strip()
-        if not exec_start:
-            error = ErrorMessages.MISSING_AUTOREMOVE.format(interface=interface)
-            error_remote = None
-            if pair is not None:
-                error_remote = ErrorMessages.REMOTE_MISSING_AUTOREMOVE.format(my_name=pair.my_name, my_ip=pair.my_ip, interface=interface)
-            ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
-        args = re.search(r'(\sautoremove.*?);', exec_start).group(1).strip().split()
+        unit = f'autoremove-{interface}'
+        args = Systemd.parse_args(unit=unit)
         autoremove_ip_receiver = IPv4Address(args[3])
         pair = pair or ConnectionPair(caller=TSManager.my_ip(), receiver=autoremove_ip_receiver)
         if autoremove_ip_receiver != pair.peer_ip:
@@ -158,7 +153,7 @@ class RecoverConfig:
             subprocess.run(['systemctl', 'stop', f'autoremove-{self.interface}.service'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         success_message = Messages.RECOVER_SUCCES.format(interface=self.interface)
         Messages.send_info_message(local_message=success_message, code=ActionCodes.SUCCESS)
-        create_thread(systemd_autoremove, config=self, pair=pair)
+        create_thread(Systemd.launch_autoremove, config=self, pair=pair)
 
     def undo_recover(self):
         self.new_port, self.current_port = self.current_port, self.new_port
