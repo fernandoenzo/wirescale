@@ -27,8 +27,8 @@ class WGConfig:
     repeatable_fields = frozenset(('address', 'dns', 'preup', 'postup', 'predown', 'postdown', 'allowedips'))
     configfile = Path('/run/wirescale/%i.conf')
 
-    def __init__(self, file_path: Path | str):
-        self.file_path: Path = file_path.resolve() if isinstance(file_path, Path) else Path(file_path).resolve()
+    def __init__(self, file_path: Path):
+        self.file_path: Path = file_path.resolve()
         self.config: ConfigParser = ConfigParser(interpolation=None)
         self.config.optionxform = lambda option: option
         self.counters: Dict = {}
