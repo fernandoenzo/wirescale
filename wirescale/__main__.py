@@ -10,6 +10,6 @@ SCRIPT_PATH = GLOBAL_PARENT.joinpath('scripts')
 sys.path.insert(0, str(GLOBAL_PARENT))
 
 if __name__ == '__main__':
-    from wirescale.main import main
+    from wirescale.wirescale import main
 
     main()
