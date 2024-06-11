@@ -222,7 +222,7 @@ autoremove_three_min() {
   echo "Launching autoremove function to check for handshakes older than 3 minutes"
   while { ip link show "$interface"; } > /dev/null 2>&1; do
     if ! latest_handshake_less_than "$interface" "$remote_pubkey" 150; then
-      echo "Connection broken. More than three minutes without handshake."
+      echo "Connection broken. More than 2:30 min without handshake"
       finish
     fi
     sleep 15
