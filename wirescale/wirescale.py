@@ -11,6 +11,7 @@ from parallel_utils.thread import create_thread
 
 from wirescale.__main__ import SCRIPT_PATH
 from wirescale.communications.messages import ErrorMessages
+from wirescale.communications.systemd import Systemd
 from wirescale.communications.tcp_server import TCPServer
 from wirescale.communications.udp_server import UDPServer
 from wirescale.communications.unix_client import UnixClient
@@ -46,10 +47,11 @@ def main():
     parse_args()
     if ARGS.DAEMON:
         check_root(systemd=True)
+        unit = 'wirescaled.service'
         systemd_exec_pid = int(os.environ.get('SYSTEMD_EXEC_PID', default=-1))
         if ARGS.START:
             if systemd_exec_pid == -1 or os.getpgid(systemd_exec_pid) != os.getpgid(os.getpid()):
-                systemd = subprocess.run(['systemctl', 'start', 'wirescaled.service'], text=True)
+                systemd = subprocess.run(['systemctl', 'start', unit], text=True)
                 sys.exit(systemd.returncode)
             systemd_envvars = ('LISTEN_PID', 'LISTEN_FDS', 'LISTEN_FDNAMES')
             if next((True for e in systemd_envvars if e not in os.environ), False):
@@ -63,8 +65,10 @@ def main():
             tcp_thread.result(), unix_thread.result(), watch_thread.result()
         elif ARGS.STOP:
             if systemd_exec_pid == -1 or os.getpgid(systemd_exec_pid) != os.getpgid(os.getpid()):
-                systemd = subprocess.run(['systemctl', 'stop', 'wirescaled.service'], text=True)
-                sys.exit(systemd.returncode)
+                if Systemd.is_active(unit):
+                    systemd = subprocess.run(['systemctl', 'stop', 'wirescaled.service'], text=True)
+                    sys.exit(systemd.returncode)
+                sys.exit(0)
             UnixClient.stop()
     elif ARGS.UPGRADE:
         UnixClient.upgrade()
