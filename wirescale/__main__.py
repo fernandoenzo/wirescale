@@ -5,7 +5,7 @@
 import sys
 from pathlib import Path
 
-GLOBAL_PARENT = Path(__file__).parent.parent.resolve()
+GLOBAL_PARENT = Path(__file__).parent.resolve()
 SCRIPT_PATH = GLOBAL_PARENT.joinpath('scripts')
 sys.path.insert(0, str(GLOBAL_PARENT))
 
