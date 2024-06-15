@@ -13,8 +13,6 @@ UNIT='wirescaled'
 SERVICE="$UNIT.service"
 SOCKET="$UNIT.socket"
 
-PYTHON_DIR=$(find /opt/pipx/venvs/wirescale/lib -name 'python*' -type d)
-
 systemctl stop "$SERVICE" > /dev/null 2>&1 || true
 systemctl stop "$SOCKET" > /dev/null 2>&1 || true
 systemctl disable "$SERVICE" > /dev/null 2>&1 || true
@@ -23,8 +21,9 @@ rm -rf "/etc/systemd/system/$SERVICE" > /dev/null 2>&1 || true
 rm -rf "/etc/systemd/system/$SOCKET" > /dev/null 2>&1 || true
 systemctl daemon-reload
 
-ln -s "$PYTHON_DIR/site-packages/wirescale/systemd/$SOCKET" "/etc/systemd/system"
-ln -s "$PYTHON_DIR/site-packages/wirescale/systemd/$SERVICE" "/etc/systemd/system"
+PYTHON_DIR=$(find /opt/pipx/venvs/wirescale/lib -name 'python*' -type d)
+ln -s "$PYTHON_DIR/site-packages/wirescale/systemd/$SOCKET" "/etc/systemd/system/"
+ln -s "$PYTHON_DIR/site-packages/wirescale/systemd/$SERVICE" "/etc/systemd/system/"
 systemctl daemon-reload
 
 systemctl enable "$SOCKET" "$SERVICE"

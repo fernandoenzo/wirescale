@@ -16,7 +16,7 @@ order_subparser = daemon_subparser.add_subparsers(dest='command', required=True)
 order_subparser.add_parser('start', help="start the daemon. Must be run by systemd", add_help=False)
 order_subparser.add_parser('stop', help="stop the daemon. Must be run with sudo", add_help=False)
 daemon_subparser.add_argument('--iptables', action=BooleanOptionalAction,
-                              help='add iptables rules that allow incoming traffic through the new network interface. Use this only if the connection is unstable.\n'
+                              help='add iptables rules that allow incoming traffic through new network interfaces. Use this only if the connection is unstable.\n'
                                    'Disabled by default')
 daemon_subparser.add_argument('--suffix', action=BooleanOptionalAction,
                               help='add numeric suffix to new interfaces with existing names.\n'

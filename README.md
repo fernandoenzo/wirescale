@@ -6,28 +6,29 @@
 ![PyPI - Status](https://img.shields.io/pypi/status/wirescale)
 
 ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/fernandoenzo/wirescale)
-[![GitHub last commit](https://img.shields.io/github/last-commit/fernandoenzo/parallel-utils)](https://github.com/fernandoenzo/wirescale)
+[![GitHub last commit](https://img.shields.io/github/last-commit/fernandoenzo/wirescale)](https://github.com/fernandoenzo/wirescale)
 
-Welcome to Wirescale, a revolutionary tool that transforms the way you use VPNs. Built for Linux, Wirescale leverages the power of WireGuard’s kernel-level performance
-and Tailscale’s unbeatable udp hole-punching capabilities to create a robust, fully customizable VPN experience.
+Welcome to Wirescale, a revolutionary tool that transforms the way you use VPNs. Built for Linux, Wirescale leverages the power of WireGuard’s kernel-level
+performance
+and Tailscale’s unbeatable udp hole-punching capabilities to create a robust, fully customizable mesh VPN experience.
 
 ## Table of contents
 
 <!--ts-->
 
 * [Installation](#installation)
+    * [Prerequisites](#prerequisites)
+    * [Install](#install)
+    * [Upgrade](#upgrade)
+    * [Uninstall](#uninstall)
 * [Use case](#use-case)
+    * [Architecture](#architecture)
     * [Upgrading a connection](#upgrading-a-connection)
-    * [Generate an RSA key pair](#generate-an-rsa-key-pair)
-    * [Change a key pair format](#change-a-key-pair-format)
-    * [Edit a key passphrase](#edit-a-key-passphrase)
-    * [Edit a key comment](#edit-a-key-comment)
-    * [Show information about a key](#show-information-about-a-key)
-    * [Help](#help)
+    * [The `autoremove-%i` unit](#the-autoremove-i-unit)
+    * [The `[Wirescale]` section](#the-wirescale-section)
 * [Packaging](#packaging)
-    * [Autopackage Portable](#autopackage-portable)
-    * [Autopackage Wheel](#autopackage-wheel)
-    * [PyInstaller](#pyinstaller)
+    * [Python Wheel](#python-wheel)
+    * [Standalone executable binary](#standalone-executable-binary)
 * [Contributing](#contributing)
 * [License](#license)
 
@@ -35,38 +36,103 @@ and Tailscale’s unbeatable udp hole-punching capabilities to create a robust, 
 
 ## Installation
 
-## Architecture
+### Prerequisites
+
+- `ping`
+- `pipx >= 1.1.0`
+- `python >= 3.11`
+- `socat >= 1.7.4`
+- `systemd >= 252`
+- `tailscale >= 1.60`
+
+### Install
+
+The installation is a three-step dance involving the program itself, the `systemd` service `wirescaled.service`, and the socket `wirescaled.socket`, also
+managed by `systemd`. Here’s the quickest way to get everything up and running:
+
+```commandline
+~ $ wget -O /tmp/install-wirescale https://raw.githubusercontent.com/fernandoenzo/wirescale/master/install.sh
+~ $ chmod +x /tmp/install-wirescale
+~ $ /tmp/install-wirescale
+```
+
+This magic script will download Wirescale, place it in a user-friendly folder via `pipx`, and create symbolic links to the systemd units
+in `/etc/systemd/system`. Easy peasy!
+
+### Upgrade
+
+Once Wirescale is installed, keeping it up-to-date is a piece of cake with `pipx`.
+
+Starting from version `1.5` of `pipx` you can simply do:
+
+```
+~ $ sudo pipx upgrade --global wirescale
+```
+
+For `pipx` versions lower than `1.5`, you’ll need to specify the folders where Wirescale resides:
+
+```
+~ $ sudo PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx upgrade wirescale
+```
+
+This command tells `pipx` exactly where to find `wirescale`, ensuring your upgrades are smooth and hassle-free. Now, you’re always equipped with the latest and
+greatest version of Wirescale!
+
+### Uninstall
+
+Need to uninstall? No problem! This script will make Wirescale disappear without a trace:
+
+```commandline
+~ $ wget -O /tmp/uninstall-wirescale https://raw.githubusercontent.com/fernandoenzo/wirescale/master/uninstall.sh
+~ $ chmod +x /tmp/uninstall-wirescale
+~ $ /tmp/uninstall-wirescale
+```
 
 ## Use case
 
-Tailscale has become the go-to solution for establishing point-to-point connections, effortlessly traversing NATs and interconnecting endpoints.
-However, it relies on `wireguard-go`, a homegrown implementation by Tailscale. This approach has its limitations - you can’t customize any connection
-parameters, and it doesn’t operate at the kernel level, which leads to suboptimal performance.
+Tailscale has become the go-to solution for establishing point-to-point connections, effortlessly traversing NATs and interconnecting endpoints. However, it
+relies on a custom version of `wireguard-go` reimplemented by Tailscale, instead of the usual `wireguard`. This approach has its limitations - you can’t
+customize any connection parameters, and it doesn’t operate at the kernel level, which leads to suboptimal performance.
 
-Beyond that, I struggle with a few things about Tailscale, such as the fact that it is not completely free software (coordination server is not,
-and I am forced to use a sketchy alternative like `headscale`) and it doesn't utilize the official WireGuard implementation like other projects such as
-Netmaker or Netbird. These projects, however, come with their own set of issues, like the complexity of their configuration process, unlike Tailscale,
-which is straightforward and quick.
+Beyond that, I struggle with a few things about Tailscale, such as the fact that it is not completely open source (coordination server is not, and I am forced
+to use a sketchy alternative like `headscale`) and it doesn't utilize the official WireGuard implementation like other projects such as Netmaker or Netbird.
+These projects, however, come with their own set of issues, like the complexity of their configuration process, unlike Tailscale, which is straightforward and
+quick.
 
-While this might be acceptable for most users who aren’t concerned about performance or software freedom, I’ve always found it regrettable that Tailscale
-doesn’t offer the same level of customization as the Wireguard configuration files do. This is particularly relevant for advanced use cases, which is what
-this tool was designed for.
+While this might be acceptable for most users who aren’t concerned about performance or software freedom, I’ve always found it regrettable that Tailscale is not
+completely open source, even though [they like to falsely promote themselves as such](https://tailscale.com/opensource). Additionally, the fact that it also
+doesn't offer the same level of customization as the Wireguard configuration files bothered me. This is particularly relevant for advanced use cases, which is
+what this tool was designed for.
 
 Wirescale takes a pre-existing Tailscale network and forces a hole punching between two machines. Using the port data obtained from the hole punching, Wirescale
-sets up a pure WireGuard network between the two machines. But here’s the kicker - it uses user-defined WireGuard configuration files, allowing for 100% customization
-of every parameter. From pre/post scripts and network IPs to AllowedIPs and more, you have complete control over your WireGuard configuration.
+sets up a pure WireGuard connection between the two machines. But here’s the kicker - it uses user-defined WireGuard configuration files, allowing for 100%
+customization of every parameter. From pre/post scripts and network IPs to AllowedIPs and more, you have complete control over your WireGuard configuration.
 
-In essence, Wirescale allows you to upgrade your connection between two machines on a Tailscale network to a pure WireGuard connection. And the best part?
-It operates independently of the Tailscale process.
+In essence, Wirescale allows you to upgrade your connection between two machines on a Tailscale network to a pure WireGuard connection. And the best part? It
+operates independently of the Tailscale process.
 
-## Upgrading a connection
+### Architecture
 
-Let’s imagine you have a Tailscale network with two machines, which we’ll call `alice` (100.64.0.1) and `bob` (100.64.0.2). These names, `alice` and `bob`, are how
-Tailscale identifies the machines when you run `tailscale status` and list all the devices.
+Wirescale is a multitasking champ! It runs as a UNIX and WebSockets server from the `systemd` unit, listening on both the local socket opened in
+the `wirescaled.socket` unit and the Tailscale IP of the machine running it. This means it can handle both remote requests for connection upgrades and local
+requests for a directed upgrade to another peer.
 
-Now, you want to take it up a notch. You want a pure, unadulterated point-to-point WireGuard connection between `alice` and `bob`. It’s like setting up a private line in
-a world of party lines. How do you do it? Simple. You create WireGuard configuration files in `/etc/wirescale/`. For each peer you want to connect to, you’ll need to define
-a file with its name. So, on the `alice` machine, you’ll define an `/etc/wirescale/bob.conf`, and on the `bob` machine, you’ll define an `/etc/wirescale/alice.conf`.
+Curious about the different modes of operation? Run `wirescale -h` to see them:
+
+- `daemon` mode is launched from the `systemd` unit. Configure it with the options that suit your needs (`wirescale daemon -h` will list them all).
+- `recover` mode is for internal use only, so we won’t go into details here. Just know it’s working hard behind the scenes.
+- `upgrade` mode is where the magic happens, and we’ll dive deeper into this shortly.
+- `down` option is the easiest way to take down a network interface raised with `wirescale`
+
+### Upgrading a connection
+
+Let’s imagine you have a Tailscale network with two machines, which we’ll call `alice` (100.64.0.1) and `bob` (100.64.0.2). These names, `alice` and `bob`, are
+how Tailscale identifies the machines when you run `tailscale status` and list all the devices.
+
+Now, you want to take it up a notch. You want a pure, unadulterated point-to-point WireGuard connection between `alice` and `bob`. It’s like setting up a
+private line in a world of party lines. How do you do it? Simple. You create WireGuard configuration files in `/etc/wirescale/`. For each peer you want to
+connect to, you’ll need to define a file with its name. So, on the `alice` machine, you’ll define an `/etc/wirescale/bob.conf`, and on the `bob` machine, you’ll
+define an `/etc/wirescale/alice.conf`.
 
 These configuration files are standard WireGuard files, with an optional additional `[Wirescale]` section, as shown in the following complete example:
 
@@ -95,9 +161,11 @@ recover-tries = 2
 recreate-tries = 1
 ```
 
-Notice how you don’t need to fill in the `Endpoint` or `ListenPort` fields? That’s `wirescale` working its magic, automatically filling these in based on what it captures from `tailscale`.
+Notice how you don’t need to fill in the `Endpoint` or `ListenPort` fields? That’s `wirescale` working its magic, automatically filling these in based on what
+it captures from `tailscale`.
 
-With `wirescale`, you’re in control. You can go from a zero-trust configuration to a fully self-managed one. All you need to define are `Address` and `AllowedIPs`:
+With Wirescale, you’re in control. You can go from a zero-trust configuration to a fully self-managed one. All you need to define are `Address`
+and `AllowedIPs`:
 
 ```
 [Interface]
@@ -107,16 +175,16 @@ Address = 192.0.2.2
 AllowedIPs = 192.0.2.1/24
 ```
 
-If you opt for this, `wirescale` will automatically negotiate the public key and the pre-shared key for each connection established between peers. You can even asymmetrically
-configure the peers, specifying the `PrivateKey` field in one of them if you want it to always use the same one, and not in the other. In any case, any compatibility conflict
-between the peers’ configurations will be appropriately warned by `wirescale`. It’s your network, your rules!
+If you opt for this, `wirescale` will automatically negotiate the public key and the pre-shared key for each connection established between peers. You can even
+asymmetrically configure the peers, specifying the `PrivateKey` field in one of them if you want it to always use the same one, and not in the other. In any
+case, any compatibility conflict between the peers’ configurations will be appropriately warned by `wirescale`. It’s your network, your rules!
 
-We’ll focus on the options in the `[Wirescale]` section later, but I want to emphasize now that these options are also explained in `wirescale upgrade -h`, and that an option
-set by command line always takes precedence when `wirescale` acts as a client, as is the case here, over one set in a configuration file.
+We’ll focus on the options in the `[Wirescale]` section later. All you need to know now is that these options are also explained in `wirescale upgrade -h`, and
+that an option set by command line always takes precedence when `wirescale` acts as a client, as is the case here, over one set in a configuration file.
 
 Once you’re happy with your setup, just launch the following command on one of the nodes, say, `alice`:
 
-```
+```commandline
 ~ $ wirescale upgrade bob
 ```
 
@@ -142,5 +210,125 @@ defe22 - Launching autoremove subprocess. Running as unit: autoremove-bob.servic
 defe22 - Success! Now you have a new working P2P connection through interface 'bob'
 ```
 
-In this example, `defe22` is a randomly generated unique uid to easily follow the process trace when we execute the command `journalctl -f -u wirescaled.service`,
-the systemd unit we initially installed, which acts as a connection server, both locally (through a UNIX socket) and remotely (through a websockets server).
+In this example, `defe22` is a randomly generated unique uid to easily follow the process trace when we execute the
+command `journalctl -f -u wirescaled.service`.
+
+You can see your brand new P2P WireGuard connection working with:
+
+```commandline
+~ $ wg show bob
+```
+
+and you'll get an output like this:
+
+```
+interface: bob
+  public key: Jagl9ZKgJpnatDNH+2Z1WQC13dVMSyLyAh0iU98qrRc=
+  private key: (hidden)
+  listening port: 39216
+
+peer: 9FFbjKGCbGWDIyDB6ZW4D/ENgxqBSBIiBfkBYCCSvjI=
+  preshared key: (hidden)
+  endpoint: 70.125.39.64:38741
+  allowed ips: 192.168.4.0/24
+  latest handshake: 5 seconds ago
+  transfer: 308.02 KiB received, 368.59 KiB sent
+  persistent keepalive: every 10 seconds
+```
+
+It’s worth noting that the configuration files generated by Wirescale are located in `/run/wirescale/`, so you can to check the transparency of the process.
+
+Just a quick heads-up! If you stumble upon an "unexpected" Endpoint (like seeing a private IP when you’re expecting a public one due to an additional VPN
+between your machine and the peer), don’t be alarmed! You might have run into a [known issue](https://github.com/tailscale/tailscale/issues/1552) that Tailscale
+has steadfastly refused to fix. However, I’ve independently addressed this in my [Tailgate](https://github.com/fernandoenzo/tailgate/) project, which you'll
+definitely find worth exploring.
+
+### The `autoremove-%i` unit
+
+In Wireguard’s configuration files, `%i` is a placeholder that gets replaced with the network interface name. If you look at the second-to-last line of the
+previous log, you’ll notice that a systemd unit called `autoremove-bob.service` was started right after the tunnel was set up. This unit has only one job: to
+either restore the connection if it drops or to remove the network interface if the connection can’t be restored.
+
+A connection made with wirescale is a pure P2P link between machines. This connection can drop for a variety of reasons, ranging from a machine losing its
+internet connection, to a router unilaterally closing the open connection, or even the local Linux firewall deciding it’s done with it.
+The`autoremove-bob.service` unit is designed to attempt to restore the connection based on the `recover-tries` option in the WireGuard configuration file (or
+the`--recover-tries` command-line option when running `wirescale upgrade`). If the connection can’t be restored after the specified number of attempts, the
+network interface will be removed and a new connection will be attempted from scratch, based on the `recreate-tries` parameter or the `--recreate-tries`
+command-line option.
+
+It’s crucial to note that both the `recover` and `upgrade` options require Tailscale to be operational to perform a new hole punching with the other peer. This
+is essential for establishing a direct connection between the two machines. However, if it’s not possible to find an Endpoint to the other peer, and the traffic
+is being relayed through a DERP server, `wirescale` will NOT set up a tunnel between the machines. This ensures that wirescale only establishes connections when
+a direct peer-to-peer link is possible
+
+Moreover, this systemd unit will actively try to keep the routers from closing the connection by sending small periodic packets using both `ping` and `socat`.
+Therefore, it’s mandatory to have these two utilities installed on your system. For the first 75 minutes after the connection is established, `ping` and `socat`
+will work together to “assure” the connection and ensure it can last indefinitely without interference from the routers.
+
+### The `[Wirescale]` section
+
+The `[Wirescale]` section of config files seen before, accepts the following optional fields:
+
+- `interface` The network interface name that WireGuard will set up for this peer. Defaults to the peer name.
+- `iptables` Can be `true` or `false`. If set to `true`, iptables rules will be added to allow incoming traffic through the new network interface. Use this
+  only if the connection is unstable and needs to be recovered repeatedly. This should not be necessary in most cases. Defaults to `false`.
+- `recover-tries` The number of automatic recovery attempts if the connection drops before the network interface is brought down. Negative values indicate
+  unlimited attempts. Defaults to 3 tries.
+- `recreate-tries` The number of attempts to create a new tunnel if the network interface was brought down after failing to recover it. Negative values
+  indicate unlimited retries. Defaults to 0 tries.
+- `suffix` Can be `true` or `false`. When set to `true`, a numeric suffix is appended to new interfaces that share names with existing ones. This suffix can be
+  referenced in the configuration file as `%s`, mirroring the substitution process that `%i` undergoes for the interface name. If no suffix is added, `%s`
+  defaults to 0.
+
+As mentioned earlier, all these fields can be optionally configured when running the `wirescale upgrade` command, and the command-line values will take
+precedence over the configuration file values when Wirescale is acting as a client.
+
+However, when wirescale is acting as a server (`wirescale daemon`), this logic is reversed, and the configuration file options take precedence.
+
+## Packaging
+
+This section walks you through the packaging process. However, it’s important to note that you typically won’t need to worry about this. The recommended way to
+upgrade the program is through `pipx`, as explained earlier.
+
+### Python Wheel
+
+To generate the program wheel, available at PyPi, install first `autopackage` with `pipx`:
+
+```commandline
+~ $ pipx install autopackage
+```
+
+Once `autopackage` is installed, run the following command::
+
+```commandline
+~ $ autopackage -s setup.py
+```
+
+This will generate the `whl` package and place it in the `/releases` directory.
+
+### Standalone executable binary
+
+In addition to the wheel, you can also create a standalone binary of the program. This binary can run independently, without requiring a Python interpreter or
+any other library dependencies on your machine.
+
+To build this binary, we’ll use a prepared script that leverages Docker:
+
+```commandline
+~ $ ./bundle/generate
+```
+
+Running this command will generate an executable in the `/dist` directory. You can move this executable to `/usr/local/bin`, and it will operate independently.
+
+One of the key advantages of this standalone binary is its compatibility. It’s designed to work across different Linux distributions, making the program
+versatile and user-friendly.
+
+## Contributing
+
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+
+## License
+
+![PyPI - License](https://img.shields.io/pypi/l/wirescale)
+
+This program is licensed under the
+[GNU Affero General Public License v3 or later (AGPLv3+)](https://choosealicense.com/licenses/agpl-3.0/)
