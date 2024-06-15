@@ -8,7 +8,7 @@
 ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/fernandoenzo/wirescale)
 [![GitHub last commit](https://img.shields.io/github/last-commit/fernandoenzo/parallel-utils)](https://github.com/fernandoenzo/wirescale)
 
-Welcome to Wirescale, a revolutionary tool that transforms the way you use VPNs. Built for Linux, Wirescale leverages the power of WireGuard’s kernel-level performance 
+Welcome to Wirescale, a revolutionary tool that transforms the way you use VPNs. Built for Linux, Wirescale leverages the power of WireGuard’s kernel-level performance
 and Tailscale’s unbeatable udp hole-punching capabilities to create a robust, fully customizable VPN experience.
 
 ## Table of contents
@@ -37,8 +37,6 @@ and Tailscale’s unbeatable udp hole-punching capabilities to create a robust, 
 
 ## Architecture
 
-
-
 ## Use case
 
 Tailscale has become the go-to solution for establishing point-to-point connections, effortlessly traversing NATs and interconnecting endpoints.
@@ -66,9 +64,9 @@ It operates independently of the Tailscale process.
 Let’s imagine you have a Tailscale network with two machines, which we’ll call `alice` (100.64.0.1) and `bob` (100.64.0.2). These names, `alice` and `bob`, are how
 Tailscale identifies the machines when you run `tailscale status` and list all the devices.
 
-Suppose you want to establish a pure point-to-point WireGuard connection between these two machines. The first step is to create WireGuard configuration files in
-`/etc/wirescale/`. For each node you want to connect to, you’ll need to define a file with its name. So, on the `alice` machine, we’ll define an `/etc/wirescale/bob.conf`,
-and on the `bob` machine, we’ll define an `/etc/wirescale/alice.conf`.
+Now, you want to take it up a notch. You want a pure, unadulterated point-to-point WireGuard connection between `alice` and `bob`. It’s like setting up a private line in
+a world of party lines. How do you do it? Simple. You create WireGuard configuration files in `/etc/wirescale/`. For each peer you want to connect to, you’ll need to define
+a file with its name. So, on the `alice` machine, you’ll define an `/etc/wirescale/bob.conf`, and on the `bob` machine, you’ll define an `/etc/wirescale/alice.conf`.
 
 These configuration files are standard WireGuard files, with an optional additional `[Wirescale]` section, as shown in the following complete example:
 
@@ -97,10 +95,9 @@ recover-tries = 2
 recreate-tries = 1
 ```
 
-As you can see from the example, it’s not necessary to fill in the `Endpoint` or `ListenPort` fields, as `wirescale` will automatically do this
-based on what it captures from `tailscale`.
+Notice how you don’t need to fill in the `Endpoint` or `ListenPort` fields? That’s `wirescale` working its magic, automatically filling these in based on what it captures from `tailscale`.
 
-With `wirescale`, you can go from a zero-trust configuration to a fully self-managed one, where the only mandatory fields you must define are `Address` and `AllowedIPs`:
+With `wirescale`, you’re in control. You can go from a zero-trust configuration to a fully self-managed one. All you need to define are `Address` and `AllowedIPs`:
 
 ```
 [Interface]
@@ -110,14 +107,14 @@ Address = 192.0.2.2
 AllowedIPs = 192.0.2.1/24
 ```
 
-If you opt for this, `wirescale` will automatically negotiate the public key and the pre-shared key for each connection established between peers. You can asymmetrically
+If you opt for this, `wirescale` will automatically negotiate the public key and the pre-shared key for each connection established between peers. You can even asymmetrically
 configure the peers, specifying the `PrivateKey` field in one of them if you want it to always use the same one, and not in the other. In any case, any compatibility conflict
-between the peers’ configurations will be appropriately warned by `wirescale`. Customize it to your liking!
+between the peers’ configurations will be appropriately warned by `wirescale`. It’s your network, your rules!
 
 We’ll focus on the options in the `[Wirescale]` section later, but I want to emphasize now that these options are also explained in `wirescale upgrade -h`, and that an option
-set by command line always takes precedence when wirescale acts as a client, as is the case here, over one set in a configuration file.
+set by command line always takes precedence when `wirescale` acts as a client, as is the case here, over one set in a configuration file.
 
-For now, once we have it configured to our liking, we just need to launch, on one of the two peers, for example, on `alice`, the following command:
+Once you’re happy with your setup, just launch the following command on one of the nodes, say, `alice`:
 
 ```
 ~ $ wirescale upgrade bob
@@ -145,6 +142,5 @@ defe22 - Launching autoremove subprocess. Running as unit: autoremove-bob.servic
 defe22 - Success! Now you have a new working P2P connection through interface 'bob'
 ```
 
-In this example, `defe22` is a randomly generated unique uid to easily follow the process trace when we execute the command 
-`journalctl -f -u wirescaled.service`, the systemd unit we initially installed, which acts as a connection server, both locally (through a UNIX socket)
-and remotely (through a websockets server).
+In this example, `defe22` is a randomly generated unique uid to easily follow the process trace when we execute the command `journalctl -f -u wirescaled.service`,
+the systemd unit we initially installed, which acts as a connection server, both locally (through a UNIX socket) and remotely (through a websockets server).
