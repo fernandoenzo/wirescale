@@ -47,8 +47,7 @@ class TCPClient:
             ErrorMessages.send_error_message(local_message=error)
         with pair.remote_socket:
             TCPMessages.send_token()
-            hello_message = TCPMessages.build_hello()
-            pair.send_to_remote(json.dumps(hello_message))
+            TCPMessages.send_hello()
             for message in pair:
                 message = json.loads(message)
                 if error_code := message[MessageFields.ERROR_CODE]:
@@ -66,8 +65,7 @@ class TCPClient:
                             if suffix_number is not None:
                                 wgconfig.suffix = suffix_number
                             wgconfig.listen_port = TSManager.local_port()
-                            upgrade_message = TCPMessages.build_upgrade(wgconfig)
-                            pair.send_to_remote(json.dumps(upgrade_message))
+                            TCPMessages.send_upgrade(wgconfig)
                         case ActionCodes.INFO:
                             Messages.send_info_message(local_message=message[MessageFields.MESSAGE])
                         case ActionCodes.UPGRADE_RESPONSE:
@@ -79,7 +77,7 @@ class TCPClient:
                             wgconfig.remote_interface = message[MessageFields.INTERFACE]
                             wgconfig.generate_new_config()
                             wgconfig.nat = message[MessageFields.NAT] and check_behind_nat(IPv4Address(message[MessageFields.PUBLIC_IP]))
-                            sent = pair.send_to_remote(json.dumps(TCPMessages.build_go(wgconfig)), ack_timeout=7)
+                            sent = TCPMessages.send_go(wgconfig)
                             if not sent:
                                 error = ErrorMessages.CONNECTION_LOST.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
                                 ErrorMessages.send_error_message(local_message=error, error_code=ErrorCodes.TS_UNREACHABLE)
@@ -96,8 +94,7 @@ class TCPClient:
             ErrorMessages.send_error_message(local_message=error)
         with pair.remote_socket:
             TCPMessages.send_token()
-            hello_message = TCPMessages.build_hello()
-            pair.send_to_remote(json.dumps(hello_message))
+            TCPMessages.send_hello()
             for message in pair:
                 message = json.loads(message)
                 if error_code := message[MessageFields.ERROR_CODE]:
@@ -112,13 +109,12 @@ class TCPClient:
                             with file_locker():
                                 recover.endpoint = TSManager.peer_endpoint(pair.peer_ip)
                             recover.new_port = TSManager.local_port()
-                            recover_message = TCPMessages.build_recover(recover)
-                            pair.send_to_remote(json.dumps(recover_message))
+                            TCPMessages.send_recover(recover)
                         case ActionCodes.INFO:
                             Messages.send_info_message(local_message=message[MessageFields.MESSAGE])
                         case ActionCodes.RECOVER_RESPONSE:
                             TCPMessages.process_recover_response(message, recover)
-                            sent = pair.send_to_remote(json.dumps(TCPMessages.build_go(recover)), ack_timeout=7)
+                            sent = TCPMessages.send_go(recover)
                             if not sent:
                                 error = ErrorMessages.CONNECTION_LOST.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
                                 ErrorMessages.send_error_message(local_message=error, error_code=ErrorCodes.TS_UNREACHABLE)

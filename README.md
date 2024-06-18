@@ -65,18 +65,24 @@ Once Wirescale is installed, keeping it up-to-date is a piece of cake with `pipx
 
 Starting from version `1.5` of `pipx` you can simply do:
 
-```
+```commandline
 ~ $ sudo pipx upgrade --global wirescale
 ```
 
 For `pipx` versions lower than `1.5`, you’ll need to specify the folders where Wirescale resides:
 
-```
+```commandline
 ~ $ sudo PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx upgrade wirescale
 ```
 
 This command tells `pipx` exactly where to find `wirescale`, ensuring your upgrades are smooth and hassle-free. Now, you’re always equipped with the latest and
 greatest version of Wirescale!
+
+Don't forget to restart the `wirescaled.service` unit once the upgrade is completed:
+
+```commandline
+~ $ systemctl restart wirescaled.service
+```
 
 ### Uninstall
 

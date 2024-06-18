@@ -28,7 +28,7 @@ class WGConfig:
     configfile = Path('/run/wirescale/%i.conf')
 
     def __init__(self, file_path: Path):
-        self.file_path: Path = file_path.resolve()
+        self.file_path: Path = file_path
         self.config: ConfigParser = ConfigParser(interpolation=None)
         self.config.optionxform = lambda option: option
         self.counters: Dict = {}

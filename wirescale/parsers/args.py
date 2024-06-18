@@ -42,7 +42,6 @@ def parse_args():
     if ARGS.UPGRADE:
         peer_ip = args.get('peer')
         ARGS.PAIR = ConnectionPair(caller=TSManager.my_ip(), receiver=peer_ip)
-        ARGS.CONFIGFILE = args.get('config') if args.get('config') is not None and args.get('config').split() else f'/etc/wirescale/{ARGS.PAIR.peer_name}.conf'
         ARGS.INTERFACE = args.get('interface')
         ARGS.EXPECTED_INTERFACE = args.get('remote_interface')
         ARGS.RECOVER_TRIES = args.get('recover_tries')

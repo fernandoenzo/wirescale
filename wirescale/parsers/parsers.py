@@ -27,9 +27,6 @@ down_subparser.add_argument('interface', type=check_existing_conf, help="shortcu
 
 upgrade_subparser = subparsers.add_parser('upgrade', help='duplicates a Tailscale connection with pure WireGuard', formatter_class=CustomArgumentFormatter)
 upgrade_subparser.add_argument('peer', type=check_peer, help='either the Tailscale IP address or the name of the peer you want to connect to')
-config_argument = upgrade_subparser.add_argument('--config', '-c', metavar='wgconf',
-                                                 help='path to a WireGuard config template.\n'
-                                                      'Defaults to /etc/wirescale/{peername}.conf\n')
 upgrade_subparser.add_argument('--iptables', action=BooleanOptionalAction,
                                help='add iptables rules that allow incoming traffic through the new network interface. Use this only if the connection is unstable.\n'
                                     'Disabled by default')

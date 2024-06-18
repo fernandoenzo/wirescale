@@ -130,7 +130,7 @@ class UnixServer:
         pair = CONNECTION_PAIRS[get_ident()]
         allow_suffix, interface, iptables = message[MessageFields.ALLOW_SUFFIX], message[MessageFields.INTERFACE], message[MessageFields.IPTABLES]
         recover_tries, recreate_tries, suffix_number = message[MessageFields.RECOVER_TRIES], message[MessageFields.RECREATE_TRIES], message[MessageFields.SUFFIX_NUMBER]
-        config = check_configfile(config=message[MessageFields.CONFIG])
+        config = check_configfile()
         wgconfig = check_wgconfig(config)
         interface = interface or wgconfig.interface or pair.peer_name
         if suffix_number is not None:

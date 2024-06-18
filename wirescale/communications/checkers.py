@@ -10,7 +10,6 @@ from pathlib import Path
 from threading import get_ident
 from time import sleep
 from typing import Tuple, TYPE_CHECKING
-from urllib.parse import unquote, urlparse
 
 from netifaces import AF_INET, ifaddresses, interfaces
 
@@ -48,20 +47,12 @@ def check_interface(interface: str, allow_suffix: bool) -> Tuple[str, int]:
     return next_interface_with_suffix(interface)
 
 
-def check_configfile(config: str) -> Path:
-    if config.startswith('file://'):
-        try:
-            config = unquote(urlparse(config).path)
-        except:
-            pass
-    config = Path(config)
-    if not config.exists():
-        error = f"path '{config}' does not exist"
-    elif not config.is_file():
-        error = f"path '{config}' is not a regular file"
-    else:
-        return config.resolve()
+def check_configfile() -> Path:
     pair = CONNECTION_PAIRS[get_ident()]
+    peer = Path(f'/etc/wirescale/{pair.peer_name}.conf')
+    if peer.is_file():
+        return peer.resolve()
+    error = ErrorMessages.CONFIG_PATH_ERROR.format(peer_name=pair.peer_name)
     remote_error = ErrorMessages.REMOTE_CONFIG_PATH_ERROR.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
     ErrorMessages.send_error_message(local_message=error, remote_message=remote_error, error_code=ErrorCodes.CONFIG_PATH_ERROR)
 

@@ -5,7 +5,6 @@
 import re
 import subprocess
 from ipaddress import IPv4Address
-from pathlib import Path
 from threading import get_ident
 from time import sleep
 from typing import Tuple, TYPE_CHECKING, Union
@@ -52,11 +51,9 @@ class Systemd:
         wg_ip: IPv4Address = config.wg_ip if hasattr(config, 'wg_ip') else next(ip for ip in config.remote_addresses)
         running_in_remote: bool = config.running_in_remote if hasattr(config, 'running_in_remote') else pair.running_in_remote
         listen_port: int = config.new_port if hasattr(config, 'new_port') else config.listen_port
-        config_file: Path = config.config_file if hasattr(config, 'config_file') else config.file_path
 
         args = [config.interface, str(config.suffix), str(pair.peer_ip), remote_pubkey, str(wg_ip), str(int(running_in_remote)), str(config.start_time), str(listen_port),
-                str(int(config.nat)), config.remote_interface, str(config.remote_local_port), str(int(config.iptables)), config_file.as_uri(), str(config.recover_tries),
-                str(config.recreate_tries)]
+                str(int(config.nat)), config.remote_interface, str(config.remote_local_port), str(int(config.iptables)), str(config.recover_tries), str(config.recreate_tries)]
 
         systemd = subprocess.run(['systemd-run', '-u', unit, '/bin/sh', '/run/wirescale/wirescale-autoremove', 'autoremove', *args],
                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)

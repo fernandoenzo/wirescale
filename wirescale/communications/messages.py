@@ -24,7 +24,6 @@ class MessageFields(StrEnum):
     ADDRESSES = auto()
     ALLOW_SUFFIX = auto()
     CODE = auto()
-    CONFIG = auto()
     ENCRYPTED = auto()
     ERROR_CODE = auto()
     ERROR_MESSAGE = auto()
@@ -82,13 +81,12 @@ class UnixMessages:
     STOP_MESSAGE = {MessageFields.CODE: ActionCodes.STOP, MessageFields.ERROR_CODE: None}
 
     @staticmethod
-    def build_upgrade_option() -> dict:
+    def send_upgrade_option():
         from wirescale.parsers.args import ARGS
         res = {
             MessageFields.CODE: ActionCodes.UPGRADE,
             MessageFields.ERROR_CODE: None,
             MessageFields.ALLOW_SUFFIX: ARGS.ALLOW_SUFFIX,
-            MessageFields.CONFIG: ARGS.CONFIGFILE,
             MessageFields.EXPECTED_INTERFACE: ARGS.EXPECTED_INTERFACE,
             MessageFields.INTERFACE: ARGS.INTERFACE,
             MessageFields.IPTABLES: ARGS.IPTABLES,
@@ -97,10 +95,11 @@ class UnixMessages:
             MessageFields.RECREATE_TRIES: ARGS.RECREATE_TRIES,
             MessageFields.SUFFIX_NUMBER: ARGS.SUFFIX_NUMBER,
         }
-        return res
+        ARGS.PAIR.send_to_local(json.dumps(res))
 
     @staticmethod
-    def build_recover(recover: 'RecoverConfig') -> dict:
+    def send_recover(recover: 'RecoverConfig'):
+        pair = CONNECTION_PAIRS[get_ident()]
         res = {
             MessageFields.CODE: ActionCodes.RECOVER,
             MessageFields.ERROR_CODE: None,
@@ -108,29 +107,31 @@ class UnixMessages:
             MessageFields.LATEST_HANDSHAKE: recover.latest_handshake,
             MessageFields.PEER_IP: str(CONNECTION_PAIRS[get_ident()].peer_ip),
         }
-        return res
+        pair.send_to_local(json.dumps(res))
 
 
 class TCPMessages:
 
     @staticmethod
-    def build_ack() -> dict:
+    def send_ack():
+        pair = CONNECTION_PAIRS[get_ident()]
         res = {
             MessageFields.CODE: ActionCodes.ACK,
             MessageFields.ERROR_CODE: None
         }
-        return res
+        pair.send_to_remote(json.dumps(res))
 
     @staticmethod
-    def build_hello() -> dict:
+    def send_hello():
+        pair = CONNECTION_PAIRS[get_ident()]
         res = {
             MessageFields.CODE: ActionCodes.HELLO,
             MessageFields.ERROR_CODE: None
         }
-        return res
+        pair.send_to_remote(json.dumps(res))
 
     @staticmethod
-    def send_token() -> dict:
+    def send_token():
         pair = CONNECTION_PAIRS[get_ident()]
         res = {
             MessageFields.CODE: ActionCodes.TOKEN,
@@ -141,7 +142,8 @@ class TCPMessages:
         pair.send_to_remote(json.dumps(res))
 
     @staticmethod
-    def build_upgrade(wgconfig: 'WGConfig') -> dict:
+    def send_upgrade(wgconfig: 'WGConfig'):
+        pair = CONNECTION_PAIRS[get_ident()]
         res = {
             MessageFields.CODE: ActionCodes.UPGRADE,
             MessageFields.ERROR_CODE: None,
@@ -155,10 +157,11 @@ class TCPMessages:
             MessageFields.PUBKEY: wgconfig.public_key,
             MessageFields.REMOTE_PUBKEY: wgconfig.remote_pubkey,
         }
-        return res
+        pair.send_to_remote(json.dumps(res))
 
     @staticmethod
-    def build_upgrade_response(wgconfig) -> dict:
+    def send_upgrade_response(wgconfig):
+        pair = CONNECTION_PAIRS[get_ident()]
         res = {
             MessageFields.CODE: ActionCodes.UPGRADE_RESPONSE,
             MessageFields.ERROR_CODE: None,
@@ -170,19 +173,21 @@ class TCPMessages:
             MessageFields.PUBKEY: wgconfig.public_key,
             MessageFields.START_TIME: wgconfig.start_time,
         }
-        return res
+        pair.send_to_remote(json.dumps(res))
 
     @staticmethod
-    def build_go(config: Union['WGConfig', 'RecoverConfig']) -> dict:
+    def send_go(config: Union['WGConfig', 'RecoverConfig']) -> bool:
+        pair = CONNECTION_PAIRS[get_ident()]
         res = {
             MessageFields.CODE: ActionCodes.GO,
             MessageFields.NAT: config.nat,
             MessageFields.ERROR_CODE: None,
         }
-        return res
+        return pair.send_to_remote(json.dumps(res), ack_timeout=7)
 
     @staticmethod
-    def build_recover(recover: 'RecoverConfig') -> dict:
+    def send_recover(recover: 'RecoverConfig'):
+        pair = CONNECTION_PAIRS[get_ident()]
         res = {
             MessageFields.CODE: ActionCodes.RECOVER,
             MessageFields.ERROR_CODE: None,
@@ -198,10 +203,11 @@ class TCPMessages:
         }
         encrypted = json.dumps(encrypted)
         res[MessageFields.ENCRYPTED] = recover.encrypt(encrypted)
-        return res
+        pair.send_to_remote(json.dumps(res))
 
     @staticmethod
-    def build_recover_response(recover: 'RecoverConfig') -> dict:
+    def send_recover_response(recover: 'RecoverConfig'):
+        pair = CONNECTION_PAIRS[get_ident()]
         recover.nonce = os.urandom(12)
         res = {
             MessageFields.CODE: ActionCodes.RECOVER_RESPONSE,
@@ -216,7 +222,7 @@ class TCPMessages:
         }
         encrypted = json.dumps(encrypted)
         res[MessageFields.ENCRYPTED] = recover.encrypt(encrypted)
-        return res
+        pair.send_to_remote(json.dumps(res))
 
     @staticmethod
     def process_recover(message: dict) -> 'RecoverConfig':
@@ -338,6 +344,7 @@ class ErrorMessages:
     CANT_DECRYPT = "Error: Couldn't decrypt the recover message sent by remote peer '{peer_name}' ({peer_ip})"
     CLOSED = 'Error: Wirescale is shutting down and is no longer accepting new requests'
     CLOSING_SOCKET = "Error: Connection is broken. Closing socket"
+    CONFIG_PATH_ERROR = "Error: Cannot locate a configuration file for peer '{peer_name}' in '/etc/wirescale/'"
     CONNECTION_LOST = "Error: Connection with remote peer '{peer_name}' ({peer_ip}) has been lost. Aborting pending operations"
     FINAL_ERROR = 'Something went wrong and, finally, it was not possible to establish the P2P connection'
     HANDSHAKE_FAILED = "Error: Handshake with interface '{interface}' failed"
@@ -361,7 +368,7 @@ class ErrorMessages:
     REMOTE_CANT_DECRYPT = "Error: Remote peer '{my_name}' ({my_ip}) couldn't decrypt our recover message"
     REMOTE_CLOSED = "Error: Wirescale instance at '{my_name}' ({my_ip}) has been set to stop receiving requests"
     REMOTE_CONFIG_ERROR = "Error: Remote peer '{my_name}' ({my_ip}) has a syntax error in its configuration file for '{peer_name}'"
-    REMOTE_CONFIG_PATH_ERROR = "Error: Remote peer '{my_name}' ({my_ip}) cannot locate a configuration file for '{peer_name}'"
+    REMOTE_CONFIG_PATH_ERROR = "Error: Remote peer '{my_name}' ({my_ip}) cannot locate a configuration file for peer '{peer_name}'"
     REMOTE_INTERFACE_EXISTS = "Error: A network interface '{interface}' already exists in remote peer '{my_name}' ({my_ip})"
     REMOTE_INTERFACE_MISMATCH = "Error: Remote peer '{my_name}' ({my_ip}) is not assigning the expected name '{interface}' to its network interface"
     REMOTE_IP_MISMATCH = "Error: Remote peer '{my_name}' ({my_ip}) has registered a different IP address in its 'autoremove-{interface}' systemd unit than ours ({peer_ip})"
@@ -403,7 +410,7 @@ class ErrorMessages:
 
     @classmethod
     def process_error_message(cls, message: dict):
-        from wirescale.parsers.parsers import config_argument, interface_argument, upgrade_subparser
+        from wirescale.parsers.parsers import interface_argument, upgrade_subparser
         pair = CONNECTION_PAIRS[get_ident()]
         if error_code := message[MessageFields.ERROR_CODE]:
             text = message[MessageFields.ERROR_MESSAGE]
@@ -415,10 +422,7 @@ class ErrorMessages:
                     case ErrorCodes.INTERFACE_EXISTS:
                         upgrade_subparser.error(str(ArgumentError(interface_argument, text[16:])))  # exit code 2
                     case ErrorCodes.CONFIG_PATH_ERROR:
-                        try:
-                            upgrade_subparser.error(str(ArgumentError(config_argument, text[9:])))  # exit code 2 is captured
-                        finally:
-                            sys.exit(3)
+                        cls.send_error_message(local_message=text, send_to_local=False, exit_code=3)
                     case ErrorCodes.TS_UNREACHABLE:
                         cls.send_error_message(local_message=text, send_to_local=False, exit_code=4)
                     case ErrorCodes.HANDSHAKE_MISMATCH:

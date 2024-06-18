@@ -73,9 +73,9 @@ class RecoverConfig:
             error_remote = ErrorMessages.REMOTE_IP_MISMATCH.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_ip=pair.peer_ip, interface=interface)
             ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
         recover = RecoverConfig(interface=interface, latest_handshake=latest_handshake, running_in_remote=bool(int(args[6])), iptables=bool(int(args[12])), wg_ip=IPv4Address(args[5]),
-                                current_port=int(args[8]), recover_tries=int(args[14]), recreate_tries=int(args[15]), remote_interface=args[10], remote_port=int(args[11]),
+                                current_port=int(args[8]), recover_tries=int(args[13]), recreate_tries=int(args[14]), remote_interface=args[10], remote_port=int(args[11]),
                                 suffix=int(args[2]))
-        recover.config_file = check_configfile(config=args[13])
+        recover.config_file = check_configfile()
         recover.load_keys()
         with file_locker():
             recover.endpoint = TSManager.peer_endpoint(pair.peer_ip)

@@ -68,8 +68,7 @@ class TCPServer:
                         message = json.loads(message)
                         match message[MessageFields.CODE]:
                             case ActionCodes.HELLO:
-                                ack = TCPMessages.build_ack()
-                                pair.send_to_remote(json.dumps(ack))
+                                TCPMessages.send_ack()
                             case ActionCodes.UPGRADE:
                                 Messages.send_info_message(local_message=start_processing.format(action='upgrade'), remote_message=start_processing_remote.format(action='upgrade'))
                                 cls.upgrade(message)
@@ -95,7 +94,7 @@ class TCPServer:
     @classmethod
     def upgrade(cls, message: dict):
         pair = CONNECTION_PAIRS[get_ident()]
-        config = check_configfile(config=f'/etc/wirescale/{pair.peer_name}.conf')
+        config = check_configfile()
         wgconfig = check_wgconfig(config)
         wgconfig.interface = wgconfig.interface or pair.peer_name
         wgconfig.allow_suffix = wgconfig.allow_suffix if wgconfig.allow_suffix is not None else ARGS.ALLOW_SUFFIX if ARGS.ALLOW_SUFFIX is not None else False
@@ -119,8 +118,7 @@ class TCPServer:
         wgconfig.nat = check_behind_nat(IPv4Address(message[MessageFields.PUBLIC_IP]))
         wgconfig.recover_tries = wgconfig.recover_tries if wgconfig.recover_tries is not None else ARGS.RECOVER_TRIES if ARGS.RECOVER_TRIES is not None else 3
         wgconfig.recreate_tries = wgconfig.recreate_tries if wgconfig.recreate_tries is not None else ARGS.RECREATE_TRIES if ARGS.RECREATE_TRIES is not None else 0
-        upgrade_response = TCPMessages.build_upgrade_response(wgconfig)
-        pair.send_to_remote(json.dumps(upgrade_response))
+        TCPMessages.send_upgrade_response(wgconfig)
         for message in pair:
             message = json.loads(message)
             ErrorMessages.process_error_message(message)
@@ -136,8 +134,7 @@ class TCPServer:
     def recover(cls, message: dict):
         pair = CONNECTION_PAIRS[get_ident()]
         recover = TCPMessages.process_recover(message)
-        recover_response = TCPMessages.build_recover_response(recover)
-        pair.send_to_remote(json.dumps(recover_response))
+        TCPMessages.send_recover_response(recover)
         for message in pair:
             message = json.loads(message)
             ErrorMessages.process_error_message(message)

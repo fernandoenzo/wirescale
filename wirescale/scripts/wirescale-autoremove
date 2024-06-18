@@ -167,14 +167,13 @@ autoremove() {
   remote_interface=${10}
   remote_port=${11}
   iptables=${12}
-  config_file=${13}
-  recover_tries=${14}
-  recreate_tries=${15}
+  recover_tries=${13}
+  recreate_tries=${14}
   stop_after=$((60 * 75))
   lockfile="/run/wirescale/control/locker-$interface"
   flag_file="/run/wirescale/control/$interface-stop"
-  export interface suffix ts_ip remote_pubkey wg_ip running_in_remote local_port remote_interface remote_port
-  export iptables config_file recover_tries recreate_tries stop_after lockfile flag_file
+  export interface suffix ts_ip remote_pubkey wg_ip running_in_remote local_port remote_interface
+  export remote_port iptables recover_tries recreate_tries stop_after lockfile flag_file
 
   start_time_func=$(date +%s)
   last_received=0
@@ -237,7 +236,7 @@ finish() {
   if [ "$recreate_tries" -ne 0 ]; then
     echo "Launching a unit to create a new tunnel with the same settings"
     systemd-run -u recreate-"$interface" /bin/sh /run/wirescale/wirescale-autoremove new_upgrade "$interface" "$suffix" "$ts_ip" \
-      "$remote_interface" "$iptables" "$config_file" "$recover_tries" "$recreate_tries"
+      "$remote_interface" "$iptables" "$recover_tries" "$recreate_tries"
   fi
   exit 0
 }
@@ -248,12 +247,11 @@ new_upgrade() {
   ts_ip=$3
   remote_interface=$4
   iptables=$5
-  config_file=$6
-  recover_tries=$7
-  recreate_tries=$8
+  recover_tries=$6
+  recreate_tries=$7
   status=1
   tries="$recreate_tries"
-  call="wirescale upgrade --no-suffix --interface $interface --remote-interface $remote_interface --config $config_file \
+  call="wirescale upgrade --no-suffix --interface $interface --remote-interface $remote_interface \
         --recover-tries $recover_tries --recreate-tries $recreate_tries"
   if [ "$suffix" -ne 0 ]; then
     call="$call --suffix-number $suffix"

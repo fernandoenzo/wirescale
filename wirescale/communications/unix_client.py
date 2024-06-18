@@ -49,8 +49,7 @@ class UnixClient:
         pair = ARGS.PAIR
         pair.unix_socket = cls.connect()
         with pair.local_socket:
-            message: dict = UnixMessages.build_upgrade_option()
-            pair.send_to_local(json.dumps(message))
+            UnixMessages.send_upgrade_option()
             for message in pair.local_socket:
                 message = json.loads(message)
                 ErrorMessages.process_error_message(message)
@@ -68,8 +67,7 @@ class UnixClient:
         pair = CONNECTION_PAIRS[get_ident()]
         pair.unix_socket = cls.connect()
         with pair.local_socket:
-            message: dict = UnixMessages.build_recover(recover)
-            pair.send_to_local(json.dumps(message))
+            UnixMessages.send_recover(recover)
             for message in pair.local_socket:
                 message = json.loads(message)
                 ErrorMessages.process_error_message(message)
