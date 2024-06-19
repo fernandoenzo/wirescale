@@ -65,9 +65,11 @@ def check_behind_nat(ip: IPv4Address) -> bool:
 def check_recover_config(recover: 'RecoverConfig'):
     pair = CONNECTION_PAIRS[get_ident()]
     if recover.latest_handshake != get_latest_handshake(recover.interface):
+        if pair.running_in_remote:
+            subprocess.run(['systemctl', 'restart', f'autoremove-{recover.interface}.service'], text=True)
         error = ErrorMessages.LATEST_HANDSHAKE_MISMATCH.format(interface=recover.interface)
         error_remote = ErrorMessages.REMOTE_LATEST_HANDSHAKE_MISMATCH.format(my_name=pair.my_name, my_ip=pair.my_ip, interface=recover.interface)
-        ErrorMessages.send_error_message(local_message=error, remote_message=error_remote, error_code=ErrorCodes.HANDSHAKE_MISMATCH, exit_code=3)
+        ErrorMessages.send_error_message(local_message=error, remote_message=error_remote, error_code=ErrorCodes.HANDSHAKE_MISMATCH)
     if not match_interface_port(recover.interface, recover.current_port):
         error = ErrorMessages.PORT_MISMATCH.format(interface=recover.interface, port=recover.current_port)
         error_remote = ErrorMessages.REMOTE_PORT_MISMATCH.format(peer_name=pair.my_name, peer_ip=pair.my_ip, interface=recover.interface, port=recover.current_port)

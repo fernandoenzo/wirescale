@@ -41,7 +41,7 @@ class TCPClient:
             pair.tcp_socket = cls.connect(uri=pair.peer_ip)
             if pair.tcp_socket is None:
                 peer_is_offline = ErrorMessages.TS_PEER_OFFLINE.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
-                ErrorMessages.send_error_message(local_message=peer_is_offline, error_code=ErrorCodes.TS_UNREACHABLE, exit_code=2)
+                ErrorMessages.send_error_message(local_message=peer_is_offline, error_code=ErrorCodes.TS_UNREACHABLE)
         except ConnectionRefusedError:
             error = ErrorMessages.REMOTE_MISSING_WIRESCALE.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
             ErrorMessages.send_error_message(local_message=error)

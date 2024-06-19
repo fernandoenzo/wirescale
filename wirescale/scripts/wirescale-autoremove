@@ -123,13 +123,11 @@ recover() {
     elif [ "$status" -eq 1 ]; then
       echo "Error: It was impossible to recover the connection"
       return 1
-    elif [ "$status" -eq 2 ]; then
-      exit 0
     elif [ "$status" -eq 3 ]; then
       return 1
     elif [ "$status" -eq 4 ]; then
       echo "Error: The other peer is currently unreachable. Will try again in $wait_time seconds..."
-    elif [ "$status" -eq 3 ]; then
+    elif [ "$status" -eq 5 ]; then
       echo "Error: The latest handshake has been updated, so connection is not dead. Restarting this unit..."
       systemctl restart autoremove-"$interface".service
     fi
