@@ -146,7 +146,7 @@ remove_interface() {
   echo "Removing interface $interface"
   (
     flock 9
-    wg-quick down "/run/wirescale/$interface.conf"
+    wirescale down "$interface"
   ) 9> "$lockfile"
 
   rm -rf "$lockfile" "$flag_file"
