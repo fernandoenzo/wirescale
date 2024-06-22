@@ -177,18 +177,21 @@ def check_addresses_in_allowedips(wgconfig: WGConfig):
 
 def match_interface_port(interface: str, port: int) -> bool:
     pair = CONNECTION_PAIRS[get_ident()]
+    sleep_time = 0.5
+    timeout = 5
     try:
-        for i in range(2):
+        while timeout > 0:
             real_port = int(subprocess.run(['wg', 'show', interface, 'listen-port'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True).stdout.strip())
             res = real_port == port
-            if not res and i == 0:
-                sleep(3)
-            else:
-                return res
+            if res:
+                break
+            timeout -= sleep_time
+            sleep(sleep_time)
     except:
         error = ErrorMessages.WG_INTERFACE_MISSING.format(interface=interface)
         remote_error = ErrorMessages.REMOTE_WG_INTERFACE_MISSING.format(my_name=pair.my_name, my_ip=pair.my_ip, interface=interface)
         ErrorMessages.send_error_message(local_message=error, remote_message=remote_error)
+    return res
 
 
 def get_latest_handshake(interface: str) -> int:
