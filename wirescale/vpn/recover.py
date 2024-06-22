@@ -150,7 +150,7 @@ class RecoverConfig:
             error = ErrorMessages.HANDSHAKE_FAILED_RECOVER.format(interface=self.interface)
             ErrorMessages.send_error_message(local_message=error, error_code=ErrorCodes.TS_UNREACHABLE)
         if pair.running_in_remote:
-            subprocess.run(['systemctl', 'stop', f'autoremove-{self.interface}.service'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            Systemd.stop(f'autoremove-{self.interface}.service')
         success_message = Messages.RECOVER_SUCCES.format(interface=self.interface)
         Messages.send_info_message(local_message=success_message, code=ActionCodes.SUCCESS)
         create_thread(Systemd.launch_autoremove, config=self, pair=pair)

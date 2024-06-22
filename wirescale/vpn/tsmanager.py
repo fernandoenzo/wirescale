@@ -16,6 +16,7 @@ from typing import Dict, Tuple, TYPE_CHECKING
 
 from wirescale.communications.common import CONNECTION_PAIRS
 from wirescale.communications.messages import ErrorCodes, ErrorMessages, Messages
+from wirescale.communications.systemd import Systemd
 
 if TYPE_CHECKING:
     from wirescale.communications.connection_pair import ConnectionPair
@@ -23,14 +24,12 @@ if TYPE_CHECKING:
 
 class TSManager:
     @classmethod
-    def start(cls) -> int:
-        status = subprocess.run(['systemctl', 'start', 'tailscaled'], capture_output=True, text=True)
-        return status.returncode
+    def start(cls) -> bool:
+        return Systemd.start('tailscaled.service')
 
     @classmethod
-    def stop(cls) -> int:
-        status = subprocess.run(['systemctl', 'stop', 'tailscaled'], capture_output=True, text=True)
-        return status.returncode
+    def stop(cls) -> bool:
+        return Systemd.stop('tailscaled.service')
 
     @classmethod
     def status(cls) -> Dict:
@@ -40,8 +39,7 @@ class TSManager:
 
     @staticmethod
     def service_is_running() -> bool:
-        is_active = subprocess.run(['systemctl', 'is-active', 'tailscaled.service'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return is_active.returncode == 0
+        return Systemd.is_active('tailscaled.service')
 
     @classmethod
     def has_state(cls) -> bool:
@@ -65,10 +63,10 @@ class TSManager:
 
     @classmethod
     def check_service_running(cls):
-        for _ in range(10):
+        for _ in range(20):
             if cls.service_is_running():
                 return
-            sleep(1)
+            sleep(0.5)
         ErrorMessages.send_error_message(local_message=ErrorMessages.TS_SYSTEMD_STOPPED)
 
     @classmethod

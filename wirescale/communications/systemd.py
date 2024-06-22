@@ -35,6 +35,21 @@ class Systemd:
         is_active = subprocess.run(['systemctl', 'is-active', unit], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
         return is_active == 0
 
+    @staticmethod
+    def restart(unit: str) -> bool:
+        restart = subprocess.run(['systemctl', 'restart', unit], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
+        return restart == 0
+
+    @staticmethod
+    def start(unit: str) -> bool:
+        start = subprocess.run(['systemctl', 'start', unit], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
+        return start == 0
+
+    @staticmethod
+    def stop(unit: str) -> bool:
+        stop = subprocess.run(['systemctl', 'stop', unit], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
+        return stop == 0
+
     @classmethod
     def launch_autoremove(cls, config: Union['WGConfig', 'RecoverConfig'], pair: 'ConnectionPair'):
         from wirescale.communications.messages import Messages
