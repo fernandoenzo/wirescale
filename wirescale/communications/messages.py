@@ -230,8 +230,7 @@ class TCPMessages:
         from wirescale.vpn.recover import RecoverConfig
         pair = CONNECTION_PAIRS[get_ident()]
         interface = message[MessageFields.INTERFACE]
-        latest_handshake = get_latest_handshake(interface)
-        recover = RecoverConfig.create_from_autoremove(interface=interface, latest_handshake=latest_handshake)
+        recover = RecoverConfig.create_from_autoremove(interface=interface, latest_handshake=None)
         recover.nonce = BytesStrConverter.str64_to_raw_bytes(message[MessageFields.NONCE])
         try:
             decrypted = recover.decrypt(data=message[MessageFields.ENCRYPTED])
@@ -242,6 +241,7 @@ class TCPMessages:
         decrypted = json.loads(decrypted)
         message.update(decrypted)
         recover.current_port = message[MessageFields.PORT]
+        recover.latest_handshake = message[MessageFields.LATEST_HANDSHAKE]
         recover.remote_local_port = message[MessageFields.REMOTE_PORT]
         recover.remote_interface = message[MessageFields.REMOTE_INTERFACE]
         check_recover_config(recover)

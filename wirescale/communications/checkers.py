@@ -64,7 +64,7 @@ def check_behind_nat(ip: IPv4Address) -> bool:
 
 def check_recover_config(recover: 'RecoverConfig'):
     pair = CONNECTION_PAIRS[get_ident()]
-    if recover.latest_handshake != get_latest_handshake(recover.interface):
+    if abs(recover.latest_handshake - get_latest_handshake(recover.interface)) > 10:
         if pair.running_in_remote:
             subprocess.run(['systemctl', 'restart', f'autoremove-{recover.interface}.service'], text=True)
         error = ErrorMessages.LATEST_HANDSHAKE_MISMATCH.format(interface=recover.interface)
