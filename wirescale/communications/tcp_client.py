@@ -58,6 +58,7 @@ class TCPClient:
                     match code:
                         case ActionCodes.ACK:
                             stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.WAIT_IF_SWITCHED))
+                            ACTIVE_SOCKETS.client_thread = None
                             ACTIVE_SOCKETS.exclusive_socket = pair
                             with file_locker():
                                 wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)
@@ -105,6 +106,7 @@ class TCPClient:
                     match code:
                         case ActionCodes.ACK:
                             stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.WAIT_IF_SWITCHED))
+                            ACTIVE_SOCKETS.client_thread = None
                             ACTIVE_SOCKETS.exclusive_socket = pair
                             with file_locker():
                                 recover.endpoint = TSManager.peer_endpoint(pair.peer_ip)

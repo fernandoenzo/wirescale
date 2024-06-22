@@ -40,7 +40,7 @@ class ActiveSockets:
     @client_thread.setter
     def client_thread(self, new_client_thread):
         self._client_thread = new_client_thread
-        self._client = CONNECTION_PAIRS[new_client_thread]
+        self._client = CONNECTION_PAIRS.get(new_client_thread)
 
     def needs_switch(self, counter: int) -> bool:
         if not self.client_exists() or not self.server_exists():
@@ -73,7 +73,7 @@ class ActiveSockets:
     @server_thread.setter
     def server_thread(self, new_server_thread):
         self._server_thread = new_server_thread
-        self._server = CONNECTION_PAIRS[new_server_thread]
+        self._server = CONNECTION_PAIRS.get(new_server_thread)
 
     def watch(self):
         server, client = None, None

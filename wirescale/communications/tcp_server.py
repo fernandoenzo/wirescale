@@ -61,6 +61,7 @@ class TCPServer:
                     exclusive_message = Messages.EXCLUSIVE_SEMAPHORE_REMOTE.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
                     Messages.send_info_message(local_message=exclusive_message)
                     stack.enter_context(StaticMonitor.synchronized(uid=Semaphores.WAIT_IF_SWITCHED))
+                    ACTIVE_SOCKETS.server_thread = None
                     cls.discard_connections()
                     ACTIVE_SOCKETS.exclusive_socket = pair
                     start_processing = Messages.START_PROCESSING_FROM.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
