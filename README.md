@@ -236,7 +236,7 @@ interface: bob
 peer: 9FFbjKGCbGWDIyDB6ZW4D/ENgxqBSBIiBfkBYCCSvjI=
   preshared key: (hidden)
   endpoint: 70.125.39.64:38741
-  allowed ips: 192.168.4.0/24
+  allowed ips: 192.168.3.0/24
   latest handshake: 5 seconds ago
   transfer: 308.02 KiB received, 368.59 KiB sent
   persistent keepalive: every 10 seconds
@@ -273,7 +273,7 @@ will work together to “assure” the connection and ensure it can last indefin
 
 ### The `[Wirescale]` section
 
-The `[Wirescale]` section of config files seen before, accepts the following optional fields:
+The `[Wirescale]` section of config files seen before is entirely optional, and accepts the following fields:
 
 - `interface` The network interface name that WireGuard will set up for this peer. Defaults to the peer name.
 - `iptables` Can be `true` or `false`. If set to `true`, iptables rules will be added to allow incoming traffic through the new network interface. Use this
@@ -286,10 +286,11 @@ The `[Wirescale]` section of config files seen before, accepts the following opt
   referenced in the configuration file as `%s`, mirroring the substitution process that `%i` undergoes for the interface name. If no suffix is added, `%s`
   defaults to 0.
 
-As mentioned earlier, all these fields can be optionally configured when running the `wirescale upgrade` command, and the command-line values will take
-precedence over the configuration file values when Wirescale is acting as a client.
+As mentioned earlier, any of these fields can be optionally configured when running the `wirescale upgrade` command. It's important to note that if Wirescale
+operates in a client role, command-line arguments will override settings specified in the configuration file.
 
-However, when wirescale is acting as a server (`wirescale daemon`), this logic is reversed, and the configuration file options take precedence.
+Additionally, when Wirescale functions as a server through the `wirescale daemon` command specified in the `systemd` unit, the situation changes. In this
+scenario, preferences set via the configuration file will supersede those provided through command-line arguments.
 
 ## Packaging
 
