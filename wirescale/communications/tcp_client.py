@@ -3,6 +3,7 @@
 
 
 import json
+import subprocess
 import sys
 from contextlib import ExitStack
 from ipaddress import ip_address, IPv4Address
@@ -100,6 +101,15 @@ class TCPClient:
                 message = json.loads(message)
                 if error_code := message[MessageFields.ERROR_CODE]:
                     match error_code:
+                        case ErrorCodes.HANDSHAKE_MISMATCH:
+                            text = message[MessageFields.ERROR_MESSAGE]
+                            if recover.restart_on_fail:
+                                restart = ErrorMessages.RESTART_UNIT.format(interface=recover.interface)
+                                text += '\n' + restart
+                                Messages.send_info_message(local_message=text)
+                                subprocess.run(['systemctl', 'restart', f'autoremove-{recover.interface}.service'], text=True)
+                                sys.exit(1)
+                            ErrorMessages.send_error_message(local_message=text, error_code=error_code)
                         case _:
                             ErrorMessages.send_error_message(local_message=message[MessageFields.ERROR_MESSAGE], error_code=error_code)
                 elif code := message[MessageFields.CODE]:

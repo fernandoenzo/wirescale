@@ -21,7 +21,7 @@ get_sleep_times() {
 }
 
 check_interface_and_file() {
-  if { ip link show "$interface"; } > /dev/null 2>&1 && [ ! -f "$flag_file" ]; then
+  if { ip link show "$interface"; } > /dev/null 2>&1 && [ ! -f "$flag_file_fail" ] && [ ! -f "$flag_file_stop" ]; then
     return 0
   else
     return 1
@@ -128,8 +128,8 @@ recover() {
     elif [ "$status" -eq 4 ]; then
       echo "Error: The other peer is currently unreachable. Will try again in $wait_time seconds..."
     elif [ "$status" -eq 5 ]; then
-      echo "Error: The latest handshake has been updated, so connection is not dead. Restarting this unit..."
-      systemctl restart autoremove-"$interface".service
+      echo "Error: The latest handshake has been updated, so connection is not dead"
+      autoremove_three_min
     fi
     sleep "$wait_time"
     if [ "$tries" -gt 0 ]; then
@@ -149,7 +149,7 @@ remove_interface() {
     wirescale down "$interface"
   ) 9> "$lockfile"
 
-  rm -rf "$lockfile" "$flag_file"
+  rm -rf "$lockfile" "$flag_file_fail" "$flag_file_stop"
 }
 
 autoremove() {
@@ -169,14 +169,15 @@ autoremove() {
   recreate_tries=${14}
   stop_after=$((60 * 75))
   lockfile="/run/wirescale/control/locker-$interface"
-  flag_file="/run/wirescale/control/$interface-stop"
+  flag_file_fail="/run/wirescale/control/$interface-fail"
+  flag_file_stop="/run/wirescale/control/$interface-stop"
   export interface suffix ts_ip remote_pubkey wg_ip running_in_remote local_port remote_interface
-  export remote_port iptables recover_tries recreate_tries stop_after lockfile flag_file
+  export remote_port iptables recover_tries recreate_tries stop_after lockfile flag_file_fail flag_file_stop
 
   start_time_func=$(date +%s)
   last_received=0
 
-  rm -rf "$flag_file"
+  rm -rf "$flag_file_fail" "$flag_file_stop"
 
   if [ "$nat" -eq 0 ]; then
     autoremove_three_min
@@ -194,7 +195,7 @@ autoremove() {
       autoremove_three_min
     fi
     if ! check_interface_and_file; then
-      echo "Terminating the primary autoremove function, as flag file '$flag_file' exists"
+      echo "Terminating the primary autoremove function, as flag file '$flag_file_stop' exists"
       autoremove_three_min
     fi
     received=$(wg show "$interface" transfer | awk -v pubkey="$remote_pubkey" '$1 == pubkey {print $2}')
@@ -205,7 +206,7 @@ autoremove() {
       if latest_handshake_less_than "$interface" "$remote_pubkey" 10; then
         echo "...but the latest handshake was less than ten seconds ago, so won't do anything for now"
       else
-        touch "$flag_file"
+        touch "$flag_file_fail"
         break
       fi
     fi
