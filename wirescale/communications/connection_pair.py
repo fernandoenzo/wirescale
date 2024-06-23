@@ -68,15 +68,17 @@ class ConnectionPair:
             self.check_running = True
             with file_locker():
                 checking_message = Messages.CHECKING_CONNECTION.format(peer_name=self.peer_name, peer_ip=self.peer_ip)
+                checking_message = Messages.add_id(self.id, checking_message)
                 Messages.send_info_message(local_message=checking_message, send_to_local=False)
                 is_online = TSManager.wait_until_peer_is_online(ip=self.peer_ip, timeout=30)
             if not is_online:
                 self.closing = True
                 closing_message = Messages.add_id(self.id, ErrorMessages.CLOSING_SOCKET)
-                print(closing_message, file=sys.stderr, flush=True)
+                ErrorMessages.send_error_message(local_message=closing_message, send_to_local=False, exit_code=None)
                 create_thread(self.close_socket, self.remote_socket)
             else:
                 message_ok = Messages.CONNECTION_OK.format(peer_name=self.peer_name, peer_ip=self.peer_ip)
+                message_ok = Messages.add_id(self.id, message_ok)
                 Messages.send_info_message(local_message=message_ok, send_to_local=False)
         finally:
             self.check_running = False
