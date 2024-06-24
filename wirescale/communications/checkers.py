@@ -55,7 +55,7 @@ def check_configfile() -> Path:
         return peer.resolve()
     error = ErrorMessages.CONFIG_PATH_ERROR.format(peer_name=pair.peer_name)
     remote_error = ErrorMessages.REMOTE_CONFIG_PATH_ERROR.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
-    ErrorMessages.send_error_message(local_message=error, remote_message=remote_error, error_code=ErrorCodes.CONFIG_PATH_ERROR)
+    ErrorMessages.send_error_message(local_message=error, remote_message=remote_error, error_code=ErrorCodes.CONFIG_PATH_ERROR, remote_code=ErrorCodes.CONFIG_PATH_ERROR)
 
 
 def check_behind_nat(ip: IPv4Address) -> bool:
@@ -68,7 +68,8 @@ def check_recover_config(recover: 'RecoverConfig'):
     if pair.running_in_remote and abs(recover.latest_handshake - get_latest_handshake(recover.interface)) > 10:
         error = ErrorMessages.LATEST_HANDSHAKE_MISMATCH.format(interface=recover.interface)
         error_remote = ErrorMessages.REMOTE_LATEST_HANDSHAKE_MISMATCH.format(my_name=pair.my_name, my_ip=pair.my_ip, interface=recover.interface)
-        ErrorMessages.send_error_message(local_message=error, remote_message=error_remote, error_code=ErrorCodes.HANDSHAKE_MISMATCH, exit_code=None)
+        ErrorMessages.send_error_message(local_message=error, remote_message=error_remote, error_code=ErrorCodes.HANDSHAKE_MISMATCH,
+                                         remote_code=ErrorCodes.HANDSHAKE_MISMATCH, exit_code=None)
         if recover.restart_on_fail:
             error = ErrorMessages.RESTART_UNIT.format(interface=recover.interface)
             ErrorMessages.send_error_message(local_message=error, exit_code=None)
