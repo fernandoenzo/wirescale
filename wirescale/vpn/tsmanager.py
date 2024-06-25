@@ -63,11 +63,13 @@ class TSManager:
 
     @classmethod
     def check_service_running(cls):
-        for _ in range(20):
-            if cls.service_is_running():
-                return
+        sleep_time = 0.5
+        timeout = 10
+        while not (running := cls.service_is_running()) and timeout > 0:
             sleep(0.5)
-        ErrorMessages.send_error_message(local_message=ErrorMessages.TS_SYSTEMD_STOPPED)
+            timeout -= sleep_time
+        if not running:
+            ErrorMessages.send_error_message(local_message=ErrorMessages.TS_SYSTEMD_STOPPED)
 
     @classmethod
     def check_running(cls):
