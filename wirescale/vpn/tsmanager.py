@@ -46,6 +46,10 @@ class TSManager:
         return cls.status()['BackendState'].lower() != 'NoState'.lower()
 
     @classmethod
+    def check_has_state(cls, timeout=15) -> bool:
+        return check_with_timeout(cls.has_state, timeout=timeout)
+
+    @classmethod
     def is_logged(cls) -> bool:
         return cls.status()['BackendState'].lower() != 'NeedsLogin'.lower()
 
@@ -70,8 +74,7 @@ class TSManager:
     def check_running(cls):
         cls.check_service_running()
         sleep_time = 0.5
-        timeout = 10
-        if not check_with_timeout(cls.has_state, timeout=10):
+        if not cls.check_has_state():
             ErrorMessages.send_error_message(local_message=ErrorMessages.TS_COORD_OFFLINE)
         if not cls.is_logged():
             ErrorMessages.send_error_message(local_message=ErrorMessages.TS_NO_LOGGED)
@@ -123,8 +126,8 @@ class TSManager:
 
     @classmethod
     def peer_is_online(cls, ip: IPv4Address, timeout: int = 2) -> bool:
-        while not cls.has_state():
-            sleep(0.5)
+        if not cls.check_has_state():
+            ErrorMessages.send_error_message(local_message=ErrorMessages.TS_COORD_OFFLINE)
         check_ping = subprocess.run(['tailscale', 'ping', '-c', '1', '--until-direct=false', '--timeout', f'{timeout}s', str(ip)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if check_ping.returncode == 0:
             check_ping = subprocess.run(['ping', '-c', '1', '-W', str(timeout), str(ip)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -143,8 +146,9 @@ class TSManager:
     @classmethod
     def wait_tailscale_restarted(cls, pair: 'ConnectionPair', stack: ExitStack):
         with stack:
-            print('Waiting for tailscale to be fully operational again. This could take up to 45 seconds...', flush=True)
-            res = cls.wait_until_peer_is_online(pair.peer_ip, timeout=45)
+            seconds_to_wait = 45
+            print(f'Waiting for tailscale to be fully operational again. This could take up to {seconds_to_wait} seconds...', flush=True)
+            res = cls.wait_until_peer_is_online(pair.peer_ip, timeout=seconds_to_wait)
             if not res:
                 print(ErrorMessages.TS_NOT_RECOVERED.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip), file=sys.stderr, flush=True)
             else:
@@ -157,7 +161,7 @@ class TSManager:
         peer_name = pair.peer_name if pair is not None else cls.peer_name(ip)
         checking_endpoint = Messages.CHECKING_ENDPOINT.format(peer_name=peer_name, peer_ip=ip)
         Messages.send_info_message(local_message=checking_endpoint, send_to_local=False)
-        if not cls.wait_until_peer_is_online(ip, timeout=45):
+        if not cls.wait_until_peer_is_online(ip, timeout=25):
             peer_is_offline = ErrorMessages.TS_PEER_OFFLINE.format(peer_name=peer_name, peer_ip=ip)
             ErrorMessages.send_error_message(local_message=peer_is_offline, error_code=ErrorCodes.TS_UNREACHABLE, exit_code=4)
         force_endpoint = subprocess.run(['tailscale', 'ping', '-c', '30', str(ip)], capture_output=True, text=True)
