@@ -73,8 +73,12 @@ class TSManager:
     def check_running(cls):
         cls.check_service_running()
         sleep_time = 0.5
+        timeout = 10
         while not cls.has_state():
             sleep(sleep_time)
+            timeout -= sleep_time
+            if timeout <= 0:
+                ErrorMessages.send_error_message(local_message=ErrorMessages.TS_COORD_OFFLINE)
         if not cls.is_logged():
             ErrorMessages.send_error_message(local_message=ErrorMessages.TS_NO_LOGGED)
         if cls.is_stopped():

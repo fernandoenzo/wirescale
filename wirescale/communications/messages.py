@@ -390,6 +390,7 @@ class ErrorMessages:
     SOCKET_REMOTE_ERROR = "Error: Remote peer '{peer_name}' ({peer_ip}) has closed the connection. Aborting pending operations"
     SOCKET_ERROR = "Error: The program has been closed. Aborting pending operations"
     SUDO = 'Error: This program must be run as a superuser'
+    TS_COORD_OFFLINE = "Error: Tailscale has no state; the coordination server may not be reachable"
     TS_PEER_OFFLINE = "Error: Peer '{peer_name}' ({peer_ip}) is offline"
     TS_SYSTEMD_STOPPED = "Error: 'tailscaled.service' is stopped. Start the service with systemd"
     TS_STOPPED = "Error: Tailscale is stopped. Run 'sudo tailscale up'"
