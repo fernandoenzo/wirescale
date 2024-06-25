@@ -14,7 +14,7 @@ from threading import get_ident
 from time import sleep
 from typing import Dict, Tuple, TYPE_CHECKING
 
-from wirescale.communications.common import CONNECTION_PAIRS
+from wirescale.communications.common import check_with_timeout, CONNECTION_PAIRS
 from wirescale.communications.messages import ErrorCodes, ErrorMessages, Messages
 from wirescale.communications.systemd import Systemd
 
@@ -63,12 +63,7 @@ class TSManager:
 
     @classmethod
     def check_service_running(cls):
-        sleep_time = 0.5
-        timeout = 10
-        while not (running := cls.service_is_running()) and timeout > 0:
-            sleep(0.5)
-            timeout -= sleep_time
-        if not running:
+        if not check_with_timeout(cls.service_is_running, timeout=10):
             ErrorMessages.send_error_message(local_message=ErrorMessages.TS_SYSTEMD_STOPPED)
 
     @classmethod
@@ -76,11 +71,8 @@ class TSManager:
         cls.check_service_running()
         sleep_time = 0.5
         timeout = 10
-        while not cls.has_state():
-            sleep(sleep_time)
-            timeout -= sleep_time
-            if timeout <= 0:
-                ErrorMessages.send_error_message(local_message=ErrorMessages.TS_COORD_OFFLINE)
+        if not check_with_timeout(cls.has_state, timeout=10):
+            ErrorMessages.send_error_message(local_message=ErrorMessages.TS_COORD_OFFLINE)
         if not cls.is_logged():
             ErrorMessages.send_error_message(local_message=ErrorMessages.TS_NO_LOGGED)
         if cls.is_stopped():

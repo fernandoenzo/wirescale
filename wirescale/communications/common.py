@@ -10,6 +10,7 @@ from enum import auto, IntEnum
 from pathlib import Path
 from tempfile import TemporaryFile
 from threading import Event
+from time import sleep
 from typing import Dict, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -26,6 +27,13 @@ class Semaphores(IntEnum):
     EXCLUSIVE = auto()
     SERVER = auto()
     WAIT_IF_SWITCHED = auto()
+
+
+def check_with_timeout(func, timeout, sleep_time=0.5, *args, **kwargs) -> bool:
+    while not (check := func(*args, **kwargs)) and timeout > 0:
+        timeout -= sleep_time
+        sleep(0.5)
+    return check
 
 
 def subprocess_run_tmpfile(*args, **kwargs) -> subprocess.CompletedProcess[str]:

@@ -14,7 +14,7 @@ from typing import Tuple, TYPE_CHECKING
 
 from netifaces import AF_INET, ifaddresses, interfaces
 
-from wirescale.communications.common import CONNECTION_PAIRS
+from wirescale.communications.common import check_with_timeout, CONNECTION_PAIRS
 from wirescale.communications.messages import ErrorCodes, ErrorMessages
 from wirescale.vpn.wgconfig import WGConfig
 
@@ -181,22 +181,17 @@ def check_addresses_in_allowedips(wgconfig: WGConfig):
 
 
 def match_interface_port(interface: str, port: int) -> bool:
-    pair = CONNECTION_PAIRS[get_ident()]
-    sleep_time = 0.5
-    timeout = 5
-    try:
-        while timeout > 0:
+    def match():
+        pair = CONNECTION_PAIRS[get_ident()]
+        try:
             real_port = int(subprocess.run(['wg', 'show', interface, 'listen-port'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True).stdout.strip())
-            res = real_port == port
-            if res:
-                break
-            timeout -= sleep_time
-            sleep(sleep_time)
-    except:
-        error = ErrorMessages.WG_INTERFACE_MISSING.format(interface=interface)
-        remote_error = ErrorMessages.REMOTE_WG_INTERFACE_MISSING.format(my_name=pair.my_name, my_ip=pair.my_ip, interface=interface)
-        ErrorMessages.send_error_message(local_message=error, remote_message=remote_error)
-    return res
+            return real_port == port
+        except:
+            error = ErrorMessages.WG_INTERFACE_MISSING.format(interface=interface)
+            remote_error = ErrorMessages.REMOTE_WG_INTERFACE_MISSING.format(my_name=pair.my_name, my_ip=pair.my_ip, interface=interface)
+            ErrorMessages.send_error_message(local_message=error, remote_message=remote_error)
+
+    return check_with_timeout(match, timeout=5)
 
 
 def get_latest_handshake(interface: str) -> int:
