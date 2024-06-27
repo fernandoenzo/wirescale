@@ -132,8 +132,14 @@ Curious about the different modes of operation? Run `wirescale -h` to see them:
 
 ### Upgrading a connection
 
-Let’s imagine you have a Tailscale network with two machines, which we’ll call `alice` (100.64.0.1) and `bob` (100.64.0.2). These names, `alice` and `bob`, are
-how Tailscale identifies the machines when you run `tailscale status` and list all the devices.
+Let’s imagine you have a Tailscale network with two machines, which we’ll call `alice` (`100.64.0.1`) and `bob` (`100.64.0.2`). These names, `alice` and `bob`,
+are how Tailscale identifies the machines when you run `tailscale status` and list all the devices, like this:
+
+```commandline
+~ $ tailscale status
+fd7a:115c:a1e0::1 alice    user     linux   -
+fd7a:115c:a1e0::2 bob      user     linux   -
+```
 
 Now, you want to take it up a notch. You want a pure, unadulterated point-to-point WireGuard connection between `alice` and `bob`. It’s like setting up a
 private line in a world of party lines. How do you do it? Simple. You create WireGuard configuration files in `/etc/wirescale/`. For each peer you want to
