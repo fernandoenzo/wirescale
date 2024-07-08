@@ -51,10 +51,10 @@ The installation is a three-step dance involving the program itself, the `system
 managed by `systemd`. Here’s the quickest way to get everything up and running:
 
 ```commandline
-~ $ curl -fsSL https://raw.githubusercontent.com/fernandoenzo/wirescale/master/install.sh | sh
+~ $ curl -fsSL https://raw.githubusercontent.com/fernandoenzo/wirescale/master/install.sh | sudo sh
 ```
 
-This magic script will download Wirescale, place it in a user-friendly folder via `pipx`, and create symbolic links to the systemd units
+This magic command will download Wirescale, place it in a user-friendly folder via `pipx`, and create symbolic links to the systemd units
 in `/etc/systemd/system`. Easy peasy!
 
 ### Upgrade
@@ -88,7 +88,7 @@ Don't forget to reload and restart the `wirescaled.service` unit once the upgrad
 Need to uninstall? No problem! This script will make Wirescale disappear without a trace:
 
 ```commandline
-~ $ curl -fsSL https://raw.githubusercontent.com/fernandoenzo/wirescale/master/uninstall.sh | sh
+~ $ curl -fsSL https://raw.githubusercontent.com/fernandoenzo/wirescale/master/uninstall.sh | sudo sh
 ```
 
 ## Use case
