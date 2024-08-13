@@ -12,3 +12,6 @@ releases/
 # PyCharm stuff
 .idea/
 
+# AI stuff
+.aider*
+.env

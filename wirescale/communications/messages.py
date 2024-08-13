@@ -355,6 +355,7 @@ class ErrorMessages:
     INTERFACE_EXISTS = "Error: A network interface '{interface}' already exists"
     INTERFACE_MISMATCH = "Error: Remote peer '{peer_name}' ({peer_ip}) expects a network interface name that does not match the one we are assigning"
     IP_MISMATCH = "Error: Remote peer '{peer_name}' ({peer_ip}) IP address mismatch with the 'autoremove-{interface}' systemd unit's registered IP ({autoremove_ip})"
+    KEEPALIVE_SYSTEMD = "Error: The 'keepalive' option can only be invoked by the Wirescale shell script"
     LATEST_HANDSHAKE_MISMATCH = "Error: The latest handshake of interface '{interface}' has been updated since the recover request was made. Discarding request"
     MISSING_ADDRESS = "Error: 'Address' option missing in 'Interface' section of file '{config_file}'"
     MISSING_ALLOWEDIPS = "Error: 'AllowedIPs' option missing in 'Peer' section of file '{config_file}'"

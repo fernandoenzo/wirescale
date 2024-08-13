@@ -1,138 +1,26 @@
 #!/usr/bin/env sh
 
-calculate_sleep_time() {
-  desired_seconds_list=$1
-  current_second=$(date +%S | awk '{print int($1)}')
-  for sec in $desired_seconds_list; do
-    if [ "$current_second" -lt "$sec" ]; then
-      echo $((sec - current_second))
-      return
-    fi
-  done
-  first=$(echo "$desired_seconds_list" | awk '{print $1}')
-  echo $((60 - current_second + first))
-}
-
-get_sleep_times() {
-  start_time=$(($1 % 60))
-  num1=$(((start_time + 20) % 60))
-  num2=$(((start_time + 40) % 60))
-  echo "$start_time $num1 $num2" | tr " " "\n" | sort -n | tr "\n" " "
+interface_exists() {
+  { ip link show "$interface"; } > /dev/null 2>&1
 }
 
 check_interface_and_file() {
-  if { ip link show "$interface"; } > /dev/null 2>&1 && [ ! -f "$flag_file_fail" ] && [ ! -f "$flag_file_stop" ]; then
-    return 0
-  else
-    return 1
-  fi
-}
-
-latest_handshake_less_than() {
-  interface=$1
-  remote_pubkey=$2
-  seconds=$3
-
-  ip ! link show "$interface" > /dev/null 2>&1 && return 1
-  latest_handshake=$(wg show "$interface" latest-handshakes | awk -v pubkey="$remote_pubkey" '$1 == pubkey {print $2}')
-  difference=$(($(date +%s) - latest_handshake))
-  [ "$difference" -lt "$seconds" ]
-  return
+  interface_exists &&
+    [ ! -f "$flag_file_fail" ] &&
+    [ ! -f "$flag_file_stop" ]
 }
 
 ping_periodic() {
-  start_time=$(date +%s)
-  while check_interface_and_file && [ $(($(date +%s) - start_time)) -lt "$stop_after" ]; do
-    ping -q -I "$interface" -c 1 -W 0.05 "$wg_ip" > /dev/null 2>&1
+  while check_interface_and_file; do
+    ping -q -I "$interface" -c 2 -W 0.05 "$wg_ip" > /dev/null 2>&1
     sleep 5
   done
-}
-
-assure_connection() {
-  file=$1
-
-  listen_port=$(wg show "$interface" listen-port)
-  endpoint=$(wg show "$interface" endpoints | awk -v pubkey="$remote_pubkey" '$1 == pubkey {print $2}')
-  [ -z "$endpoint" ] && echo "Interface '$interface' has no peer with public key '$remote_pubkey'" && return 0
-  wg set "$interface" listen-port 0
-
-  attempt=0
-  max_attempts=5
-  while [ "$attempt" -le "$max_attempts" ]; do
-    if { cat "$file" | socat UDP:"$endpoint",sourceport="$listen_port" -; } > /dev/null 2>&1; then
-      break
-    else
-      sleep 1
-    fi
-  done
-
-  attempt=0
-  while [ "$attempt" -lt "$max_attempts" ]; do
-    if wg set "$interface" listen-port "$listen_port"; then
-      return 0
-    else
-      sleep 1
-    fi
-    attempt=$((attempt + 1))
-  done
-  echo "Failed to reassign port $listen_port after 5 attempts"
-}
-
-assure_keepalive() {
-  start_time=$1
-
-  if [ "$running_in_remote" -eq 1 ]; then
-    start_time=$(((start_time + 30) % 60))
-  fi
-
-  dummy_file="/tmp/dummy-$interface.zip"
-  counter=0
-  total=60
-  while check_interface_and_file && [ "$counter" -lt "$total" ]; do
-    dd if=/dev/urandom of="$dummy_file" bs=2K count=$((counter + 1)) > /dev/null 2>&1
-    sleep "$(calculate_sleep_time "$start_time")"
-    echo "Sending special package to assure connection, $((counter + 1))/$total"
-    (
-      flock 9
-      assure_connection "$dummy_file"
-    ) 9> "$lockfile"
-    rm -rf "$dummy_file"
-    counter=$((counter + 1))
-  done
-  echo "Finalizing function assure_keepalive"
-}
-
-change_keepalive() {
-  seconds=$1
-  wg set "$interface" peer "$remote_pubkey" persistent-keepalive "$seconds"
-}
-
-ping_keepalive() {
-  start_time=$1
-  start_time_func=$(date +%s)
-
-  ping_periodic &
-
-  while check_interface_and_file && [ $(($(date +%s) - start_time_func)) -lt "$stop_after" ]; do
-    if [ "$running_in_remote" -eq 1 ]; then
-      sleep_times=$(get_sleep_times "$start_time")
-      sleep "$(calculate_sleep_time "$sleep_times")"
-    else
-      start_time=$(((start_time + 10) % 60))
-      sleep_times=$(get_sleep_times "$start_time")
-      sleep "$(calculate_sleep_time "$sleep_times")"
-    fi
-    change_keepalive 1
-    sleep 5
-    change_keepalive 10
-  done
-  echo "Finalizing function ping_keepalive"
 }
 
 recover() {
   wait_time=30
   tries="$recover_tries"
-  while { ip link show "$interface"; } > /dev/null 2>&1 && [ "$tries" -ne 0 ]; do
+  while interface_exists && [ "$tries" -ne 0 ]; do
     echo "Trying to force a new endpoint..."
     wirescale recover "$interface"
     status=$?
@@ -147,8 +35,9 @@ recover() {
     elif [ "$status" -eq 4 ]; then
       echo "Error: The other peer is currently unreachable. Will try again in $wait_time seconds..."
     elif [ "$status" -eq 5 ]; then
-      echo "Error: The latest handshake has been updated, so connection is not dead"
-      autoremove_three_min
+      echo "Error: The latest handshake has been updated, so connection is not dead. Restarting this unit..."
+      systemctl restart "$unit"
+      exit 0
     fi
     sleep "$wait_time"
     if [ "$tries" -gt 0 ]; then
@@ -158,17 +47,13 @@ recover() {
 }
 
 remove_interface() {
-  if ! { ip link show "$interface"; } > /dev/null 2>&1; then
+  if ! interface_exists; then
     echo "Interface $interface does not exist"
     exit 0
   fi
   echo "Removing interface $interface"
-  (
-    flock 9
-    wirescale down "$interface"
-  ) 9> "$lockfile"
-
-  rm -rf "$lockfile" "$flag_file_fail" "$flag_file_stop"
+  wirescale down "$interface"
+  rm -rf "$flag_file_fail" "$flag_file_stop"
 }
 
 autoremove() {
@@ -186,66 +71,38 @@ autoremove() {
   iptables=${12}
   recover_tries=${13}
   recreate_tries=${14}
-  stop_after=$((60 * 75))
-  lockfile="/run/wirescale/control/locker-$interface"
   flag_file_fail="/run/wirescale/control/$interface-fail"
   flag_file_stop="/run/wirescale/control/$interface-stop"
+  unit=$(ps -o unit= -p "$$")
   export interface suffix ts_ip remote_pubkey wg_ip running_in_remote local_port remote_interface
-  export remote_port iptables recover_tries recreate_tries stop_after lockfile flag_file_fail flag_file_stop
+  export remote_port iptables recover_tries recreate_tries flag_file_fail flag_file_stop unit
 
-  start_time_func=$(date +%s)
   last_received=0
 
   rm -rf "$flag_file_fail" "$flag_file_stop"
 
-  if [ "$nat" -eq 0 ]; then
-    autoremove_three_min
+  ping_periodic &
+
+  if [ "$nat" -eq 1 ]; then
+    wirescale keepalive "$interface" &
   fi
 
-  ping_keepalive "$start_time" &
-
-  assure_keepalive "$start_time" &
-
-  sleep "$(calculate_sleep_time "$start_time")" # A pause to synchronize both peers and let them have sufficient time for proper setup
-
-  while { ip link show "$interface"; } > /dev/null 2>&1; do
-    if [ $(($(date +%s) - start_time_func)) -ge "$stop_after" ]; then
-      echo "Terminating the primary autoremove function, as over 75 minutes have elapsed since the script began"
-      autoremove_three_min
-    fi
+  while interface_exists; do
     if ! check_interface_and_file; then
-      echo "Terminating the primary autoremove function, as flag file '$flag_file_stop' exists"
-      autoremove_three_min
+      echo "Terminating autoremove function, as flag file '$flag_file_stop' exists"
     fi
     received=$(wg show "$interface" transfer | awk -v pubkey="$remote_pubkey" '$1 == pubkey {print $2}')
     if [ "$received" -gt "$last_received" ]; then
       last_received=$received
     else
       echo "Connection appears to be broken..."
-      if latest_handshake_less_than "$interface" "$remote_pubkey" 10; then
-        echo "...but the latest handshake was less than ten seconds ago, so won't do anything for now"
-      else
-        touch "$flag_file_fail"
-        break
-      fi
+      touch "$flag_file_fail"
+      break
     fi
-    sleep 30
+    sleep 20
   done
 
   finish
-}
-
-autoremove_three_min() {
-  echo "Launching autoremove function to check for handshakes older than 3 minutes"
-  while { ip link show "$interface"; } > /dev/null 2>&1; do
-    if ! latest_handshake_less_than "$interface" "$remote_pubkey" 150; then
-      echo "Connection broken. More than 2:30 min without handshake"
-      finish
-    fi
-    sleep 15
-  done
-
-  exit 0
 }
 
 finish() {

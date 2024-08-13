@@ -6,12 +6,14 @@ import json
 import sys
 from threading import get_ident
 
+from parallel_utils.thread import create_thread
 from websockets import ConnectionClosedOK
 from websockets.sync.client import unix_connect
 
 from wirescale.communications.common import CONNECTION_PAIRS, SOCKET_PATH
 from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, MessageFields, Messages, UnixMessages
 from wirescale.parsers.args import ARGS
+from wirescale.vpn.keepalive import KeepAliveConfig
 from wirescale.vpn.recover import RecoverConfig
 
 
@@ -60,6 +62,13 @@ class UnixClient:
                         print(message[MessageFields.MESSAGE], flush=True)
                         pair.close_sockets()
                         sys.exit(0)
+
+    @classmethod
+    def keepalive(cls):
+        keepalive = KeepAliveConfig.create_from_autoremove(interface=ARGS.INTERFACE)
+        relay = create_thread(keepalive.run_relay)
+        send_data = create_thread(keepalive.send_random_data)
+        relay.result(), send_data.result()
 
     @classmethod
     def recover(cls):
