@@ -83,10 +83,6 @@ autoremove() {
 
   ping_periodic &
 
-  if [ "$nat" -eq 1 ]; then
-    wirescale keepalive "$interface" &
-  fi
-
   while interface_exists; do
     if ! check_interface_and_file; then
       echo "Terminating autoremove function, as flag file '$flag_file_stop' exists"

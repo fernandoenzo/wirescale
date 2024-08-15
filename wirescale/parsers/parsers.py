@@ -52,8 +52,4 @@ recover_subparser = subparsers.add_parser('recover', formatter_class=CustomArgum
                                           help='recover a dropped connection by forcing a new hole punching.\nIntended for internal use only')
 recover_subparser.add_argument('interface', type=check_existing_conf_and_systemd, help='local WireGuard interface to recover')
 
-keepalive_subparser = subparsers.add_parser('keepalive', formatter_class=CustomArgumentFormatter,
-                                            help='keep the connection active by periodically sending packets through the established UDP link.\nIntended for internal use only')
-keepalive_subparser.add_argument('interface', type=check_existing_conf_and_systemd, help='local WireGuard interface to keep alive')
-
 top_parser.add_argument('--version', '-v', help='print version information and exit', action='version', version=version_msg)

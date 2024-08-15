@@ -17,7 +17,6 @@ class ARGS:
     DOWN: Path = None
     INTERFACE: str = None
     IPTABLES: bool = None
-    KEEPALIVE: bool = None
     LATEST_HANDSHAKE: int = None
     PAIR: ConnectionPair = None
     RECOVER: bool = None
@@ -34,7 +33,6 @@ def parse_args():
     args = vars(top_parser.parse_args())
     ARGS.DAEMON = args.get('opt') == 'daemon'
     ARGS.DOWN = args.get('opt') == 'down'
-    ARGS.KEEPALIVE = args.get('opt') == 'keepalive'
     ARGS.RECOVER = args.get('opt') == 'recover'
     ARGS.UPGRADE = args.get('opt') == 'upgrade'
     ARGS.START = args.get('command') == 'start'
@@ -51,8 +49,6 @@ def parse_args():
         ARGS.SUFFIX_NUMBER = args.get('suffix_number')
         if ARGS.SUFFIX_NUMBER is not None:
             ARGS.ALLOW_SUFFIX = False
-    if ARGS.KEEPALIVE:
-        ARGS.INTERFACE = args.get('interface')
     if ARGS.RECOVER:
         ARGS.INTERFACE = args.get('interface')
         ARGS.LATEST_HANDSHAKE = get_latest_handshake(ARGS.INTERFACE)

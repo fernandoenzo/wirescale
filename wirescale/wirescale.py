@@ -72,18 +72,14 @@ def main():
             UnixClient.stop()
     elif ARGS.UPGRADE:
         UnixClient.upgrade()
-    elif ARGS.KEEPALIVE or ARGS.RECOVER:
+    elif ARGS.RECOVER:
         check_root()
         main_pid = subprocess.run(['systemctl', 'show', '-p', 'MainPID', f'autoremove-{ARGS.INTERFACE}.service'], capture_output=True, text=True).stdout.strip()
         main_pid = int(main_pid.replace('MainPID=', ''))
         systemd_exec_pid = int(os.environ.get('SYSTEMD_EXEC_PID', default=-1))
         if main_pid == 0 or systemd_exec_pid == -1 or main_pid != os.getpgid(os.getpid()) or os.getpgid(systemd_exec_pid) != os.getpgid(os.getpid()):
-            error = ErrorMessages.KEEPALIVE_SYSTEMD if ARGS.KEEPALIVE else ErrorMessages.RECOVER_SYSTEMD
-            ErrorMessages.send_error_message(local_message=error)
-        if ARGS.KEEPALIVE:
-            UnixClient.keepalive()
-        else:
-            UnixClient.recover()
+            ErrorMessages.send_error_message(local_message=ErrorMessages.RECOVER_SYSTEMD)
+        UnixClient.recover()
     elif ARGS.DOWN:
         subprocess.run(['wg-quick', 'down', str(ARGS.CONFIGFILE)], text=True)
     else:
