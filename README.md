@@ -41,7 +41,6 @@ and Tailscale’s unbeatable udp hole-punching capabilities to create a robust, 
 - `ping`
 - `pipx >= 1.1.0`
 - `python >= 3.11`
-- `socat >= 1.7.4`
 - `systemd >= 252`
 - `tailscale >= 1.60`
 
@@ -79,7 +78,7 @@ greatest version of Wirescale!
 Don't forget to reload and restart the `wirescaled.service` unit once the upgrade is completed:
 
 ```commandline
-~ $ systemctl reload wirescaled.service
+~ $ systemctl daemon-reload
 ~ $ systemctl restart wirescaled.service
 ```
 
