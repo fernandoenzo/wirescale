@@ -79,7 +79,7 @@ Don't forget to reload and restart the `wirescaled.service` unit once the upgrad
 
 ```commandline
 ~ $ systemctl daemon-reload
-~ $ systemctl restart wirescaled.service
+~ $ systemctl restart wirescaled.socket wirescaled.service
 ```
 
 ### Uninstall
@@ -269,9 +269,8 @@ is essential for establishing a direct connection between the two machines. Howe
 is being relayed through a DERP server, `wirescale` will NOT set up a tunnel between the machines. This ensures that Wirescale only establishes connections when
 a direct peer-to-peer link is possible
 
-Moreover, this systemd unit will actively try to keep the routers from closing the connection by sending small periodic packets using both `ping` and `socat`.
-Therefore, it’s mandatory to have these two utilities installed on your system. For the first 75 minutes after the connection is established, `ping` and `socat`
-will work together to “assure” the connection and ensure it can last indefinitely without interference from the routers.
+Moreover, this systemd unit will actively try to keep the routers from closing the connection by sending small periodic packets. Therefore, it’s mandatory to
+have `ping` available on your system.
 
 ### The `[Wirescale]` section
 

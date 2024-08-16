@@ -46,9 +46,10 @@ keywords = 'wireguard tunnel tunneling vpn tailscale secure networking mesh p2p 
 python_requires = '>=3.11'
 
 install_requires = [
-    "cryptography == 42.0.8",
+    "cryptography == 43.0.0",
     "netifaces == 0.11.0",
     "parallel-utils == 1.3.1",
+    "scapy == 2.5.0",
     "websockets == 12.0",
 ]
 
