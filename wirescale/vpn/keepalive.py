@@ -2,16 +2,18 @@
 # encoding:utf-8
 
 
-import logging
 import random
 import subprocess
+import warnings
 from datetime import datetime
 from ipaddress import IPv4Address
 from pathlib import Path
 from time import sleep
 
-logging.getLogger("scapy").setLevel(logging.CRITICAL)
-from scapy.all import IP, Raw, send, UDP
+from cryptography.utils import CryptographyDeprecationWarning
+
+with warnings.catch_warnings(action="ignore", category=CryptographyDeprecationWarning):
+    from scapy.all import IP, Raw, send, UDP
 
 from wirescale.communications.systemd import Systemd
 
