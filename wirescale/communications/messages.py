@@ -284,6 +284,7 @@ class Messages:
     EXCLUSIVE_SEMAPHORE_RECOVER = "The recover request to peer '{peer_name}' ({peer_ip}) for interface '{interface}' has acquired the exclusive semaphore"
     EXCLUSIVE_SEMAPHORE_REMOTE = "Request coming from peer '{peer_name}' ({peer_ip}) has acquired the exclusive semaphore"
     EXCLUSIVE_SEMAPHORE_UPGRADE = "The upgrade request for the peer '{peer_name}' ({peer_ip}) has acquired the exclusive semaphore"
+    FINISH_KEEPALIVE = "Finishing keepalive packet transmission"
     NEW_UNIX_INCOMING = 'New local UNIX connection incoming'
     NEXT_INCOMING = "Request coming from peer '{peer_name}' ({peer_ip}) is the next one in the processing queue"
     NEXT_RECOVER = "The recover request to peer '{peer_name}' ({peer_ip}) for interface '{interface}' is the next one in the processing queue"
@@ -291,6 +292,7 @@ class Messages:
     REACHABLE = "Peer '{peer_name}' ({peer_ip}) is reachable"
     RECOVER_SUCCES = "Success! WireGuard connection through interface '{interface}' is working again"
     SHUTDOWN_SET = 'The server has been set to shut down'
+    START_KEEPALIVE = "Starting keepalive packet transmission"
     START_PROCESSING_FROM = "Starting to process the {{action}} request coming from peer '{peer_name}' ({peer_ip})"
     START_PROCESSING_REMOTE = "Remote peer '{sender_name}' ({sender_ip}) has started to process our {{action}} request"
     START_PROCESSING_TO = "Starting to process the upgrade request for the peer '{peer_name}' ({peer_ip})"

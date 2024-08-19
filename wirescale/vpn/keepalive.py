@@ -12,6 +12,8 @@ from time import sleep
 
 from cryptography.utils import CryptographyDeprecationWarning
 
+from wirescale.communications.messages import Messages
+
 with warnings.catch_warnings(action="ignore", category=CryptographyDeprecationWarning):
     from scapy.all import IP, Raw, send, UDP
 
@@ -52,9 +54,10 @@ class KeepAliveConfig:
 
     def send_random_data(self):
         self.wait_until_next_occurrence()
-        print('Starting keepalive packet transmission', flush=True)
+        Messages.send_info_message(local_message=Messages.START_KEEPALIVE, send_to_local=False)
+        total_iterations = 6
         i = 1
-        while not (self.flag_file_fail.exists() or self.flag_file_stop.exists()) and i <= 6:
+        while not (self.flag_file_fail.exists() or self.flag_file_stop.exists()) and i <= total_iterations:
             count_packets = random.randint(4, 10)
             for p in range(count_packets):
                 count_size = random.randint(4, 10)
@@ -64,4 +67,4 @@ class KeepAliveConfig:
                 print(f'Packet of {count_size} KiB sent ({p + 1}/{count_packets}) [{i}]', flush=True)
             i += 1
             sleep(random.uniform(5 * 60, 10 * 60))
-        print('Finishing keepalive packet transmission', flush=True)
+        Messages.send_info_message(local_message=Messages.FINISH_KEEPALIVE, send_to_local=False)
