@@ -64,7 +64,7 @@ class KeepAliveConfig:
                 random_data = random.randbytes(count_size * 1024)
                 packet = IP(dst=str(self.remote_ip)) / UDP(sport=self.local_port, dport=self.remote_port) / Raw(load=random_data)
                 send(packet, verbose=False)
-                print(f'Packet of {count_size} KiB sent ({p + 1}/{count_packets}) [{i}]', flush=True)
+                print(f'Packet of {count_size} KiB sent ({p + 1}/{count_packets}) [{i}/{total_iterations}]', flush=True)
             i += 1
             sleep(random.uniform(5 * 60, 10 * 60))
         Messages.send_info_message(local_message=Messages.FINISH_KEEPALIVE, send_to_local=False)
