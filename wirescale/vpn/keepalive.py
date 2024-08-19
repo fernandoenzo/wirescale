@@ -52,10 +52,16 @@ class KeepAliveConfig:
 
     def send_random_data(self):
         self.wait_until_next_occurrence()
-        while not (self.flag_file_fail.exists() or self.flag_file_stop.exists()):
-            count = random.randint(4, 10)
-            random_data = random.randbytes(count * 1024)
-            packet = IP(dst=str(self.remote_ip)) / UDP(sport=self.local_port, dport=self.remote_port) / Raw(load=random_data)
-            send(packet, verbose=False)
-            sleep(20)
-        print('Finishing keepalive packet transmission')
+        print('Starting keepalive packet transmission', flush=True)
+        i = 1
+        while not (self.flag_file_fail.exists() or self.flag_file_stop.exists()) and i <= 6:
+            count_packets = random.randint(4, 10)
+            for p in range(count_packets):
+                count_size = random.randint(4, 10)
+                random_data = random.randbytes(count_size * 1024)
+                packet = IP(dst=str(self.remote_ip)) / UDP(sport=self.local_port, dport=self.remote_port) / Raw(load=random_data)
+                send(packet, verbose=False)
+                print(f'Packet of {count_size} KiB sent ({p + 1}/{count_packets}) [{i}]', flush=True)
+            i += 1
+            sleep(random.uniform(5 * 60, 10 * 60))
+        print('Finishing keepalive packet transmission', flush=True)
