@@ -36,7 +36,7 @@ recover() {
       echo "Error: The other peer is currently unreachable. Will try again in $wait_time seconds..."
     elif [ "$status" -eq 5 ]; then
       echo "The latest handshake has been updated, so connection is not dead. Restarting this unit..."
-      autoremove &
+      autoremove
       exit 0
     fi
     sleep "$wait_time"
@@ -81,7 +81,7 @@ start() {
   if [ "$nat" -eq 1 ]; then
     wirescale keepalive "$interface" &
   fi
-  autoremove &
+  autoremove
 }
 
 autoremove() {
