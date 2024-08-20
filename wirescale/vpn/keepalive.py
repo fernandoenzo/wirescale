@@ -29,7 +29,6 @@ class KeepAliveConfig:
         self.remote_port: int = remote_port
         self.running_in_remote: bool = running_in_remote
         self.start_time: int = start_time
-        self.flag_file_fail = Path(f'/run/wirescale/control/{self.interface}-fail')
         self.flag_file_stop = Path(f'/run/wirescale/control/{self.interface}-stop')
 
     @classmethod
@@ -58,7 +57,7 @@ class KeepAliveConfig:
         total_iterations = 6
         sleep_time, sleep_message = None, None
         i = 1
-        while not (self.flag_file_fail.exists() or self.flag_file_stop.exists()) and i <= total_iterations:
+        while not self.flag_file_stop.exists() and i <= total_iterations:
             if sleep_time is not None:
                 Messages.send_info_message(local_message=sleep_message, send_to_local=False)
                 sleep(sleep_time)
