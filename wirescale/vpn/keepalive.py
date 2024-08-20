@@ -56,10 +56,12 @@ class KeepAliveConfig:
         self.wait_until_next_occurrence()
         Messages.send_info_message(local_message=Messages.START_KEEPALIVE, send_to_local=False)
         total_iterations = 6
-        sleep_time = 0
+        sleep_time, sleep_message = None, None
         i = 1
         while not (self.flag_file_fail.exists() or self.flag_file_stop.exists()) and i <= total_iterations:
-            sleep(sleep_time)
+            if sleep_time is not None:
+                Messages.send_info_message(local_message=sleep_message, send_to_local=False)
+                sleep(sleep_time)
             count_packets = random.randint(4, 10)
             for p in range(count_packets):
                 count_size = random.randint(4, 10)
@@ -72,5 +74,4 @@ class KeepAliveConfig:
             minutes = int(sleep_time // 60)
             seconds = int(sleep_time % 60)
             sleep_message = f'Sleeping for {minutes} min {seconds} s'
-            Messages.send_info_message(local_message=sleep_message, send_to_local=False)
         Messages.send_info_message(local_message=Messages.FINISH_KEEPALIVE, send_to_local=False)
