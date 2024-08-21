@@ -70,7 +70,7 @@ class KeepAliveConfig:
     def send_random_data(self):
         self.wait_until_next_occurrence()
         Messages.send_info_message(local_message=Messages.START_KEEPALIVE, send_to_local=False)
-        total_iterations = 6
+        total_iterations = 10
         sleep_time, sleep_message = None, None
         i = 1
         while not self.flag_file_stop.exists() and i <= total_iterations:
