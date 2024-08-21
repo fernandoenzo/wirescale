@@ -2,6 +2,7 @@
 # encoding:utf-8
 
 
+import json
 import random
 import subprocess
 import warnings
@@ -12,7 +13,7 @@ from time import sleep
 
 from cryptography.utils import CryptographyDeprecationWarning
 
-from wirescale.communications.messages import Messages
+from wirescale.communications.messages import ErrorMessages, Messages
 
 with warnings.catch_warnings(action="ignore", category=CryptographyDeprecationWarning):
     from scapy.all import IP, Raw, send, UDP
@@ -50,6 +51,21 @@ class KeepAliveConfig:
         target_second = (self.start_time if not self.running_in_remote else self.start_time + 10) % 60
         wait_time = (target_second - current_second) % 60
         sleep(wait_time)
+
+    def read_mtu(self) -> int:
+        res = subprocess.run(['ip', '--json', 'link', 'show', self.interface], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='utf-8')
+        if res.returncode != 0:
+            error_message = ErrorMessages.INTERFACE_NOT_FOUND.format(interface=self.interface)
+            ErrorMessages.send_error_message(local_message=error_message, send_to_local=False)
+        res = json.loads(res.stdout)[0]
+        return res['mtu']
+
+    def set_mtu(self, mtu: int):
+        command = ['ip', 'link', 'set', 'dev', self.interface, 'mtu', str(mtu)]
+        p = subprocess.run(command)
+        if p.returncode != 0:
+            error_message = ErrorMessages.MTU_NOT_CHANGED.format(interface=self.interface, mtu=mtu)
+            ErrorMessages.send_error_message(local_message=error_message, send_to_local=False)
 
     def send_random_data(self):
         self.wait_until_next_occurrence()
