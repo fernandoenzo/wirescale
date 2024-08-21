@@ -78,8 +78,8 @@ greatest version of Wirescale!
 Don't forget to reload and restart the `wirescaled.service` unit once the upgrade is completed:
 
 ```commandline
-~ $ systemctl daemon-reload
-~ $ systemctl restart wirescaled.socket wirescaled.service
+~ $ sudo systemctl daemon-reload
+~ $ sudo systemctl restart wirescaled.socket wirescaled.service
 ```
 
 ### Uninstall
