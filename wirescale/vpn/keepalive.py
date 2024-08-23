@@ -74,11 +74,19 @@ class KeepAliveConfig:
             sleep(seconds)
             wait = True
 
+        def print_size(kb: int):
+            mb = kb / 1024
+            if mb >= 1:
+                return f'{mb:.2f} MiB'
+            else:
+                return f'{kb} KiB'
+
         self.wait_until_next_occurrence()
         Messages.send_info_message(local_message=Messages.START_KEEPALIVE, send_to_local=False)
         total_iterations = 8
         sleep_time = None
         for i in range(1, total_iterations + 1):
+            counter, total_size = 0, 0
             if self.flag_file_stop.exists():
                 break
             if sleep_time is not None:
@@ -87,12 +95,15 @@ class KeepAliveConfig:
                 sleep(sleep_time)
             seconds = 10 if i < total_iterations else (5 * 60)
             create_thread(flag_after_seconds, seconds)
+            print(f'Start sending random packets ({i}/{total_iterations})', flush=True)
             while not wait:
                 size = random.randint(4, 10)
+                counter += 1
+                total_size += size
                 random_data = random.randbytes(size * 1024)
                 packet = IP(dst=str(self.remote_ip)) / UDP(sport=self.local_port, dport=self.remote_port) / Raw(load=random_data)
                 send(packet, verbose=False)
-                print(f'Packet of {size} KiB sent ({i}/{total_iterations})', flush=True)
+            print(f'Total of {counter} packages sent with a total size of {print_size(total_size)} ({i}/{total_iterations})', flush=True)
             wait = False
             sleep_time = (4 + i) * 60
 
