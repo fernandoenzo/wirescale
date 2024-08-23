@@ -52,7 +52,7 @@ class KeepAliveConfig:
         wait_time = (target_second - current_second) % 60
         sleep(wait_time)
 
-    def read_mtu(self) -> int:
+    def get_mtu(self) -> int:
         res = subprocess.run(['ip', '--json', 'link', 'show', self.interface], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='utf-8')
         if res.returncode != 0:
             error_message = ErrorMessages.INTERFACE_NOT_FOUND.format(interface=self.interface)
