@@ -12,6 +12,7 @@ from pathlib import Path
 from time import sleep
 
 from cryptography.utils import CryptographyDeprecationWarning
+from parallel_utils.thread import create_thread
 
 from wirescale.communications.messages import ErrorMessages, Messages
 
@@ -47,9 +48,7 @@ class KeepAliveConfig:
         return cls(interface=interface, remote_ip=remote_ip, local_port=local_port, remote_port=remote_port, running_in_remote=running_in_remote, start_time=start_time)
 
     def wait_until_next_occurrence(self):
-        current_second = datetime.now().second
-        target_second = (self.start_time if not self.running_in_remote else self.start_time + 10) % 60
-        wait_time = (target_second - current_second) % 60
+        wait_time = (self.start_time - datetime.now().second) % 60
         sleep(wait_time)
 
     def get_mtu(self) -> int:
@@ -68,25 +67,33 @@ class KeepAliveConfig:
             ErrorMessages.send_error_message(local_message=error_message, send_to_local=False)
 
     def send_random_data(self):
+        wait: bool = False
+
+        def flag_after_seconds(seconds: int):
+            nonlocal wait
+            sleep(seconds)
+            wait = True
+
         self.wait_until_next_occurrence()
         Messages.send_info_message(local_message=Messages.START_KEEPALIVE, send_to_local=False)
-        total_iterations = 10
-        sleep_time, sleep_message = None, None
-        i = 1
-        while not self.flag_file_stop.exists() and i <= total_iterations:
+        total_iterations = 8
+        sleep_time = None
+        for i in range(1, total_iterations + 1):
+            if self.flag_file_stop.exists():
+                break
             if sleep_time is not None:
+                sleep_message = Messages.SLEEP.format(minutes=(sleep_time // 60))
                 Messages.send_info_message(local_message=sleep_message, send_to_local=False)
                 sleep(sleep_time)
-            count_packets = random.randint(4, 10)
-            for p in range(count_packets):
-                count_size = random.randint(4, 10)
-                random_data = random.randbytes(count_size * 1024)
+            seconds = 10 if i < total_iterations else (5 * 60)
+            create_thread(flag_after_seconds, seconds)
+            while not wait:
+                size = random.randint(4, 10)
+                random_data = random.randbytes(size * 1024)
                 packet = IP(dst=str(self.remote_ip)) / UDP(sport=self.local_port, dport=self.remote_port) / Raw(load=random_data)
                 send(packet, verbose=False)
-                print(f'Packet of {count_size} KiB sent ({p + 1}/{count_packets}) [{i}/{total_iterations}]', flush=True)
-            i += 1
-            sleep_time = random.uniform(5 * 60, 10 * 60)
-            minutes = int(sleep_time // 60)
-            seconds = int(sleep_time % 60)
-            sleep_message = f'Sleeping for {minutes} min {seconds} s'
+                print(f'Packet of {size} KiB sent ({i}/{total_iterations})', flush=True)
+            wait = False
+            sleep_time = (4 + i) * 60
+
         Messages.send_info_message(local_message=Messages.FINISH_KEEPALIVE, send_to_local=False)

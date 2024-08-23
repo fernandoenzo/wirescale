@@ -292,6 +292,7 @@ class Messages:
     REACHABLE = "Peer '{peer_name}' ({peer_ip}) is reachable"
     RECOVER_SUCCES = "Success! WireGuard connection through interface '{interface}' is working again"
     SHUTDOWN_SET = 'The server has been set to shut down'
+    SLEEP = 'Sleeping for {minutes} minutes'
     START_KEEPALIVE = "Starting keepalive packet transmission"
     START_PROCESSING_FROM = "Starting to process the {{action}} request coming from peer '{peer_name}' ({peer_ip})"
     START_PROCESSING_REMOTE = "Remote peer '{sender_name}' ({sender_ip}) has started to process our {{action}} request"
