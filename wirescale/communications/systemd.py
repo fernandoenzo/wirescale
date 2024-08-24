@@ -7,7 +7,7 @@ import subprocess
 from ipaddress import IPv4Address
 from threading import get_ident
 from time import sleep
-from typing import Tuple, TYPE_CHECKING, Union
+from typing import Tuple, Type, TYPE_CHECKING, Union
 
 from wirescale.communications.common import CONNECTION_PAIRS
 
@@ -18,6 +18,41 @@ if TYPE_CHECKING:
 
 
 class Systemd:
+    def __init__(self):
+        self.interface: str = None
+        self.suffix: int = None
+        self.ts_ip: IPv4Address = None
+        self.remote_pubkey: str = None
+        self.wg_ip: IPv4Address = None
+        self.running_in_remote: bool = None
+        self.start_time: int = None
+        self.local_port: int = None
+        self.nat: bool = None
+        self.remote_interface: str = None
+        self.remote_local_port: int = None
+        self.iptables: bool = None
+        self.recover_tries: int = None
+        self.recreate_tries: int = None
+
+    @classmethod
+    def create_from_autoremove(cls, unit: str) -> 'Systemd':
+        args = cls.parse_args(unit)
+        res = cls()
+        res.interface = args[1]
+        res.suffix = int(args[2])
+        res.ts_ip = IPv4Address(args[3])
+        res.remote_pubkey = args[4]
+        res.wg_ip = IPv4Address(args[5])
+        res.running_in_remote = bool(int(args[6]))
+        res.start_time = int(args[7])
+        res.local_port = int(args[8])
+        res.nat = bool(int(args[9]))
+        res.remote_interface = args[10]
+        res.remote_local_port = int(args[11])
+        res.iptables = bool(int(args[12]))
+        res.recover_tries = int(args[13])
+        res.recreate_tries = int(args[14])
+        return res
 
     @classmethod
     def check_active(cls, unit: str):

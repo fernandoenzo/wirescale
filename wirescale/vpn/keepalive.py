@@ -36,16 +36,12 @@ class KeepAliveConfig:
     @classmethod
     def create_from_autoremove(cls, interface: str):
         unit = f'autoremove-{interface}'
-        args = Systemd.parse_args(unit=unit)
-        running_in_remote = bool(int(args[6]))
-        remote_pubkey = args[4]
-        local_port = int(subprocess.run(['wg', 'show', interface, 'listen-port'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='utf-8').stdout.strip())
+        systemd = Systemd.create_from_autoremove(unit=unit)
         endpoints = subprocess.run(['wg', 'show', interface, 'endpoints'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='utf-8').stdout
-        endpoint = endpoints.split(remote_pubkey)[1].split()[0]
+        endpoint = endpoints.split(systemd.remote_pubkey)[1].split()[0]
         remote_ip = IPv4Address(endpoint.split(':')[0])
         remote_port = int(endpoint.split(':')[1])
-        start_time = int(args[7])
-        return cls(interface=interface, remote_ip=remote_ip, local_port=local_port, remote_port=remote_port, running_in_remote=running_in_remote, start_time=start_time)
+        return cls(interface=interface, remote_ip=remote_ip, local_port=systemd.local_port, remote_port=remote_port, running_in_remote=systemd.running_in_remote, start_time=systemd.start_time)
 
     def wait_until_next_occurrence(self):
         wait_time = (self.start_time - datetime.now().second) % 60
