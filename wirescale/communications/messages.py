@@ -45,7 +45,6 @@ class MessageFields(StrEnum):
     REMOTE_INTERFACE = auto()
     REMOTE_PORT = auto()
     REMOTE_PUBKEY = auto()
-    RESTART_ON_FAIL = auto()
     START_TIME = auto()
     SUFFIX_NUMBER = auto()
     TOKEN = auto()
@@ -201,7 +200,6 @@ class TCPMessages:
             MessageFields.PUBLIC_IP: str(recover.endpoint[0]),
             MessageFields.REMOTE_INTERFACE: recover.interface,
             MessageFields.REMOTE_PORT: recover.new_port,
-            MessageFields.RESTART_ON_FAIL: recover.restart_on_fail,
         }
         encrypted = json.dumps(encrypted)
         res[MessageFields.ENCRYPTED] = recover.encrypt(encrypted)
@@ -246,7 +244,6 @@ class TCPMessages:
         recover.latest_handshake = message[MessageFields.LATEST_HANDSHAKE]
         recover.remote_local_port = message[MessageFields.REMOTE_PORT]
         recover.remote_interface = message[MessageFields.REMOTE_INTERFACE]
-        recover.restart_on_fail = message[MessageFields.RESTART_ON_FAIL]
         check_recover_config(recover)
         recover.nat = check_behind_nat(IPv4Address(message[MessageFields.PUBLIC_IP]))
         return recover
@@ -390,7 +387,6 @@ class ErrorMessages:
     REMOTE_PORT_MISMATCH = "Error: WireGuard interface '{interface}' is not listening on local port {port} in remote peer '{peer_name}' ({peer_ip})"
     REMOTE_RUNFILE_MISSING = "Error: File '/run/wirescale/{interface}.conf' does not exist or is not a regular file in remote peer '{my_name}' ({my_ip})"
     REMOTE_WG_INTERFACE_MISSING = "Error: Remote peer '{my_name}' ({my_ip}) does not have a WireGuard interface named '{interface}'"
-    RESTART_UNIT = "Restarting systemd unit 'autoremove-{interface}'"
     RUNFILE_MISSING = "Error: File '/run/wirescale/{interface}.conf' does not exist or is not a regular file"
     ROOT_SYSTEMD = "Error: Wirescale daemon must be managed by root's systemd"
     SOCKET_REMOTE_ERROR = "Error: Remote peer '{peer_name}' ({peer_ip}) has closed the connection. Aborting pending operations"

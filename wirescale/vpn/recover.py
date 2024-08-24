@@ -31,7 +31,7 @@ from wirescale.vpn.tsmanager import TSManager
 class RecoverConfig:
 
     def __init__(self, interface: str, iptables: bool, running_in_remote: bool, latest_handshake: int, current_port: int, recover_tries: int,
-                 recreate_tries: int, remote_interface: str, remote_local_port: int, restart_on_fail: bool, suffix: int, wg_ip: IPv4Address):
+                 recreate_tries: int, remote_interface: str, remote_local_port: int, suffix: int, wg_ip: IPv4Address):
         self.current_port: int = current_port
         self.derived_key: bytes = None
         self.endpoint: Tuple[IPv4Address, int] = None
@@ -51,7 +51,6 @@ class RecoverConfig:
         self.remote_local_port: int = remote_local_port
         self.remote_pubkey: X25519PublicKey = None
         self.remote_pubkey_str: str = None
-        self.restart_on_fail: bool = restart_on_fail
         self.psk: bytes = None
         self.shared_key: bytes = None
         self.start_time: int = datetime.now().second
@@ -67,8 +66,6 @@ class RecoverConfig:
         pair = CONNECTION_PAIRS.get(get_ident())
         unit = f'autoremove-{interface}'
         systemd = Systemd.create_from_autoremove(unit=unit)
-        restart_on_fail = Path(f'/run/wirescale/control/{interface}-fail')
-        restart_on_fail = restart_on_fail.is_file()
         pair = pair or ConnectionPair(caller=TSManager.my_ip(), receiver=systemd.ts_ip)
         if systemd.ts_ip != pair.peer_ip:
             error = ErrorMessages.IP_MISMATCH.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface, autoremove_ip=systemd.ts_ip)
@@ -76,7 +73,7 @@ class RecoverConfig:
             ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
         recover = RecoverConfig(interface=interface, latest_handshake=latest_handshake, running_in_remote=systemd.running_in_remote, iptables=systemd.iptables, wg_ip=systemd.wg_ip,
                                 current_port=systemd.local_port, recover_tries=systemd.recover_tries, recreate_tries=systemd.recreate_tries, remote_interface=systemd.remote_interface,
-                                remote_local_port=systemd.remote_local_port, restart_on_fail=restart_on_fail, suffix=systemd.suffix)
+                                remote_local_port=systemd.remote_local_port, suffix=systemd.suffix)
         recover.config_file = check_configfile()
         recover.load_keys()
         with file_locker():
