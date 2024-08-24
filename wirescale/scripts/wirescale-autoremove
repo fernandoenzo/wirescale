@@ -35,7 +35,7 @@ recover() {
     elif [ "$status" -eq 4 ]; then
       echo "Error: The other peer is currently unreachable. Will try again in $wait_time seconds..."
     elif [ "$status" -eq 5 ]; then
-      echo "The latest handshake has been updated, so connection is not dead. Restarting this unit..."
+      echo "The latest handshake has been updated, so connection is not dead"
       autoremove
       exit 0
     fi
