@@ -56,6 +56,38 @@ remove_interface() {
   rm -rf "$flag_file_stop"
 }
 
+finish() {
+  recover
+  remove_interface
+  if [ "$recreate_tries" -ne 0 ]; then
+    echo "Launching a unit to create a new tunnel with the same settings"
+    systemd-run -u recreate-"$interface" /bin/sh /run/wirescale/wirescale-autoremove new_upgrade "$interface" "$suffix" "$ts_ip" \
+      "$remote_interface" "$iptables" "$recover_tries" "$recreate_tries"
+  fi
+  exit 0
+}
+
+autoremove() {
+  rm -rf "$flag_file_stop"
+  last_received=0
+  while interface_exists; do
+    if [ -f "$flag_file_stop" ]; then
+      echo "Terminating autoremove function, as flag file '$flag_file_stop' exists"
+      exit 0
+    fi
+    received=$(wg show "$interface" transfer | awk -v pubkey="$remote_pubkey" '$1 == pubkey {print $2}')
+    if [ "$received" -gt "$last_received" ]; then
+      last_received=$received
+    else
+      echo "Connection appears to be broken..."
+      break
+    fi
+    sleep 20
+  done
+
+  finish
+}
+
 start() {
   interface=$1
   suffix=$2
@@ -82,38 +114,6 @@ start() {
     wirescale keepalive "$interface" &
   fi
   autoremove
-}
-
-autoremove() {
-  rm -rf "$flag_file_stop"
-  last_received=0
-  while interface_exists; do
-    if [ -f "$flag_file_stop" ]; then
-      echo "Terminating autoremove function, as flag file '$flag_file_stop' exists"
-      exit 0
-    fi
-    received=$(wg show "$interface" transfer | awk -v pubkey="$remote_pubkey" '$1 == pubkey {print $2}')
-    if [ "$received" -gt "$last_received" ]; then
-      last_received=$received
-    else
-      echo "Connection appears to be broken..."
-      break
-    fi
-    sleep 20
-  done
-
-  finish
-}
-
-finish() {
-  recover
-  remove_interface
-  if [ "$recreate_tries" -ne 0 ]; then
-    echo "Launching a unit to create a new tunnel with the same settings"
-    systemd-run -u recreate-"$interface" /bin/sh /run/wirescale/wirescale-autoremove new_upgrade "$interface" "$suffix" "$ts_ip" \
-      "$remote_interface" "$iptables" "$recover_tries" "$recreate_tries"
-  fi
-  exit 0
 }
 
 new_upgrade() {
