@@ -281,7 +281,6 @@ class Messages:
     EXCLUSIVE_SEMAPHORE_RECOVER = "The recover request to peer '{peer_name}' ({peer_ip}) for interface '{interface}' has acquired the exclusive semaphore"
     EXCLUSIVE_SEMAPHORE_REMOTE = "Request coming from peer '{peer_name}' ({peer_ip}) has acquired the exclusive semaphore"
     EXCLUSIVE_SEMAPHORE_UPGRADE = "The upgrade request for the peer '{peer_name}' ({peer_ip}) has acquired the exclusive semaphore"
-    FINISH_KEEPALIVE = "Finishing keepalive packet transmission"
     NEW_UNIX_INCOMING = 'New local UNIX connection incoming'
     NEXT_INCOMING = "Request coming from peer '{peer_name}' ({peer_ip}) is the next one in the processing queue"
     NEXT_RECOVER = "The recover request to peer '{peer_name}' ({peer_ip}) for interface '{interface}' is the next one in the processing queue"

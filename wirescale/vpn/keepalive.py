@@ -73,4 +73,3 @@ class KeepAliveConfig:
             packet = IP(dst=str(self.remote_ip)) / UDP(sport=self.local_port, dport=self.remote_port) / Raw(load=random_data)
             send(packet, verbose=False)
         print(f'Total of {counter} packages sent with a total size of {print_size(total_size)}', flush=True)
-        Messages.send_info_message(local_message=Messages.FINISH_KEEPALIVE, send_to_local=False)
