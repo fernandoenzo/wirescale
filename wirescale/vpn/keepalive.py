@@ -2,7 +2,6 @@
 # encoding:utf-8
 
 
-import json
 import random
 import subprocess
 import warnings
@@ -14,7 +13,7 @@ from time import sleep
 from cryptography.utils import CryptographyDeprecationWarning
 from parallel_utils.thread import create_thread
 
-from wirescale.communications.messages import ErrorMessages, Messages
+from wirescale.communications.messages import Messages
 
 with warnings.catch_warnings(action="ignore", category=CryptographyDeprecationWarning):
     from scapy.all import IP, Raw, send, UDP
@@ -47,22 +46,7 @@ class KeepAliveConfig:
         wait_time = (self.start_time - datetime.now().second) % 60
         sleep(wait_time)
 
-    def get_mtu(self) -> int:
-        res = subprocess.run(['ip', '--json', 'link', 'show', self.interface], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='utf-8')
-        if res.returncode != 0:
-            error_message = ErrorMessages.INTERFACE_NOT_FOUND.format(interface=self.interface)
-            ErrorMessages.send_error_message(local_message=error_message, send_to_local=False)
-        res = json.loads(res.stdout)[0]
-        return res['mtu']
-
-    def set_mtu(self, mtu: int):
-        command = ['ip', 'link', 'set', 'dev', self.interface, 'mtu', str(mtu)]
-        p = subprocess.run(command)
-        if p.returncode != 0:
-            error_message = ErrorMessages.MTU_NOT_CHANGED.format(interface=self.interface, mtu=mtu)
-            ErrorMessages.send_error_message(local_message=error_message, send_to_local=False)
-
-    def send_random_data(self):
+    def send_random_data(self, duration: int):
         wait: bool = False
 
         def flag_after_seconds(seconds: int):
@@ -79,28 +63,14 @@ class KeepAliveConfig:
 
         self.wait_until_next_occurrence()
         Messages.send_info_message(local_message=Messages.START_KEEPALIVE, send_to_local=False)
-        total_iterations = 8
-        sleep_time = None
-        for i in range(1, total_iterations + 1):
-            counter, total_size = 0, 0
-            if self.flag_file_stop.exists():
-                break
-            if sleep_time is not None:
-                sleep_message = Messages.SLEEP.format(minutes=(sleep_time // 60))
-                Messages.send_info_message(local_message=sleep_message, send_to_local=False)
-                sleep(sleep_time)
-            seconds = 10 if i < total_iterations else (5 * 60)
-            create_thread(flag_after_seconds, seconds)
-            print(f'Start sending random packets ({i}/{total_iterations})', flush=True)
-            while not wait:
-                size = random.randint(4, 10)
-                counter += 1
-                total_size += size
-                random_data = random.randbytes(size * 1024)
-                packet = IP(dst=str(self.remote_ip)) / UDP(sport=self.local_port, dport=self.remote_port) / Raw(load=random_data)
-                send(packet, verbose=False)
-            print(f'Total of {counter} packages sent with a total size of {print_size(total_size)} ({i}/{total_iterations})', flush=True)
-            wait = False
-            sleep_time = (4 + i) * 60
-
+        counter, total_size = 0, 0
+        create_thread(flag_after_seconds, duration)
+        while not wait:
+            size = random.randint(4, 10)
+            counter += 1
+            total_size += size
+            random_data = random.randbytes(size * 1024)
+            packet = IP(dst=str(self.remote_ip)) / UDP(sport=self.local_port, dport=self.remote_port) / Raw(load=random_data)
+            send(packet, verbose=False)
+        print(f'Total of {counter} packages sent with a total size of {print_size(total_size)}', flush=True)
         Messages.send_info_message(local_message=Messages.FINISH_KEEPALIVE, send_to_local=False)

@@ -55,5 +55,6 @@ recover_subparser.add_argument('interface', type=check_existing_conf_and_systemd
 keepalive_subparser = subparsers.add_parser('keepalive', formatter_class=CustomArgumentFormatter,
                                             help='keep the connection active by periodically sending packets through the established UDP link.\nIntended for internal use only')
 keepalive_subparser.add_argument('interface', type=check_existing_conf_and_systemd, help='local WireGuard interface to keep alive')
+keepalive_subparser.add_argument('--duration', type=int, default=10, help='duration to send keepalive packets in seconds', metavar='SECONDS', choices=range(1, 300))
 
 top_parser.add_argument('--version', '-v', help='print version information and exit', action='version', version=version_msg)

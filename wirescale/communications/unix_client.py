@@ -65,7 +65,7 @@ class UnixClient:
     @classmethod
     def keepalive(cls):
         keepalive = KeepAliveConfig.create_from_autoremove(interface=ARGS.INTERFACE)
-        keepalive.send_random_data()
+        keepalive.send_random_data(duration=ARGS.DURATION)
 
     @classmethod
     def recover(cls):

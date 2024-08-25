@@ -8,6 +8,12 @@ check_interface_and_file() {
   interface_exists && [ ! -f "$flag_file_stop" ]
 }
 
+check_elapsed_time() {
+  seconds=$1
+  elapsed_time=$(($(date +%s) - start_time))
+  [ "$elapsed_time" -ge "$seconds" ]
+}
+
 ping_periodic() {
   echo "Starting periodic ping"
   while check_interface_and_file; do
@@ -15,6 +21,23 @@ ping_periodic() {
     sleep 5
   done
   echo "Finishing periodic ping"
+}
+
+keepalive_loop() {
+  fifteen_min=$((15 * 60))
+  while interface_exists; do
+    if ! check_elapsed_time $((1 * 60)); then
+      wirescale keepalive --duration 5 "$interface"
+      sleep "$fifteen_min"
+    elif check_elapsed_time "$fifteen_min" && ! check_elapsed_time $((20 * 60)); then
+      wirescale keepalive --duration 5 "$interface"
+      sleep "$fifteen_min"
+    elif check_elapsed_time $((30 * 60)) && ! check_elapsed_time $((35 * 60)); then
+      wirescale keepalive --duration 5 "$interface"
+      exit 0
+    fi
+    sleep 60 # avoidable
+  done
 }
 
 recover() {
@@ -95,7 +118,7 @@ start() {
   remote_pubkey=$4
   wg_ip=$5
   running_in_remote=$6
-  start_time=$7
+  start_second=$7
   local_port=$8
   nat=$9
   remote_interface=${10}
@@ -104,14 +127,15 @@ start() {
   recover_tries=${13}
   recreate_tries=${14}
   flag_file_stop="/run/wirescale/control/$interface-stop"
+  start_time=$(date +%s)
   unit=$(ps -o unit= -p "$$")
   export interface suffix ts_ip remote_pubkey wg_ip running_in_remote local_port remote_interface
-  export remote_port iptables recover_tries recreate_tries flag_file_stop unit
+  export remote_port start_time iptables recover_tries recreate_tries flag_file_stop unit
 
   rm -rf "$flag_file_stop"
   ping_periodic &
   if [ "$nat" -eq 1 ]; then
-    wirescale keepalive "$interface" &
+    keepalive_loop &
   fi
   autoremove
 }

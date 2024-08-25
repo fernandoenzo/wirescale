@@ -15,6 +15,7 @@ class ARGS:
     CONFIGFILE: str = None
     DAEMON: bool = None
     DOWN: Path = None
+    DURATION: int = None
     INTERFACE: str = None
     IPTABLES: bool = None
     KEEPALIVE: bool = None
@@ -53,6 +54,7 @@ def parse_args():
             ARGS.ALLOW_SUFFIX = False
     if ARGS.KEEPALIVE:
         ARGS.INTERFACE = args.get('interface')
+        ARGS.DURATION = args.get('duration')
     if ARGS.RECOVER:
         ARGS.INTERFACE = args.get('interface')
         ARGS.LATEST_HANDSHAKE = get_latest_handshake(ARGS.INTERFACE)
