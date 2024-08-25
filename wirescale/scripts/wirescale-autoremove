@@ -29,11 +29,17 @@ keepalive_loop() {
     if ! check_elapsed_time $((1 * 60)); then
       wirescale keepalive --duration 5 "$interface"
       sleep "$fifteen_min"
+      continue
     elif check_elapsed_time "$fifteen_min" && ! check_elapsed_time $((20 * 60)); then
       wirescale keepalive --duration 5 "$interface"
       sleep "$fifteen_min"
+      continue
     elif check_elapsed_time $((30 * 60)) && ! check_elapsed_time $((35 * 60)); then
       wirescale keepalive --duration 5 "$interface"
+      sleep $((30 * 60))
+      continue
+    elif check_elapsed_time $((60 * 60)); then
+      echo "An hour has passed"
       exit 0
     fi
     sleep 60 # avoidable
