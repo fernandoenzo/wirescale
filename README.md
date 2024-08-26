@@ -122,9 +122,11 @@ requests for a directed upgrade to another peer.
 Curious about the different modes of operation? Run `wirescale -h` to see them:
 
 - `daemon` mode is launched from the `systemd` unit. Configure it with the options that suit your needs (`wirescale daemon -h` will list them all).
-- `recover` mode is for internal use only, so we won’t go into details here. Just know it’s working hard behind the scenes.
-- `upgrade` mode is where the magic happens, and we’ll dive deeper into this shortly.
-- `down` option is the easiest way to take down a network interface raised with `wirescale`
+- `recover`  option will attempt to re-establish the connection for an interface that has been detected as down, ensuring it reconnects with its peer.
+This option is for internal use only.
+- `upgrade` option is where the magic happens, and we’ll dive deeper into this shortly.
+- `keepalive` option will send small packets to keep an already established tunnel active. This option is for internal use only.
+- `down` option is the easiest way to take down a network interface raised with Wirescale.
 
 ### Upgrading a connection
 
