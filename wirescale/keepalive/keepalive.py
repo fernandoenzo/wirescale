@@ -6,8 +6,8 @@ import subprocess
 from datetime import datetime
 from ipaddress import IPv4Address
 from pathlib import Path
-from time import sleep
 
+import netifaces
 from parallel_utils.thread import create_thread
 
 from wirescale.communications.systemd import Systemd
@@ -37,19 +37,29 @@ class KeepAliveConfig:
 
     def wait_until_next_occurrence(self):
         wait_time = (self.start_time - datetime.now().second) % 60
-        sleep(wait_time)
+        ping.STOP.wait(wait_time)
+
+    def check_interface_and_flag(self):
+        while not ping.STOP.is_set():
+            if self.interface not in netifaces.interfaces() or self.flag_file_stop.exists():
+                ping.STOP.set()
+            ping.STOP.wait(5)
 
     @staticmethod
     def stop_after(duration: int):
-        sleep(duration)
+        ping.STOP.wait(duration)
         ping.STOP.set()
 
     def start(self, duration: int):
         create_thread(self.stop_after, duration)
+        create_thread(self.check_interface_and_flag)
         if self.running_in_remote:
             ping.listen_for_pings(src_ip=self.remote_ip, src_port=self.remote_port, dst_port=self.local_port)
         else:
             self.wait_until_next_occurrence()
             while not ping.STOP.is_set():
-                ping.send_ping(dest_ip=str(self.remote_ip), dest_port=self.remote_port, src_port=self.local_port)
-                sleep(5)
+                try:
+                    ping.send_ping(dest_ip=str(self.remote_ip), dest_port=self.remote_port, src_port=self.local_port)
+                except:
+                    pass
+                ping.STOP.wait(5)
