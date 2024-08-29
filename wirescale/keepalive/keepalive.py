@@ -2,23 +2,16 @@
 # encoding:utf-8
 
 
-import random
 import subprocess
-import warnings
 from datetime import datetime
 from ipaddress import IPv4Address
 from pathlib import Path
 from time import sleep
 
-from cryptography.utils import CryptographyDeprecationWarning
 from parallel_utils.thread import create_thread
 
-from wirescale.communications.messages import Messages
-
-with warnings.catch_warnings(action="ignore", category=CryptographyDeprecationWarning):
-    from scapy.all import IP, Raw, send, UDP
-
 from wirescale.communications.systemd import Systemd
+from wirescale.keepalive import ping
 
 
 class KeepAliveConfig:
@@ -46,30 +39,17 @@ class KeepAliveConfig:
         wait_time = (self.start_time - datetime.now().second) % 60
         sleep(wait_time)
 
-    def send_random_data(self, duration: int):
-        wait: bool = False
+    @staticmethod
+    def stop_after(duration: int):
+        sleep(duration)
+        ping.STOP.set()
 
-        def flag_after_seconds(seconds: int):
-            nonlocal wait
-            sleep(seconds)
-            wait = True
-
-        def print_size(kb: int):
-            mb = kb / 1024
-            if mb >= 1:
-                return f'{mb:.2f} MiB'
-            else:
-                return f'{kb} KiB'
-
-        self.wait_until_next_occurrence()
-        Messages.send_info_message(local_message=Messages.START_KEEPALIVE, send_to_local=False)
-        counter, total_size = 0, 0
-        create_thread(flag_after_seconds, duration)
-        while not wait:
-            size = random.randint(4, 10)
-            counter += 1
-            total_size += size
-            random_data = random.randbytes(size * 1024)
-            packet = IP(dst=str(self.remote_ip)) / UDP(sport=self.local_port, dport=self.remote_port) / Raw(load=random_data)
-            send(packet, verbose=False)
-        print(f'Total of {counter} packages sent with a total size of {print_size(total_size)}', flush=True)
+    def start(self, duration: int):
+        create_thread(self.stop_after, duration)
+        if self.running_in_remote:
+            ping.listen_for_pings(src_ip=self.remote_ip, src_port=self.remote_port, dst_port=self.local_port)
+        else:
+            self.wait_until_next_occurrence()
+            while not ping.STOP.is_set():
+                ping.send_ping(dest_ip=str(self.remote_ip), dest_port=self.remote_port, src_port=self.local_port)
+                sleep(5)
