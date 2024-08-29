@@ -104,11 +104,7 @@ def handle_pong(packet, send_time):
                 if payload[0] == MessageType.PONG:
                     pong = parse_pong(payload)
                     rtt = time.time() - send_time
-                    Messages.send_info_message(local_message=f'Received pong:', send_to_local=False)
-                    Messages.send_info_message(local_message=f'  TX ID: {pong.tx_id.hex()}', send_to_local=False)
-                    Messages.send_info_message(local_message=f'  Source IP: {pong.src[0]}', send_to_local=False)
-                    Messages.send_info_message(local_message=f'  Source Port: {pong.src[1]}', send_to_local=False)
-                    Messages.send_info_message(local_message=f'  Round Trip Time: {rtt:.6f} seconds', send_to_local=False)
+                    Messages.send_info_message(local_message=f'Received pong with TX ID: {pong.tx_id.hex()}, RTT: {rtt:.6f} seconds', send_to_local=False)
         except Exception as e:
             Messages.send_info_message(local_message=f'Error processing pong: {e}', send_to_local=False)
 
@@ -122,14 +118,14 @@ def send_ping(dest_ip: str, dest_port: int, src_port: int):
 
     pkt = IP(dst=dest_ip) / UDP(sport=src_port, dport=dest_port) / Raw(load=ping_message)
 
-    Messages.send_info_message(local_message=f'Sending ping to {dest_ip}:{dest_port}', send_to_local=False)
+    Messages.send_info_message(local_message=f'Sending ping to {dest_ip}:{dest_port} with TX ID: {tx_id.hex()}', send_to_local=False)
     send_time = time.time()
     response = sr1(pkt, timeout=2, verbose=False)
 
     if response:
         handle_pong(response, send_time)
     else:
-        Messages.send_info_message(local_message='No response received', send_to_local=False)
+        Messages.send_info_message(local_message=f'No response received with TX ID: {tx_id.hex()}', send_to_local=False)
 
 
 def handle_packet(packet):
@@ -140,14 +136,14 @@ def handle_packet(packet):
                 _, _, payload = parse_disco_wrapper(data)
                 if payload[0] == MessageType.PING:
                     ping = parse_ping(payload)
-                    Messages.send_info_message(local_message=f'Received ping with tx_id: {ping.tx_id.hex()}', send_to_local=False)
+                    Messages.send_info_message(local_message=f'Received ping with TX ID: {ping.tx_id.hex()}', send_to_local=False)
 
                     # Send pong
                     pong_payload = create_pong(ping.tx_id, (packet[IP].src, packet[UDP].sport))
                     pong_message = create_disco_wrapper(os.urandom(KEY_LEN), os.urandom(NONCE_LEN), pong_payload)
                     pong_pkt = IP(dst=packet[IP].src) / UDP(sport=packet[UDP].dport, dport=packet[UDP].sport) / Raw(load=pong_message)
                     send(pong_pkt, verbose=False)
-                    Messages.send_info_message(local_message=f'Sent pong to {packet[IP].src}:{packet[UDP].sport}', send_to_local=False)
+                    Messages.send_info_message(local_message=f'Sent pong to {packet[IP].src}:{packet[UDP].sport} with TX ID: {ping.tx_id.hex()}', send_to_local=False)
         except Exception as e:
             Messages.send_info_message(local_message=f'Error processing packet: {e}', send_to_local=False)
 

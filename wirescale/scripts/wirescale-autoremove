@@ -14,13 +14,26 @@ check_elapsed_time() {
   [ "$elapsed_time" -ge "$seconds" ]
 }
 
-ping_periodic() {
-  echo "Starting periodic ping"
+ping_wg_periodic() {
+  echo "Initiate a periodic ping to monitor the health of the tunnel"
   while check_interface_and_file; do
     ping -q -I "$interface" -c 2 -W 0.05 "$wg_ip" > /dev/null 2>&1
     sleep 5
   done
-  echo "Finishing periodic ping"
+  echo "End the periodic ping to discontinue monitoring the tunnel's health"
+}
+
+ping_python() {
+  minutes=62
+  msg_start="Starting periodic ping to keep the hole punching alive for the next $minutes minutes"
+  msg_stop="Stopping periodic ping to end the hole punching maintenance"
+  if [ "$running_in_remote" -eq 1 ]; then
+    msg_start="Listening for periodic pings to keep the hole punching alive for the next $minutes minutes"
+    msg_stop="Stopping listening for periodic pings to cease maintaining the hole punching"
+  fi
+  echo "$msg_start"
+  wirescale keepalive --duration $((minutes * 60)) "$interface"
+  echo "$msg_stop"
 }
 
 recover() {
@@ -116,9 +129,9 @@ start() {
   export remote_port start_time iptables recover_tries recreate_tries flag_file_stop unit
 
   rm -rf "$flag_file_stop"
-  ping_periodic &
+  ping_wg_periodic &
   if [ "$nat" -eq 1 ]; then
-    wirescale keepalive --duration $((62 * 60)) "$interface" &
+    ping_python &
   fi
   autoremove
 }
