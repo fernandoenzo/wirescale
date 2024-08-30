@@ -39,6 +39,7 @@ class WGConfig:
         self.remote_addresses: FrozenSet[IPv4Address | IPv6Address] = None
         self.private_key = self.get_field('Interface', 'PrivateKey') or self.generate_wg_privkey()
         self.listen_port = TSManager.local_port()
+        self.listen_ext_port: int = None
         self.endpoint: Tuple[IPv4Address, int] = None
         self.table = self.get_field('Interface', 'Table')
         self.mtu = self.get_field('Interface', 'MTU')

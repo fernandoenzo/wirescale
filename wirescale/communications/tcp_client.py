@@ -74,6 +74,7 @@ class TCPClient:
                             match_pubkeys(wgconfig, remote_pubkey=message[MessageFields.PUBKEY], my_pubkey=None)
                             wgconfig.remote_addresses = frozenset(ip_address(ip) for ip in message[MessageFields.ADDRESSES])
                             check_addresses_in_allowedips(wgconfig)
+                            wgconfig.listen_ext_port = message[MessageFields.EXPOSED_PORT]
                             wgconfig.start_time = message[MessageFields.START_TIME]
                             wgconfig.remote_local_port = message[MessageFields.PORT]
                             wgconfig.remote_interface = message[MessageFields.INTERFACE]

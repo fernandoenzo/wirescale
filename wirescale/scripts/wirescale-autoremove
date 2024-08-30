@@ -116,12 +116,13 @@ start() {
   running_in_remote=$6
   start_second=$7
   local_port=$8
-  nat=$9
-  remote_interface=${10}
-  remote_port=${11}
-  iptables=${12}
-  recover_tries=${13}
-  recreate_tries=${14}
+  local_ext_port=$9
+  nat=${10}
+  remote_interface=${11}
+  remote_port=${12}
+  iptables=${13}
+  recover_tries=${14}
+  recreate_tries=${15}
   flag_file_stop="/run/wirescale/control/$interface-stop"
   start_time=$(date +%s)
   unit=$(ps -o unit= -p "$$")

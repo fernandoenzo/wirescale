@@ -44,6 +44,7 @@ class RecoverConfig:
         self.nat: bool = None
         self.nonce: bytes = os.urandom(12)
         self.new_port: int = TSManager.local_port()
+        self.listen_ext_port: int = None
         self.private_key: X25519PrivateKey = None
         self.recover_tries: int = recover_tries
         self.recreate_tries: int = recreate_tries

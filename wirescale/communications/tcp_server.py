@@ -110,6 +110,7 @@ class TCPServer:
         wgconfig.iptables = wgconfig.iptables if wgconfig.iptables is not None else ARGS.IPTABLES if ARGS.IPTABLES is not None else False
         with file_locker():
             wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)
+        wgconfig.listen_ext_port = message[MessageFields.EXPOSED_PORT]
         wgconfig.remote_addresses = frozenset(ip_address(ip) for ip in message[MessageFields.ADDRESSES])
         wgconfig.remote_local_port = message[MessageFields.PORT]
         wgconfig.remote_interface = message[MessageFields.INTERFACE]
