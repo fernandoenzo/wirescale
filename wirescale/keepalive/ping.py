@@ -17,7 +17,7 @@ from cryptography.utils import CryptographyDeprecationWarning
 from wirescale.communications.messages import Messages
 
 with warnings.catch_warnings(action='ignore', category=CryptographyDeprecationWarning):
-    from scapy.all import IP, UDP, Raw, sniff, send, sr1
+    from scapy.all import IP, UDP, RandShort, Raw, sniff, send, sr1
 
 MAGIC = b'WS\xf0\x9f\x96\xa7'  # 'WS🖧'
 MAGIC_LEN = len(MAGIC)
@@ -109,23 +109,26 @@ def handle_pong(packet, send_time):
             Messages.send_info_message(local_message=f'Error processing pong: {e}', send_to_local=False)
 
 
-def send_ping(dest_ip: str, dest_port: int, src_port: int):
+def send_ping(dest_ip: str, dest_port: int, src_port: int | None):
     sender_key = os.urandom(KEY_LEN)
     nonce = os.urandom(NONCE_LEN)
     tx_id = generate_tx_id()
     ping_payload = create_ping(tx_id, padding=20)
     ping_message = create_disco_wrapper(sender_key, nonce, ping_payload)
+    sport = src_port if src_port is not None else RandShort()
+    pkt = IP(dst=dest_ip) / UDP(sport=sport, dport=dest_port) / Raw(load=ping_message)
 
-    pkt = IP(dst=dest_ip) / UDP(sport=src_port, dport=dest_port) / Raw(load=ping_message)
+    if src_port is not None:
+        Messages.send_info_message(local_message=f'Sending ping to {dest_ip}:{dest_port} from port {src_port} with TX ID: {tx_id.hex()}', send_to_local=False)
+        send_time = time.time()
+        response = sr1(pkt, timeout=2, verbose=False)
+        if response:
+            handle_pong(response, send_time)
+        else:
+            Messages.send_info_message(local_message=f'No response received with TX ID: {tx_id.hex()}', send_to_local=False)
 
-    Messages.send_info_message(local_message=f'Sending ping to {dest_ip}:{dest_port} with TX ID: {tx_id.hex()}', send_to_local=False)
-    send_time = time.time()
-    response = sr1(pkt, timeout=2, verbose=False)
-
-    if response:
-        handle_pong(response, send_time)
     else:
-        Messages.send_info_message(local_message=f'No response received with TX ID: {tx_id.hex()}', send_to_local=False)
+        send(pkt, verbose=False)
 
 
 def handle_packet(packet):
@@ -143,11 +146,12 @@ def handle_packet(packet):
                     pong_message = create_disco_wrapper(os.urandom(KEY_LEN), os.urandom(NONCE_LEN), pong_payload)
                     pong_pkt = IP(dst=packet[IP].src) / UDP(sport=packet[UDP].dport, dport=packet[UDP].sport) / Raw(load=pong_message)
                     send(pong_pkt, verbose=False)
-                    Messages.send_info_message(local_message=f'Sent pong to {packet[IP].src}:{packet[UDP].sport} with TX ID: {ping.tx_id.hex()}', send_to_local=False)
+                    Messages.send_info_message(local_message=f'Sent pong to {packet[IP].src}:{packet[UDP].sport} from port {packet[UDP].dport} with TX ID: {ping.tx_id.hex()}',
+                                               send_to_local=False)
         except Exception as e:
             Messages.send_info_message(local_message=f'Error processing packet: {e}', send_to_local=False)
 
 
 def listen_for_pings(src_ip: IPv4Address | IPv6Address, src_port: int, dst_port: int):
-    Messages.send_info_message(local_message=f'Listening for pings on port {dst_port} coming from {src_ip}:{src_port}', send_to_local=False)
-    sniff(filter=f'src {src_ip} and udp src port {src_port} and udp dst port {dst_port}', prn=handle_packet, stop_filter=lambda x: STOP.is_set())
+    Messages.send_info_message(local_message=f'Listening for pings on port {dst_port} coming from {src_ip}', send_to_local=False)
+    sniff(filter=f'src {src_ip} and udp dst port {dst_port}', prn=handle_packet, stop_filter=lambda x: STOP.is_set())
