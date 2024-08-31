@@ -153,5 +153,5 @@ def handle_packet(packet):
 
 
 def listen_for_pings(src_ip: IPv4Address | IPv6Address, src_port: int, dst_port: int):
-    Messages.send_info_message(local_message=f'Listening for pings on port {dst_port} coming from {src_ip}', send_to_local=False)
-    sniff(filter=f'src {src_ip} and udp dst port {dst_port}', prn=handle_packet, stop_filter=lambda x: STOP.is_set())
+    Messages.send_info_message(local_message=f'Listening for pings on port {dst_port} coming from {src_ip}:{src_port}', send_to_local=False)
+    sniff(filter=f'src {src_ip} and udp src port {src_port} and udp dst port {dst_port}', prn=handle_packet, stop_filter=lambda x: STOP.is_set())

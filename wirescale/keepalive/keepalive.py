@@ -61,8 +61,6 @@ class KeepAliveConfig:
         while not ping.STOP.is_set():
             try:
                 ping.send_ping(dest_ip=str(self.remote_ip), dest_port=self.remote_port, src_port=self.local_port)
-                ping.send_ping(dest_ip=str(self.remote_ip), dest_port=self.remote_port, src_port=None)
-                ping.send_ping(dest_ip=str(self.remote_ip), dest_port=self.remote_port, src_port=None)
             except Exception as e:
                 Messages.send_info_message(local_message=str(e), send_to_local=False)
             ping.STOP.wait(5)
