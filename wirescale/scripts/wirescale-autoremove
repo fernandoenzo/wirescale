@@ -25,15 +25,15 @@ ping_wg_periodic() {
 
 ping_python() {
   minutes=62
-  msg_start="Starting periodic ping to keep the hole punching alive for the next $minutes minutes"
-  msg_stop="Stopping periodic ping to end the hole punching maintenance"
-  if [ "$running_in_remote" -eq 1 ]; then
-    msg_start="Listening for periodic pings to keep the hole punching alive for the next $minutes minutes"
-    msg_stop="Stopping listening for periodic pings to cease maintaining the hole punching"
-  fi
-  echo "$msg_start"
+  msg_start1="Listening for periodic pings to keep the hole punching alive for the next $minutes minutes"
+  msg_start2="Starting periodic ping to keep the hole punching alive for the next $minutes minutes"
+  msg_stop1="Stopping listening for periodic pings to cease maintaining the hole punching"
+  msg_stop2="Stopping periodic ping to end the hole punching maintenance"
+  echo "$msg_start1"
+  echo "$msg_start2"
   wirescale keepalive --duration $((minutes * 60)) "$interface"
-  echo "$msg_stop"
+  echo "$msg_stop1"
+  echo "$msg_stop2"
 }
 
 recover() {
