@@ -50,6 +50,16 @@ class TSManager:
         return check_with_timeout(cls.has_state, timeout=timeout)
 
     @classmethod
+    def block_net(cls):  # To avoid UPnP unmap
+        add_iptables = ['iptables', '-I', 'OUTPUT', '-m', 'cgroup', '--path', Systemd.get_slice('tailscaled'), '-j', 'DROP']
+        subprocess.run(add_iptables, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    @classmethod
+    def unblock_net(cls):
+        remove_iptables = ['iptables', '-D', 'OUTPUT', '-m', 'cgroup', '--path', Systemd.get_slice('tailscaled'), '-j', 'DROP']
+        subprocess.run(remove_iptables, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    @classmethod
     def is_logged(cls) -> bool:
         return cls.status()['BackendState'].lower() != 'NeedsLogin'.lower()
 

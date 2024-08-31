@@ -2,6 +2,7 @@
 # encoding:utf-8
 
 
+import functools
 import re
 import subprocess
 from ipaddress import IPv4Address
@@ -66,6 +67,12 @@ class Systemd:
             if pair is not None:
                 error_remote = ErrorMessages.REMOTE_MISSING_UNIT.format(my_name=pair.my_name, my_ip=pair.my_ip, unit=unit)
             ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
+
+    @staticmethod
+    @functools.cache
+    def get_slice(unit: str) -> str:
+        command = ['systemctl', 'show', '-p', 'ControlGroup', '--value', f'{unit}.service']
+        return subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='utf-8').stdout.strip()
 
     @staticmethod
     def is_active(unit: str) -> bool:
