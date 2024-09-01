@@ -4,9 +4,13 @@
 
 import json
 import os
+import random
 import re
 import subprocess
 import sys
+import time
+import warnings
+from collections import namedtuple
 from contextlib import ExitStack
 from functools import lru_cache
 from ipaddress import IPv4Address
@@ -14,6 +18,16 @@ from threading import get_ident
 from time import sleep
 from typing import Dict, Tuple, TYPE_CHECKING
 
+import netifaces
+from cryptography.utils import CryptographyDeprecationWarning
+from netfilterqueue import NetfilterQueue
+from parallel_utils.thread import create_thread
+
+from wirescale.keepalive import ping
+from wirescale.keepalive.keepalive import KeepAliveConfig
+
+with warnings.catch_warnings(action='ignore', category=CryptographyDeprecationWarning):
+    from scapy.all import IP, send
 from wirescale.communications.common import check_with_timeout, CONNECTION_PAIRS
 from wirescale.communications.messages import ErrorCodes, ErrorMessages, Messages
 from wirescale.communications.systemd import Systemd
@@ -23,9 +37,18 @@ if TYPE_CHECKING:
 
 
 class TSManager:
+    QUEUE_NUM = random.randint(0, 65535)
+    PacketInfo = namedtuple('PacketInfo', ['packet', 'timestamp'])
+    PORTMAPPING_PACKETS = []
+
     @classmethod
     def start(cls) -> bool:
-        return Systemd.start('tailscaled.service')
+        cls.add_nfqueue_rule()
+        t = create_thread(cls.capture_packets)
+        res = Systemd.start('tailscaled.service')
+        t.result()
+        cls.remove_nfqueue_rule()
+        return res
 
     @classmethod
     def stop(cls) -> bool:
@@ -48,6 +71,58 @@ class TSManager:
     @classmethod
     def check_has_state(cls, timeout=15) -> bool:
         return check_with_timeout(cls.has_state, timeout=timeout)
+
+    @classmethod
+    def add_nfqueue_rule(cls):
+        add_nfqueue = ['iptables', '-I', 'OUTPUT', '-p', 'udp', '--dport', '5350:5351', '-j', 'NFQUEUE', '--queue-num', str(cls.QUEUE_NUM)]
+        subprocess.run(add_nfqueue, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    @classmethod
+    def remove_nfqueue_rule(cls):
+        add_nfqueue = ['iptables', '-D', 'OUTPUT', '-p', 'udp', '--dport', '5350:5351', '-j', 'NFQUEUE', '--queue-num', str(cls.QUEUE_NUM)]
+        subprocess.run(add_nfqueue, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    @classmethod
+    def capture_packets(cls):
+        nfqueue = NetfilterQueue()
+
+        def packet_handler(pkt):
+            scapy_pkt = IP(pkt.get_payload())
+            cls.PORTMAPPING_PACKETS.append(cls.PacketInfo(scapy_pkt, time.time()))
+            pkt.accept()  # Let the packet continue its way
+
+        def run_nfqueue():
+            nfqueue.bind(cls.QUEUE_NUM, packet_handler)
+            create_thread(KeepAliveConfig.stop_after, 7)
+            while not ping.STOP.is_set():
+                sleep(0.5)
+                nfqueue.run(block=False)
+            nfqueue.unbind()
+            ping.STOP.clear()
+
+        queue = create_thread(run_nfqueue)
+        queue.result()
+
+    @classmethod
+    def retransmit_packets(cls, interface: str, listen_port: int):
+        start_time = time.time()
+        duration = 62 * 60
+        while (time.time() - start_time < duration) and (interface in netifaces.interfaces()):
+            real_port = subprocess.run(['wg', 'show', interface, 'listen-port'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True).stdout.strip()
+            if (not real_port) or (listen_port != int(real_port)):
+                return
+            if not cls.PORTMAPPING_PACKETS:
+                return
+            for i, packet_info in enumerate(cls.PORTMAPPING_PACKETS):
+                if i < len(cls.PORTMAPPING_PACKETS) - 1:
+                    next_packet_time = cls.PORTMAPPING_PACKETS[i + 1].timestamp
+                    delay = next_packet_time - packet_info.timestamp
+                else:
+                    delay = 0
+                send(packet_info.packet, verbose=False)
+                if delay > 0:
+                    time.sleep(delay)
+            time.sleep(15)
 
     @classmethod
     def block_net(cls):  # To avoid UPnP unmap

@@ -14,9 +14,7 @@ class UDPServer:
 
     @classmethod
     def occupy_port_41641(cls):
-        TSManager.start()
-        if TSManager.local_port() == 41641:
-            TSManager.stop()
+        TSManager.stop()
         try:
             cls.UDPDummy = socket(AF_INET, SOCK_DGRAM)
             cls.UDPDummy.bind(('localhost', 41641))

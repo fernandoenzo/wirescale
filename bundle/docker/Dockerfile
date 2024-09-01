@@ -1,6 +1,6 @@
 FROM python:3.12-bullseye AS base
 
-RUN apt update ; apt install -y patchelf
+RUN apt update ; apt install -y libnetfilter-queue-dev patchelf
 RUN pip install pyinstaller staticx
 
 RUN apt-get -y autoremove ; aptitude -y autoclean ; apt-get -y autoclean
