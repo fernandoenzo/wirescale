@@ -92,7 +92,7 @@ class TSManager:
                 send(new_pkt, verbose=False)
                 if delay > 0:
                     time.sleep(delay)
-            time.sleep(15)
+            time.sleep(5)
 
     @classmethod
     def block_net(cls):  # To avoid UPnP unmap
