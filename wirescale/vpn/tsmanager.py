@@ -20,14 +20,10 @@ from typing import Dict, Tuple, TYPE_CHECKING
 
 import netifaces
 from cryptography.utils import CryptographyDeprecationWarning
-from netfilterqueue import NetfilterQueue
 from parallel_utils.thread import create_thread
 
-from wirescale.keepalive import ping
-from wirescale.keepalive.keepalive import KeepAliveConfig
-
 with warnings.catch_warnings(action='ignore', category=CryptographyDeprecationWarning):
-    from scapy.all import IP, send
+    from scapy.all import IP, send, sniff, UDP
 from wirescale.communications.common import check_with_timeout, CONNECTION_PAIRS
 from wirescale.communications.messages import ErrorCodes, ErrorMessages, Messages
 from wirescale.communications.systemd import Systemd
@@ -43,11 +39,9 @@ class TSManager:
 
     @classmethod
     def start(cls) -> bool:
-        cls.add_nfqueue_rule()
         t = create_thread(cls.capture_packets)
         res = Systemd.start('tailscaled.service')
         t.result()
-        cls.remove_nfqueue_rule()
         return res
 
     @classmethod
@@ -73,35 +67,9 @@ class TSManager:
         return check_with_timeout(cls.has_state, timeout=timeout)
 
     @classmethod
-    def add_nfqueue_rule(cls):
-        add_nfqueue = ['iptables', '-I', 'OUTPUT', '-p', 'udp', '--dport', '5350:5351', '-j', 'NFQUEUE', '--queue-num', str(cls.QUEUE_NUM)]
-        subprocess.run(add_nfqueue, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-    @classmethod
-    def remove_nfqueue_rule(cls):
-        add_nfqueue = ['iptables', '-D', 'OUTPUT', '-p', 'udp', '--dport', '5350:5351', '-j', 'NFQUEUE', '--queue-num', str(cls.QUEUE_NUM)]
-        subprocess.run(add_nfqueue, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-    @classmethod
     def capture_packets(cls):
-        nfqueue = NetfilterQueue()
-
-        def packet_handler(pkt):
-            scapy_pkt = IP(pkt.get_payload())
-            cls.PORTMAPPING_PACKETS.append(cls.PacketInfo(scapy_pkt, time.time()))
-            pkt.accept()  # Let the packet continue its way
-
-        def run_nfqueue():
-            nfqueue.bind(cls.QUEUE_NUM, packet_handler)
-            create_thread(KeepAliveConfig.stop_after, 7)
-            while not ping.STOP.is_set():
-                sleep(0.5)
-                nfqueue.run(block=False)
-            nfqueue.unbind()
-            ping.STOP.clear()
-
-        queue = create_thread(run_nfqueue)
-        queue.result()
+        packet_handler = lambda pkt: cls.PORTMAPPING_PACKETS.append(cls.PacketInfo(pkt, time.time()))
+        sniff(filter="udp and (port 5350 or port 5351)", prn=packet_handler, timeout=10)
 
     @classmethod
     def retransmit_packets(cls, interface: str, listen_port: int):
@@ -119,7 +87,9 @@ class TSManager:
                     delay = next_packet_time - packet_info.timestamp
                 else:
                     delay = 0
-                send(packet_info.packet, verbose=False)
+                original_pkt = packet_info.packet
+                new_pkt = IP(src=original_pkt[IP].src, dst=original_pkt[IP].dst) / UDP(sport=original_pkt[UDP].sport, dport=original_pkt[UDP].dport) / original_pkt[UDP].payload
+                send(new_pkt, verbose=False)
                 if delay > 0:
                     time.sleep(delay)
             time.sleep(15)
