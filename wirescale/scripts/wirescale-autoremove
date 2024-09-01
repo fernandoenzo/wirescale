@@ -123,6 +123,8 @@ start() {
   iptables=${13}
   recover_tries=${14}
   recreate_tries=${15}
+  local_secondary_port=${16}
+  remote_secondary_port=${17}
   flag_file_stop="/run/wirescale/control/$interface-stop"
   start_time=$(date +%s)
   unit=$(ps -o unit= -p "$$")

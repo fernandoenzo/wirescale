@@ -35,6 +35,8 @@ class Systemd:
         self.iptables: bool = None
         self.recover_tries: int = None
         self.recreate_tries: int = None
+        self.local_secondary_port: int = None
+        self.remote_secondary_port: int = None
 
     @classmethod
     def create_from_autoremove(cls, unit: str) -> 'Systemd':
@@ -55,6 +57,8 @@ class Systemd:
         res.iptables = bool(int(args[13]))
         res.recover_tries = int(args[14])
         res.recreate_tries = int(args[15])
+        res.local_secondary_port = int(args[16])
+        res.remote_secondary_port = int(args[17])
         return res
 
     @classmethod
@@ -97,6 +101,7 @@ class Systemd:
     @classmethod
     def launch_autoremove(cls, config: Union['WGConfig', 'RecoverConfig'], pair: 'ConnectionPair'):
         from wirescale.communications.messages import Messages
+        from wirescale.vpn.tsmanager import TSManager
         unit = f'autoremove-{config.interface}.service'
         tries, is_active = 20, True
         while is_active and tries > 0:
@@ -110,10 +115,11 @@ class Systemd:
         wg_ip: IPv4Address = config.wg_ip if hasattr(config, 'wg_ip') else next(ip for ip in config.remote_addresses)
         running_in_remote: bool = config.running_in_remote if hasattr(config, 'running_in_remote') else pair.running_in_remote
         listen_port: int = config.new_port if hasattr(config, 'new_port') else config.listen_port
-
+        remote_secondary_port: int = 0 if not config.nat else TSManager.peer_endpoint(pair.peer_ip)[1]
+        local_secondary_port: int = 0 if not config.nat else TSManager.local_port()
         args = [config.interface, str(config.suffix), str(pair.peer_ip), remote_pubkey, str(wg_ip), str(int(running_in_remote)), str(config.start_time), str(listen_port),
                 str(config.listen_ext_port), str(int(config.nat)), config.remote_interface, str(config.remote_local_port), str(int(config.iptables)), str(config.recover_tries),
-                str(config.recreate_tries)]
+                str(config.recreate_tries), str(local_secondary_port), str(remote_secondary_port)]
 
         systemd = subprocess.run(['systemd-run', '-u', unit, '/bin/sh', '/run/wirescale/wirescale-autoremove', 'start', *args],
                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)

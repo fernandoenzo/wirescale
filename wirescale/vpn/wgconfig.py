@@ -15,7 +15,6 @@ from subprocess import STDOUT
 from threading import get_ident
 from typing import Dict, FrozenSet, Tuple
 
-from parallel_utils.process import create_process
 from parallel_utils.thread import create_thread
 
 from wirescale.communications.common import CONNECTION_PAIRS, file_locker, subprocess_run_tmpfile
@@ -232,13 +231,10 @@ class WGConfig:
         stack = ExitStack()
         stack.enter_context(file_locker())
         Messages.send_info_message(local_message='Stopping tailscale...')
-        # TSManager.block_net()
         TSManager.stop()
         Messages.send_info_message(local_message=f"Setting up WireGuard interface '{self.interface}'...")
         wgquick = subprocess_run_tmpfile(['wg-quick', 'up', str(self.new_config_path)], stderr=STDOUT)
         Messages.send_info_message(local_message='Starting tailscale...')
-        # TSManager.unblock_net()
-        create_process(TSManager.retransmit_packets, self.interface, self.listen_port)
         TSManager.start()
         create_thread(TSManager.wait_tailscale_restarted, pair, stack)
         if wgquick.returncode == 0:

@@ -17,12 +17,15 @@ from wirescale.keepalive import ping
 
 class KeepAliveConfig:
 
-    def __init__(self, interface: str, remote_ip: IPv4Address, local_port: int, local_ext_port: int, remote_port: int, running_in_remote: bool, start_time: int):
+    def __init__(self, interface: str, remote_ip: IPv4Address, local_port: int, local_secondary_port: int, local_ext_port: int, remote_port: int,
+                 remote_secondary_port: int, running_in_remote: bool, start_time: int):
         self.interface: str = interface
         self.remote_ip: IPv4Address = remote_ip
         self.local_port: int = local_port
+        self.local_secondary_port: int = local_secondary_port
         self.local_ext_port: int = local_ext_port
         self.remote_port: int = remote_port
+        self.remote_secondary_port: int = remote_secondary_port
         self.running_in_remote: bool = running_in_remote
         self.start_time: int = start_time
         self.flag_file_stop = Path(f'/run/wirescale/control/{self.interface}-stop')
@@ -35,8 +38,8 @@ class KeepAliveConfig:
         endpoint = endpoints.split(systemd.remote_pubkey)[1].split()[0]
         remote_ip = IPv4Address(endpoint.split(':')[0])
         remote_port = int(endpoint.split(':')[1])
-        return cls(interface=interface, remote_ip=remote_ip, local_port=systemd.local_port, local_ext_port=systemd.local_ext_port, remote_port=remote_port,
-                   running_in_remote=systemd.running_in_remote, start_time=systemd.start_time)
+        return cls(interface=interface, remote_ip=remote_ip, local_port=systemd.local_port, local_secondary_port=systemd.local_secondary_port, local_ext_port=systemd.local_ext_port,
+                   remote_port=remote_port, remote_secondary_port=systemd.remote_secondary_port, running_in_remote=systemd.running_in_remote, start_time=systemd.start_time)
 
     def wait_until_next_occurrence(self):
         wait_time = (self.start_time - datetime.now().second) % 60

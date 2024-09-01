@@ -18,7 +18,6 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X25519PublicKey
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from parallel_utils.process import create_process
 from parallel_utils.thread import create_thread
 
 from wirescale.communications.checkers import check_configfile, check_updated_handshake
@@ -137,14 +136,11 @@ class RecoverConfig:
         stack = ExitStack()
         stack.enter_context(file_locker())
         Messages.send_info_message(local_message='Stopping tailscale...')
-        # TSManager.block_net()
         TSManager.stop()
         Messages.send_info_message(local_message=f"Modifying WireGuard interface '{self.interface}'...")
         subprocess.run(['wg', 'set', self.interface, 'listen-port', str(self.new_port)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(['wg', 'set', self.interface, 'peer', self.remote_pubkey_str, 'endpoint', f'{self.endpoint[0]}:{self.endpoint[1]}'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         Messages.send_info_message(local_message='Starting tailscale...')
-        # TSManager.unblock_net()
-        create_process(TSManager.retransmit_packets, self.interface, self.new_port)
         TSManager.start()
         create_thread(TSManager.wait_tailscale_restarted, pair, stack)
         Messages.send_info_message(local_message=f"Checking latest handshake of interface '{self.interface}' after changing the endpoint...")
