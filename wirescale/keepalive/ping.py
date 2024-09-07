@@ -25,6 +25,8 @@ KEY_LEN = 32
 NONCE_LEN = 24
 IPV6_PREFIX = b'\x00' * 10 + b'\xff' * 2
 STOP = Event()
+HIT_PING = False
+HIT_PONG = False
 
 
 class MessageType:
@@ -104,6 +106,8 @@ def handle_pong(packet, send_time):
                 if payload[0] == MessageType.PONG:
                     pong = parse_pong(payload)
                     rtt = time.time() - send_time
+                    global HIT_PING
+                    HIT_PING = True
                     Messages.send_info_message(local_message=f'Received pong with TX ID: {pong.tx_id.hex()}, RTT: {rtt:.6f} seconds', send_to_local=False)
         except Exception as e:
             Messages.send_info_message(local_message=f'Error processing pong: {e}', send_to_local=False)
@@ -131,6 +135,15 @@ def send_ping(dest_ip: str, dest_port: int, src_port: int | None):
         send(pkt, verbose=False)
 
 
+def send_periodic_ping(dest_ip: str, dest_port: int, src_port: int | None, period: int = 5):
+    while not STOP.is_set():
+        try:
+            send_ping(dest_ip, dest_port, src_port)
+        except Exception as e:
+            Messages.send_info_message(local_message=str(e), send_to_local=False)
+        STOP.wait(period)
+
+
 def handle_packet(packet):
     if UDP in packet and Raw in packet:
         try:
@@ -142,6 +155,8 @@ def handle_packet(packet):
                     Messages.send_info_message(local_message=f'Received ping with TX ID: {ping.tx_id.hex()}', send_to_local=False)
 
                     # Send pong
+                    global HIT_PONG
+                    HIT_PONG = True
                     pong_payload = create_pong(ping.tx_id, (packet[IP].src, packet[UDP].sport))
                     pong_message = create_disco_wrapper(os.urandom(KEY_LEN), os.urandom(NONCE_LEN), pong_payload)
                     pong_pkt = IP(dst=packet[IP].src) / UDP(sport=packet[UDP].dport, dport=packet[UDP].sport) / Raw(load=pong_message)
