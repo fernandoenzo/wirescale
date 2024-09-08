@@ -38,6 +38,7 @@ and Tailscale’s unbeatable udp hole-punching capabilities to create a robust, 
 
 ### Prerequisites
 
+- `libpcap >= 1.10.3`
 - `ping`
 - `pipx >= 1.1.0`
 - `python >= 3.11`
