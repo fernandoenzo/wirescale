@@ -38,7 +38,6 @@ and Tailscale’s unbeatable udp hole-punching capabilities to create a robust, 
 
 ### Prerequisites
 
-- `libpcap >= 1.10.3`
 - `ping`
 - `pipx >= 1.1.0`
 - `python >= 3.11`
@@ -126,7 +125,6 @@ Curious about the different modes of operation? Run `wirescale -h` to see them:
 - `recover`  option will attempt to re-establish the connection for an interface that has been detected as down, ensuring it reconnects with its peer.
 This option is for internal use only.
 - `upgrade` option is where the magic happens, and we’ll dive deeper into this shortly.
-- `keepalive` option will send small packets to keep an already established tunnel active. This option is for internal use only.
 - `down` option is the easiest way to take down a network interface raised with Wirescale.
 
 ### Upgrading a connection

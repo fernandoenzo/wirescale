@@ -296,7 +296,6 @@ class Messages:
     RECOVER_SUCCES = "Success! WireGuard connection through interface '{interface}' is working again"
     SHUTDOWN_SET = 'The server has been set to shut down'
     SLEEP = 'Sleeping for {minutes} minutes'
-    START_KEEPALIVE = "Starting keepalive packet transmission"
     START_PROCESSING_FROM = "Starting to process the {{action}} request coming from peer '{peer_name}' ({peer_ip})"
     START_PROCESSING_REMOTE = "Remote peer '{sender_name}' ({sender_ip}) has started to process our {{action}} request"
     START_PROCESSING_TO = "Starting to process the upgrade request for the peer '{peer_name}' ({peer_ip})"
@@ -362,7 +361,6 @@ class ErrorMessages:
     INTERFACE_MISMATCH = "Error: Remote peer '{peer_name}' ({peer_ip}) expects a network interface name that does not match the one we are assigning"
     INTERFACE_NOT_FOUND = "Error: Interface '{interface}' not found"
     IP_MISMATCH = "Error: Remote peer '{peer_name}' ({peer_ip}) IP address mismatch with the 'autoremove-{interface}' systemd unit's registered IP ({autoremove_ip})"
-    KEEPALIVE_SYSTEMD = "Error: The 'keepalive' option can only be invoked by the Wirescale shell script"
     LATEST_HANDSHAKE_MISMATCH = "Error: The latest handshake of interface '{interface}' has been updated since the recover request was made. Discarding request"
     MISSING_ADDRESS = "Error: 'Address' option missing in 'Interface' section of file '{config_file}'"
     MISSING_ALLOWEDIPS = "Error: 'AllowedIPs' option missing in 'Peer' section of file '{config_file}'"

@@ -23,17 +23,13 @@ ping_wg_periodic() {
   echo "End the periodic ping to discontinue monitoring the tunnel's health"
 }
 
-ping_python() {
-  minutes=62
-  msg_start1="Listening for periodic pings to keep the hole punching alive for the next $minutes minutes"
-  msg_start2="Starting periodic ping to keep the hole punching alive for the next $minutes minutes"
-  msg_stop1="Stopping listening for periodic pings to cease maintaining the hole punching"
-  msg_stop2="Stopping periodic ping to end the hole punching maintenance"
-  echo "$msg_start1"
-  echo "$msg_start2"
-  wirescale keepalive --duration $((minutes * 60)) "$interface"
-  echo "$msg_stop1"
-  echo "$msg_stop2"
+tailscale_ping() {
+  seconds=$((62 * 60))
+  sleep_time=5
+  while ! check_elapsed_time "$seconds" && check_interface_and_file; do
+    tailscale ping -c 1 "$ts_ip" > /dev/null 2>&1 &
+    sleep "$sleep_time"
+  done
 }
 
 recover() {
@@ -123,18 +119,15 @@ start() {
   iptables=${13}
   recover_tries=${14}
   recreate_tries=${15}
-  local_secondary_port=${16}
-  remote_secondary_port=${17}
   flag_file_stop="/run/wirescale/control/$interface-stop"
   start_time=$(date +%s)
-  unit=$(ps -o unit= -p "$$")
   export interface suffix ts_ip remote_pubkey wg_ip running_in_remote local_port remote_interface
-  export remote_port start_time iptables recover_tries recreate_tries flag_file_stop unit
+  export remote_port start_time iptables recover_tries recreate_tries flag_file_stop
 
   rm -rf "$flag_file_stop"
   ping_wg_periodic &
   if [ "$nat" -eq 1 ]; then
-    ping_python &
+    tailscale_ping &
   fi
   autoremove
 }

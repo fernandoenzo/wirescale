@@ -49,7 +49,6 @@ install_requires = [
     "cryptography == 43.0.0",
     "netifaces == 0.11.0",
     "parallel-utils == 1.3.1",
-    "scapy == 2.5.0",
     "websockets == 12.0",
 ]
 

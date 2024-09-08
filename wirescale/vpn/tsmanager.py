@@ -7,7 +7,6 @@ import os
 import re
 import subprocess
 import sys
-import warnings
 from contextlib import ExitStack
 from functools import lru_cache
 from ipaddress import IPv4Address
@@ -15,10 +14,6 @@ from threading import get_ident
 from time import sleep
 from typing import Dict, Tuple, TYPE_CHECKING
 
-from cryptography.utils import CryptographyDeprecationWarning
-
-with warnings.catch_warnings(action='ignore', category=CryptographyDeprecationWarning):
-    pass
 from wirescale.communications.common import check_with_timeout, CONNECTION_PAIRS
 from wirescale.communications.messages import ErrorCodes, ErrorMessages, Messages
 from wirescale.communications.systemd import Systemd
