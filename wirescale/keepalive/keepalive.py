@@ -70,6 +70,7 @@ class KeepAliveConfig:
                 create_thread(ping.send_periodic_ping, dest_ip=str(self.remote_ip), dest_port=self.remote_secondary_port, src_port=self.local_secondary_port)
                 ping.STOP.wait(10)
                 create_thread(self.stop_secondary)
+                ping.STOP.wait()
 
     @staticmethod
     def stop_after(duration: int):
