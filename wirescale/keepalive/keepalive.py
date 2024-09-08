@@ -53,11 +53,11 @@ class KeepAliveConfig:
             ping.STOP.wait(5)
 
     def stop_secondary(self, check_period: int = 20):
-        def wg_listening_port(port: int) -> bool:
-            output = subprocess.check_output(['wg', 'show', 'all', 'listen-port'], text=True)
-            return str(port) in output.split()
+        def check_listening_ports(local_port: int, local_secondary_port: int) -> bool:
+            output = subprocess.check_output(['wg', 'show', 'all', 'listen-port'], text=True).split()
+            return str(local_port) in output and str(local_secondary_port) not in output
 
-        while not ping.STOP.is_set() and ping.HIT_PING and ping.HIT_PONG and not wg_listening_port(self.local_secondary_port):
+        while not ping.STOP.is_set() and ping.HIT_PING and ping.HIT_PONG and check_listening_ports(self.local_port, self.local_secondary_port):
             ping.HIT_PING, ping.HIT_PONG = False, False
             ping.STOP.wait(check_period)
         ping.STOP.set()
