@@ -17,13 +17,14 @@ from cryptography.utils import CryptographyDeprecationWarning
 from wirescale.communications.messages import Messages
 
 with warnings.catch_warnings(action='ignore', category=CryptographyDeprecationWarning):
-    from scapy.all import IP, UDP, RandShort, Raw, sniff, send, sr1
+    from scapy.all import IP, UDP, RandShort, Raw, sniff, send
 
 MAGIC = b'WS\xf0\x9f\x96\xa7'  # 'WS🖧'
 MAGIC_LEN = len(MAGIC)
 KEY_LEN = 32
 NONCE_LEN = 24
 IPV6_PREFIX = b'\x00' * 10 + b'\xff' * 2
+SENT_PINGS = {}
 STOP = Event()
 HIT_PING = False
 HIT_PONG = False
@@ -97,20 +98,16 @@ def generate_tx_id() -> bytes:
     return os.urandom(12)
 
 
-def handle_pong(packet, send_time):
-    if UDP in packet and Raw in packet:
-        try:
-            data = packet[Raw].load
-            if data.startswith(MAGIC):
-                _, _, payload = parse_disco_wrapper(data)
-                if payload[0] == MessageType.PONG:
-                    pong = parse_pong(payload)
-                    rtt = time.time() - send_time
-                    global HIT_PING
-                    HIT_PING = True
-                    Messages.send_info_message(local_message=f'Received pong with TX ID: {pong.tx_id.hex()}, RTT: {rtt:.6f} seconds', send_to_local=False)
-        except Exception as e:
-            Messages.send_info_message(local_message=f'Error processing pong: {e}', send_to_local=False)
+def handle_pong(payload):
+    try:
+        pong = parse_pong(payload)
+        send_time = SENT_PINGS[pong.tx_id.hex()]
+        rtt = time.time() - send_time
+        global HIT_PING
+        HIT_PING = True
+        Messages.send_info_message(local_message=f'Received pong with TX ID: {pong.tx_id.hex()}, RTT: {rtt:.6f} seconds', send_to_local=False)
+    except Exception as e:
+        Messages.send_info_message(local_message=f'Error processing pong: {e}', send_to_local=False)
 
 
 def send_ping(dest_ip: str, dest_port: int, src_port: int | None):
@@ -121,18 +118,10 @@ def send_ping(dest_ip: str, dest_port: int, src_port: int | None):
     ping_message = create_disco_wrapper(sender_key, nonce, ping_payload)
     sport = src_port if src_port is not None else RandShort()
     pkt = IP(dst=dest_ip) / UDP(sport=sport, dport=dest_port) / Raw(load=ping_message)
-
-    if src_port is not None:
-        Messages.send_info_message(local_message=f'Sending ping to {dest_ip}:{dest_port} from port {src_port} with TX ID: {tx_id.hex()}', send_to_local=False)
-        send_time = time.time()
-        response = sr1(pkt, timeout=2, verbose=False)
-        if response:
-            handle_pong(response, send_time)
-        else:
-            Messages.send_info_message(local_message=f'No response received with TX ID: {tx_id.hex()}', send_to_local=False)
-
-    else:
-        send(pkt, verbose=False)
+    Messages.send_info_message(local_message=f'Sending ping to {dest_ip}:{dest_port} from port {src_port} with TX ID: {tx_id.hex()}', send_to_local=False)
+    send_time = time.time()
+    SENT_PINGS[tx_id.hex()] = send_time
+    send(pkt, verbose=False)
 
 
 def send_periodic_ping(dest_ip: str, dest_port: int, src_port: int | None, period: int = 5):
@@ -163,8 +152,22 @@ def handle_packet(packet):
                     send(pong_pkt, verbose=False)
                     Messages.send_info_message(local_message=f'Sent pong to {packet[IP].src}:{packet[UDP].sport} from port {packet[UDP].dport} with TX ID: {ping.tx_id.hex()}',
                                                send_to_local=False)
+
+                elif payload[0] == MessageType.PONG:
+                    handle_pong(payload)
+
         except Exception as e:
             Messages.send_info_message(local_message=f'Error processing packet: {e}', send_to_local=False)
+
+
+def clear_orphaned_pings():
+    while not STOP.is_set():
+        for ping in SENT_PINGS:
+            rtt = time.time() - SENT_PINGS[ping]
+            if rtt >= 3:
+                Messages.send_info_message(local_message=f'No response received with TX ID: {ping}', send_to_local=False)
+                del SENT_PINGS[ping]
+        STOP.wait(5)
 
 
 def listen_for_pings(src_ip: IPv4Address | IPv6Address, src_port: int, dst_port: int):

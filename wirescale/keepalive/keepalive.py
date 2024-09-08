@@ -66,6 +66,8 @@ class KeepAliveConfig:
         with open('/dev/null', 'w') as devnull:
             with redirect_stdout(devnull), redirect_stderr(devnull):
                 create_thread(self.stop_after, duration)
+                create_thread(self.check_interface_and_flag)
+                create_thread(ping.clear_orphaned_pings)
                 create_thread(ping.listen_for_pings, src_ip=self.remote_ip, src_port=self.remote_secondary_port, dst_port=self.local_secondary_port)
                 create_thread(ping.send_periodic_ping, dest_ip=str(self.remote_ip), dest_port=self.remote_secondary_port, src_port=self.local_secondary_port)
                 ping.STOP.wait(10)
@@ -80,6 +82,7 @@ class KeepAliveConfig:
     def start(self, duration: int):
         create_thread(self.stop_after, duration)
         create_thread(self.check_interface_and_flag)
+        create_thread(ping.clear_orphaned_pings)
         create_thread(ping.listen_for_pings, src_ip=self.remote_ip, src_port=self.remote_port, dst_port=self.local_port)
         self.wait_until_next_occurrence()
         create_thread(ping.send_periodic_ping, dest_ip=str(self.remote_ip), dest_port=self.remote_port, src_port=self.local_port)
