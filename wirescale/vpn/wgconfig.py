@@ -3,6 +3,7 @@
 
 
 import collections
+import hashlib
 import re
 import subprocess
 from configparser import ConfigParser
@@ -15,9 +16,10 @@ from subprocess import STDOUT
 from threading import get_ident
 from typing import Dict, FrozenSet, Tuple
 
+from cryptography.utils import cached_property
 from parallel_utils.thread import create_thread
 
-from wirescale.communications.common import CONNECTION_PAIRS, file_locker, subprocess_run_tmpfile
+from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS, file_locker, subprocess_run_tmpfile
 from wirescale.communications.messages import ActionCodes, ErrorMessages, Messages
 from wirescale.communications.systemd import Systemd
 from wirescale.vpn.tsmanager import TSManager
@@ -47,7 +49,9 @@ class WGConfig:
         self.fwmark = self.get_field('Interface', 'FwMark')
         self.allowed_ips = self.get_allowed_ips()
         self.interface: str = self.get_wirescale_field(field='interface')
-        self.iptables: bool = self.get_wirescale_field(field='iptables', func=self.config.getboolean)
+        self.iptables_accept: bool = self.get_wirescale_field(field='iptables-accept', func=self.config.getboolean)
+        self.iptables_route: bool = self.get_wirescale_field(field='iptables-route', func=self.config.getboolean)
+        self.iptables_masquerade: bool = self.get_wirescale_field(field='iptables-masquerade', func=self.config.getboolean)
         self.public_key = self.generate_wg_pubkey(self.private_key)
         self.recover_tries: int = self.get_wirescale_field(field='recover-tries', func=self.config.getint)
         self.recreate_tries: int = self.get_wirescale_field(field='recreate-tries', func=self.config.getint)
@@ -59,6 +63,12 @@ class WGConfig:
         self.psk = self.psk or self.generate_wg_psk()
         self.start_time: int = datetime.now().second
         self.suffix: int = None
+
+    @cached_property
+    def mark(self) -> int:
+        encoded_interface = BytesStrConverter.str_to_bytes(self.interface)
+        hash_sha256 = hashlib.sha256(encoded_interface).hexdigest()
+        return int(hash_sha256, 16) & 0xFFFFFFFF  # return the last 32 bits
 
     def read_config(self):
         with open(self.file_path, 'r') as f:
@@ -114,7 +124,7 @@ class WGConfig:
         if first_place:
             collections.deque((self.config.set(interface, name, value) for (name, value) in same_actions), maxlen=0)
 
-    def add_iptables(self):
+    def add_iptables_accept(self):
         port = TSManager.local_port()
         postup_input_interface = 'iptables -I INPUT -i %i -j ACCEPT'
         postup_input_port = f'iptables -I INPUT -p udp --dport {port} -j ACCEPT'
@@ -124,6 +134,22 @@ class WGConfig:
         self.add_script('postup', postup_input_port)
         self.add_script('postdown', postdown_input_interface, first_place=True)
         self.add_script('postdown', postdown_input_port, first_place=True)
+
+    def add_iptables_route(self):
+        postup_forward = 'iptables -I FORWARD -i %i -j ACCEPT'
+        postdown_forward = 'iptables -D FORWARD -i %i -j ACCEPT || true'
+        self.add_script('postup', postup_forward)
+        self.add_script('postdown', postdown_forward, first_place=True)
+
+    def add_iptables_masquerade(self):
+        postup_mark = f'iptables -I FORWARD -i %i -j MARK --set-mark {self.mark}'
+        postup_masquerade = f'iptables -t nat -I POSTROUTING ! -o %i -m mark --mark {self.mark} -j MASQUERADE'
+        postdown_mark = f'iptables -D FORWARD -i %i -j MARK --set-mark {self.mark} || true'
+        postdown_masquerade = f'iptables -t nat -D POSTROUTING ! -o %i -m mark --mark {self.mark} -j MASQUERADE || true'
+        self.add_script('postup', postup_mark)
+        self.add_script('postup', postup_masquerade)
+        self.add_script('postdown', postdown_mark, first_place=True)
+        self.add_script('postdown', postdown_masquerade, first_place=True)
 
     def first_handshake(self):
         handshake = (rf"""/bin/sh -c 'count=0; while [ $count -le 14 ]; do handshake=$(wg show %i latest-handshakes | awk -v pubkey="{self.remote_pubkey}" '\''$1 == pubkey {{print $2}}'\''); """
@@ -163,8 +189,12 @@ class WGConfig:
         interface, peer, allowedips = 'Interface', 'Peer', 'AllowedIPs'
         new_config.add_section(interface)
         new_config.add_section(peer)
-        if self.iptables:
-            self.add_iptables()
+        if self.iptables_accept:
+            self.add_iptables_accept()
+        if self.iptables_route:
+            self.add_iptables_route()
+        if self.iptables_masquerade:
+            self.add_iptables_masquerade()
         # self.first_handshake()
         self.autoremove_configfile()
         repeatable_fields = [field for field in self.repeatable_fields if field != allowedips]
@@ -238,6 +268,7 @@ class WGConfig:
         TSManager.start()
         create_thread(TSManager.wait_tailscale_restarted, pair, stack)
         if wgquick.returncode == 0:
+            Messages.send_info_message(local_message='Verifying handshake with the other peer...')
             updated = check_updated_handshake(self.interface)
             if not updated:
                 error = ErrorMessages.HANDSHAKE_FAILED.format(interface=self.interface)

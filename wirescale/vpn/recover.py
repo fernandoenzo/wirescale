@@ -30,7 +30,7 @@ from wirescale.vpn.tsmanager import TSManager
 
 class RecoverConfig:
 
-    def __init__(self, interface: str, iptables: bool, running_in_remote: bool, latest_handshake: int, current_port: int, recover_tries: int,
+    def __init__(self, interface: str, iptables_accept: bool, running_in_remote: bool, latest_handshake: int, current_port: int, recover_tries: int,
                  recreate_tries: int, remote_interface: str, remote_local_port: int, suffix: int, wg_ip: IPv4Address):
         self.current_port: int = current_port
         self.derived_key: bytes = None
@@ -38,7 +38,7 @@ class RecoverConfig:
         self.chacha: ChaCha20Poly1305 = None
         self.config_file: Path = None
         self.interface: str = interface
-        self.iptables: bool = iptables
+        self.iptables_accept: bool = iptables_accept
         self.running_in_remote: bool = running_in_remote
         self.latest_handshake: int = latest_handshake
         self.nat: bool = None
@@ -72,7 +72,7 @@ class RecoverConfig:
             error = ErrorMessages.IP_MISMATCH.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface, autoremove_ip=systemd.ts_ip)
             error_remote = ErrorMessages.REMOTE_IP_MISMATCH.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_ip=pair.peer_ip, interface=interface)
             ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
-        recover = RecoverConfig(interface=interface, latest_handshake=latest_handshake, running_in_remote=systemd.running_in_remote, iptables=systemd.iptables, wg_ip=systemd.wg_ip,
+        recover = RecoverConfig(interface=interface, latest_handshake=latest_handshake, running_in_remote=systemd.running_in_remote, iptables_accept=systemd.iptables_accept, wg_ip=systemd.wg_ip,
                                 current_port=systemd.local_port, recover_tries=systemd.recover_tries, recreate_tries=systemd.recreate_tries, remote_interface=systemd.remote_interface,
                                 remote_local_port=systemd.remote_local_port, suffix=systemd.suffix)
         recover.config_file = check_configfile()
@@ -130,7 +130,7 @@ class RecoverConfig:
 
     def recover(self):
         self.modify_wgconfig()
-        if self.iptables:
+        if self.iptables_accept:
             self.fix_iptables()
         pair = CONNECTION_PAIRS[get_ident()]
         stack = ExitStack()
@@ -158,7 +158,7 @@ class RecoverConfig:
     def undo_recover(self):
         self.new_port, self.current_port = self.current_port, self.new_port
         self.modify_wgconfig()
-        if self.iptables:
+        if self.iptables_accept:
             self.fix_iptables()
         subprocess.run(['wg', 'set', self.interface, 'listen-port', str(self.new_port)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(['wg', 'set', self.interface, 'peer', self.remote_pubkey_str, 'endpoint', f'{self.endpoint[0]}:{self.endpoint[1]}'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

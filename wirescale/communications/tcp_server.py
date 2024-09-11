@@ -107,7 +107,9 @@ class TCPServer:
             remote_error = ErrorMessages.REMOTE_INTERFACE_MISMATCH.format(my_name=pair.my_name, my_ip=pair.my_ip, interface=expected_interface)
             ErrorMessages.send_error_message(local_message=error, remote_message=remote_error)
         test_wgconfig(wgconfig)
-        wgconfig.iptables = wgconfig.iptables if wgconfig.iptables is not None else ARGS.IPTABLES if ARGS.IPTABLES is not None else False
+        wgconfig.iptables_accept = wgconfig.iptables_accept if wgconfig.iptables_accept is not None else ARGS.IPTABLES_ACCEPT if ARGS.IPTABLES_ACCEPT is not None else False
+        wgconfig.iptables_route = wgconfig.iptables_route if wgconfig.iptables_route is not None else ARGS.IPTABLES_ROUTE if ARGS.IPTABLES_ROUTE is not None else False
+        wgconfig.iptables_masquerade = wgconfig.iptables_masquerade if wgconfig.iptables_masquerade is not None else ARGS.IPTABLES_MASQUERADE if ARGS.IPTABLES_MASQUERADE is not None else False
         with file_locker():
             wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)
         wgconfig.listen_ext_port = message[MessageFields.EXPOSED_PORT]

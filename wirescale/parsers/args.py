@@ -16,7 +16,9 @@ class ARGS:
     DAEMON: bool = None
     DOWN: Path = None
     INTERFACE: str = None
-    IPTABLES: bool = None
+    IPTABLES_ACCEPT: bool = None
+    IPTABLES_ROUTE: bool = None
+    IPTABLES_MASQUERADE: bool = None
     LATEST_HANDSHAKE: int = None
     PAIR: ConnectionPair = None
     RECOVER: bool = None
@@ -37,7 +39,9 @@ def parse_args():
     ARGS.UPGRADE = args.get('opt') == 'upgrade'
     ARGS.START = args.get('command') == 'start'
     ARGS.STOP = args.get('command') == 'stop'
-    ARGS.IPTABLES = args.get('iptables')
+    ARGS.IPTABLES_ACCEPT = args.get('iptables_accept')
+    ARGS.IPTABLES_ROUTE = args.get('iptables_route')
+    ARGS.IPTABLES_MASQUERADE = args.get('iptables_masquerade')
     ARGS.ALLOW_SUFFIX = args.get('suffix')
     if ARGS.UPGRADE:
         peer_ip = args.get('peer')

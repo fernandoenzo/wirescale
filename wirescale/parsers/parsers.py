@@ -15,8 +15,14 @@ daemon_subparser = subparsers.add_parser('daemon', help='commands for systemd to
 order_subparser = daemon_subparser.add_subparsers(dest='command', required=True)
 order_subparser.add_parser('start', help="start the daemon. Must be run by systemd", add_help=False)
 order_subparser.add_parser('stop', help="stop the daemon. Must be run with sudo", add_help=False)
-daemon_subparser.add_argument('--iptables', action=BooleanOptionalAction,
+daemon_subparser.add_argument('--iptables-accept', action=BooleanOptionalAction,
                               help='add iptables rules that allow incoming traffic through new network interfaces. Use this only if the connection is unstable.\n'
+                                   'Disabled by default')
+daemon_subparser.add_argument('--iptables-route', action=BooleanOptionalAction,
+                              help='add iptables rules to enable routing of traffic through new network interfaces. Use this to allow traffic forwarding.\n'
+                                   'Disabled by default')
+daemon_subparser.add_argument('--iptables-masquerade', action=BooleanOptionalAction,
+                              help='apply iptables masquerade rule when routing traffic through new network interfaces. Use this to enable NAT.\n'
                                    'Disabled by default')
 daemon_subparser.add_argument('--suffix', action=BooleanOptionalAction,
                               help='add numeric suffix to new interfaces with existing names.\n'
@@ -27,9 +33,15 @@ down_subparser.add_argument('interface', type=check_existing_conf, help="shortcu
 
 upgrade_subparser = subparsers.add_parser('upgrade', help='duplicates a Tailscale connection with pure WireGuard', formatter_class=CustomArgumentFormatter)
 upgrade_subparser.add_argument('peer', type=check_peer, help='either the Tailscale IP address or the name of the peer you want to connect to')
-upgrade_subparser.add_argument('--iptables', action=BooleanOptionalAction,
+upgrade_subparser.add_argument('--iptables-accept', action=BooleanOptionalAction,
                                help='add iptables rules that allow incoming traffic through the new network interface. Use this only if the connection is unstable.\n'
                                     'Disabled by default')
+upgrade_subparser.add_argument('--iptables-route', action=BooleanOptionalAction,
+                              help='add iptables rules to enable routing of traffic through the new network interface. Use this to allow traffic forwarding.\n'
+                                   'Disabled by default')
+upgrade_subparser.add_argument('--iptables-masquerade', action=BooleanOptionalAction,
+                              help='apply iptables masquerade rule when routing traffic through the new network interface. Use this to enable NAT for outgoing packets.\n'
+                                   'Disabled by default')
 upgrade_subparser.add_argument('--suffix', action=BooleanOptionalAction,
                                help='add numeric suffix to new interfaces with existing names.\n'
                                     'Disabled by default')

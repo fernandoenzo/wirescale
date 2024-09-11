@@ -31,7 +31,9 @@ class MessageFields(StrEnum):
     EXPOSED_PORT = auto()
     HAS_PSK = auto()
     INTERFACE = auto()
-    IPTABLES = auto()
+    IPTABLES_ACCEPT = auto()
+    IPTABLES_ROUTE = auto()
+    IPTABLES_MASQUERADE = auto()
     LATEST_HANDSHAKE = auto()
     MESSAGE = auto()
     NAT = auto()
@@ -90,7 +92,9 @@ class UnixMessages:
             MessageFields.ALLOW_SUFFIX: ARGS.ALLOW_SUFFIX,
             MessageFields.EXPECTED_INTERFACE: ARGS.EXPECTED_INTERFACE,
             MessageFields.INTERFACE: ARGS.INTERFACE,
-            MessageFields.IPTABLES: ARGS.IPTABLES,
+            MessageFields.IPTABLES_ACCEPT: ARGS.IPTABLES_ACCEPT,
+            MessageFields.IPTABLES_ROUTE: ARGS.IPTABLES_ROUTE,
+            MessageFields.IPTABLES_MASQUERADE: ARGS.IPTABLES_MASQUERADE,
             MessageFields.PEER_IP: str(ARGS.PAIR.peer_ip),
             MessageFields.RECOVER_TRIES: ARGS.RECOVER_TRIES,
             MessageFields.RECREATE_TRIES: ARGS.RECREATE_TRIES,
