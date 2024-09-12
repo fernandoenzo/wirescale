@@ -129,7 +129,7 @@ class UnixServer:
     def upgrade(message: dict, stack: ExitStack):
         pair = CONNECTION_PAIRS[get_ident()]
         allow_suffix, interface = message[MessageFields.ALLOW_SUFFIX], message[MessageFields.INTERFACE]
-        iptables_accept, iptables_route, iptables_masquerade = message[MessageFields.IPTABLES_ACCEPT], message[MessageFields.IPTABLES_ROUTE], message[MessageFields.IPTABLES_MASQUERADE]
+        iptables_accept, iptables_forward, iptables_masquerade = message[MessageFields.IPTABLES_ACCEPT], message[MessageFields.IPTABLES_FORWARD], message[MessageFields.IPTABLES_MASQUERADE]
         recover_tries, recreate_tries, suffix_number = message[MessageFields.RECOVER_TRIES], message[MessageFields.RECREATE_TRIES], message[MessageFields.SUFFIX_NUMBER]
         config = check_configfile()
         wgconfig = check_wgconfig(config)
@@ -142,7 +142,7 @@ class UnixServer:
             wgconfig.suffix = suffix_number
         test_wgconfig(wgconfig)
         wgconfig.iptables_accept = iptables_accept if iptables_accept is not None else wgconfig.iptables_accept if wgconfig.iptables_accept is not None else False
-        wgconfig.iptables_route = iptables_route if iptables_route is not None else wgconfig.iptables_route if wgconfig.iptables_route is not None else False
+        wgconfig.iptables_forward = iptables_forward if iptables_forward is not None else wgconfig.iptables_forward if wgconfig.iptables_forward is not None else False
         wgconfig.iptables_masquerade = iptables_masquerade if iptables_masquerade is not None else wgconfig.iptables_masquerade if wgconfig.iptables_masquerade is not None else False
         wgconfig.recover_tries = recover_tries if recover_tries is not None else wgconfig.recover_tries if wgconfig.recover_tries is not None else 3
         wgconfig.recreate_tries = recreate_tries if recreate_tries is not None else wgconfig.recreate_tries if wgconfig.recreate_tries is not None else 0

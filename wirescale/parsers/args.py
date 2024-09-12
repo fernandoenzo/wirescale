@@ -17,7 +17,7 @@ class ARGS:
     DOWN: Path = None
     INTERFACE: str = None
     IPTABLES_ACCEPT: bool = None
-    IPTABLES_ROUTE: bool = None
+    IPTABLES_FORWARD: bool = None
     IPTABLES_MASQUERADE: bool = None
     LATEST_HANDSHAKE: int = None
     PAIR: ConnectionPair = None
@@ -40,7 +40,7 @@ def parse_args():
     ARGS.START = args.get('command') == 'start'
     ARGS.STOP = args.get('command') == 'stop'
     ARGS.IPTABLES_ACCEPT = args.get('iptables_accept')
-    ARGS.IPTABLES_ROUTE = args.get('iptables_route')
+    ARGS.IPTABLES_FORWARD = args.get('iptables_forward')
     ARGS.IPTABLES_MASQUERADE = args.get('iptables_masquerade')
     ARGS.ALLOW_SUFFIX = args.get('suffix')
     if ARGS.UPGRADE:

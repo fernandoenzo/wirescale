@@ -18,11 +18,10 @@ order_subparser.add_parser('stop', help="stop the daemon. Must be run with sudo"
 daemon_subparser.add_argument('--iptables-accept', action=BooleanOptionalAction,
                               help='add iptables rules that allow incoming traffic through new network interfaces. Use this only if the connection is unstable.\n'
                                    'Disabled by default')
-daemon_subparser.add_argument('--iptables-route', action=BooleanOptionalAction,
-                              help='add iptables rules to enable routing of traffic through new network interfaces. Use this to allow traffic forwarding.\n'
-                                   'Disabled by default')
+daemon_subparser.add_argument('--iptables-forward', action=BooleanOptionalAction,
+                              help='add iptables rules to enable forwarding of traffic through new network interfaces.\nDisabled by default')
 daemon_subparser.add_argument('--iptables-masquerade', action=BooleanOptionalAction,
-                              help='apply iptables masquerade rule when routing traffic through new network interfaces. Use this to enable NAT.\n'
+                              help='add iptables rules to mark and masquerade traffic routed through new network interfaces. Use this to enable NAT for outgoing packets.\n'
                                    'Disabled by default')
 daemon_subparser.add_argument('--suffix', action=BooleanOptionalAction,
                               help='add numeric suffix to new interfaces with existing names.\n'
@@ -36,7 +35,7 @@ upgrade_subparser.add_argument('peer', type=check_peer, help='either the Tailsca
 upgrade_subparser.add_argument('--iptables-accept', action=BooleanOptionalAction,
                                help='add iptables rules that allow incoming traffic through the new network interface. Use this only if the connection is unstable.\n'
                                     'Disabled by default')
-upgrade_subparser.add_argument('--iptables-route', action=BooleanOptionalAction,
+upgrade_subparser.add_argument('--iptables-forward', action=BooleanOptionalAction,
                                help='add iptables rules to enable forwarding of traffic through the new network interface.\nDisabled by default')
 upgrade_subparser.add_argument('--iptables-masquerade', action=BooleanOptionalAction,
                                help='add iptables rules to mark and masquerade traffic routed through the new network interface. Use this to enable NAT for outgoing packets.\n'

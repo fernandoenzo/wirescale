@@ -108,7 +108,7 @@ class TCPServer:
             ErrorMessages.send_error_message(local_message=error, remote_message=remote_error)
         test_wgconfig(wgconfig)
         wgconfig.iptables_accept = wgconfig.iptables_accept if wgconfig.iptables_accept is not None else ARGS.IPTABLES_ACCEPT if ARGS.IPTABLES_ACCEPT is not None else False
-        wgconfig.iptables_route = wgconfig.iptables_route if wgconfig.iptables_route is not None else ARGS.IPTABLES_ROUTE if ARGS.IPTABLES_ROUTE is not None else False
+        wgconfig.iptables_forward = wgconfig.iptables_forward if wgconfig.iptables_forward is not None else ARGS.IPTABLES_FORWARD if ARGS.IPTABLES_FORWARD is not None else False
         wgconfig.iptables_masquerade = wgconfig.iptables_masquerade if wgconfig.iptables_masquerade is not None else ARGS.IPTABLES_MASQUERADE if ARGS.IPTABLES_MASQUERADE is not None else False
         with file_locker():
             wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)

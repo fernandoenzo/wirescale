@@ -32,7 +32,7 @@ class MessageFields(StrEnum):
     HAS_PSK = auto()
     INTERFACE = auto()
     IPTABLES_ACCEPT = auto()
-    IPTABLES_ROUTE = auto()
+    IPTABLES_FORWARD = auto()
     IPTABLES_MASQUERADE = auto()
     LATEST_HANDSHAKE = auto()
     MESSAGE = auto()
@@ -93,7 +93,7 @@ class UnixMessages:
             MessageFields.EXPECTED_INTERFACE: ARGS.EXPECTED_INTERFACE,
             MessageFields.INTERFACE: ARGS.INTERFACE,
             MessageFields.IPTABLES_ACCEPT: ARGS.IPTABLES_ACCEPT,
-            MessageFields.IPTABLES_ROUTE: ARGS.IPTABLES_ROUTE,
+            MessageFields.IPTABLES_FORWARD: ARGS.IPTABLES_FORWARD,
             MessageFields.IPTABLES_MASQUERADE: ARGS.IPTABLES_MASQUERADE,
             MessageFields.PEER_IP: str(ARGS.PAIR.peer_ip),
             MessageFields.RECOVER_TRIES: ARGS.RECOVER_TRIES,

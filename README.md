@@ -280,7 +280,7 @@ The `[Wirescale]` section of config files seen before is entirely optional, and 
 - `interface` The network interface name that WireGuard will set up for this peer. Defaults to the peer name.
 - `iptables-accept` Can be `true` or `false`. If set to `true`, iptables rules will be added to allow incoming traffic through the new network interface. Use
   this only if the connection is unstable and needs to be recovered repeatedly. This should not be necessary in most cases. Defaults to `false`.
-- `iptables-route` Can be `true` or `false`. If set to `true`, iptables rules will be added to enable forwarding of traffic through the new network interface.
+- `iptables-forward` Can be `true` or `false`. If set to `true`, iptables rules will be added to enable forwarding of traffic through the new network interface.
   Defaults to `false`.
 - `iptables-masquerade` Can be `true` or `false`. If set to `true`, iptables rules will be added to mark and masquerade traffic routed through the new network
   interface. Use this to enable NAT for outgoing packets. Defaults to `false`.
@@ -289,8 +289,8 @@ The `[Wirescale]` section of config files seen before is entirely optional, and 
 - `recreate-tries` The number of attempts to create a new tunnel if the network interface was brought down after failing to recover it. Negative values
   indicate unlimited retries. Defaults to 0 tries.
 - `suffix` Can be `true` or `false`. When set to `true`, a numeric suffix is appended to new interfaces that share names with existing ones. This suffix can be
-  referenced in the configuration file as `%s`, mirroring the substitution process that `%i` undergoes for the interface name. If no suffix is added, `%s`
-  defaults to 0.
+  referenced in the configuration file as `%s`, mirroring the substitution process that `%i` undergoes for the interface name. If no suffix is added, `%s` is
+  set to 0. Defaults to `false`.
 
 As mentioned earlier, any of these fields can be optionally configured when running the `wirescale upgrade` command. It's important to note that if Wirescale
 operates in a client role, command-line arguments will override settings specified in the configuration file.

@@ -50,7 +50,7 @@ class WGConfig:
         self.allowed_ips = self.get_allowed_ips()
         self.interface: str = self.get_wirescale_field(field='interface')
         self.iptables_accept: bool = self.get_wirescale_field(field='iptables-accept', func=self.config.getboolean)
-        self.iptables_route: bool = self.get_wirescale_field(field='iptables-route', func=self.config.getboolean)
+        self.iptables_forward: bool = self.get_wirescale_field(field='iptables-forward', func=self.config.getboolean)
         self.iptables_masquerade: bool = self.get_wirescale_field(field='iptables-masquerade', func=self.config.getboolean)
         self.public_key = self.generate_wg_pubkey(self.private_key)
         self.recover_tries: int = self.get_wirescale_field(field='recover-tries', func=self.config.getint)
@@ -135,7 +135,7 @@ class WGConfig:
         self.add_script('postdown', postdown_input_interface, first_place=True)
         self.add_script('postdown', postdown_input_port, first_place=True)
 
-    def add_iptables_route(self):
+    def add_iptables_forward(self):
         postup_forward = 'iptables -I FORWARD -i %i -j ACCEPT'
         postdown_forward = 'iptables -D FORWARD -i %i -j ACCEPT || true'
         self.add_script('postup', postup_forward)
@@ -191,8 +191,8 @@ class WGConfig:
         new_config.add_section(peer)
         if self.iptables_accept:
             self.add_iptables_accept()
-        if self.iptables_route:
-            self.add_iptables_route()
+        if self.iptables_forward:
+            self.add_iptables_forward()
         if self.iptables_masquerade:
             self.add_iptables_masquerade()
         # self.first_handshake()
