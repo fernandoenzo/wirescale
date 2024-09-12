@@ -37,11 +37,10 @@ upgrade_subparser.add_argument('--iptables-accept', action=BooleanOptionalAction
                                help='add iptables rules that allow incoming traffic through the new network interface. Use this only if the connection is unstable.\n'
                                     'Disabled by default')
 upgrade_subparser.add_argument('--iptables-route', action=BooleanOptionalAction,
-                              help='add iptables rules to enable routing of traffic through the new network interface. Use this to allow traffic forwarding.\n'
-                                   'Disabled by default')
+                               help='add iptables rules to enable forwarding of traffic through the new network interface.\nDisabled by default')
 upgrade_subparser.add_argument('--iptables-masquerade', action=BooleanOptionalAction,
-                              help='apply iptables masquerade rule when routing traffic through the new network interface. Use this to enable NAT for outgoing packets.\n'
-                                   'Disabled by default')
+                               help='add iptables rules to mark and masquerade traffic routed through the new network interface. Use this to enable NAT for outgoing packets.\n'
+                                    'Disabled by default')
 upgrade_subparser.add_argument('--suffix', action=BooleanOptionalAction,
                                help='add numeric suffix to new interfaces with existing names.\n'
                                     'Disabled by default')

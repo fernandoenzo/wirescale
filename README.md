@@ -123,7 +123,7 @@ Curious about the different modes of operation? Run `wirescale -h` to see them:
 
 - `daemon` mode is launched from the `systemd` unit. Configure it with the options that suit your needs (`wirescale daemon -h` will list them all).
 - `recover`  option will attempt to re-establish the connection for an interface that has been detected as down, ensuring it reconnects with its peer.
-This option is for internal use only.
+  This option is for internal use only.
 - `upgrade` option is where the magic happens, and we’ll dive deeper into this shortly.
 - `down` option is the easiest way to take down a network interface raised with Wirescale.
 
@@ -278,8 +278,12 @@ have `ping` available on your system.
 The `[Wirescale]` section of config files seen before is entirely optional, and accepts the following fields:
 
 - `interface` The network interface name that WireGuard will set up for this peer. Defaults to the peer name.
-- `iptables` Can be `true` or `false`. If set to `true`, iptables rules will be added to allow incoming traffic through the new network interface. Use this
-  only if the connection is unstable and needs to be recovered repeatedly. This should not be necessary in most cases. Defaults to `false`.
+- `iptables-accept` Can be `true` or `false`. If set to `true`, iptables rules will be added to allow incoming traffic through the new network interface. Use
+  this only if the connection is unstable and needs to be recovered repeatedly. This should not be necessary in most cases. Defaults to `false`.
+- `iptables-route` Can be `true` or `false`. If set to `true`, iptables rules will be added to enable forwarding of traffic through the new network interface.
+  Defaults to `false`.
+- `iptables-masquerade` Can be `true` or `false`. If set to `true`, iptables rules will be added to mark and masquerade traffic routed through the new network
+  interface. Use this to enable NAT for outgoing packets. Defaults to `false`.
 - `recover-tries` The number of automatic recovery attempts if the connection drops before the network interface is brought down. Negative values indicate
   unlimited attempts. Defaults to 3 tries.
 - `recreate-tries` The number of attempts to create a new tunnel if the network interface was brought down after failing to recover it. Negative values
