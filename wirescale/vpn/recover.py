@@ -82,9 +82,9 @@ class RecoverConfig:
         return recover
 
     def fix_iptables(self):
-        iptables = 'iptables -{action} INPUT -p udp --dport {port} -j ACCEPT'
-        add_iptables = iptables.format(action='I', port=self.new_port).split()
-        remove_iptables = iptables.format(action='D', port=self.current_port).split()
+        iptables = 'iptables -{action} INPUT -p udp --dport {port} -j ACCEPT -m comment --comment "wirescale-{interface}"'
+        add_iptables = iptables.format(action='I', port=self.new_port, interface=self.interface).split()
+        remove_iptables = iptables.format(action='D', port=self.current_port, interface=self.interface).split()
         subprocess.run(remove_iptables, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(add_iptables, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 

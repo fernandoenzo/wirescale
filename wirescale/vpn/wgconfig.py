@@ -64,6 +64,10 @@ class WGConfig:
         self.start_time: int = datetime.now().second
         self.suffix: int = None
 
+    @staticmethod
+    def __remove_iptable_rule(rule: str) -> str:
+        return f"{rule.replace('-I', '-D', 1)} || true"
+
     @cached_property
     def mark(self) -> int:
         encoded_interface = BytesStrConverter.str_to_bytes(self.interface)
@@ -126,26 +130,26 @@ class WGConfig:
 
     def add_iptables_accept(self):
         port = TSManager.local_port()
-        postup_input_interface = 'iptables -I INPUT -i %i -j ACCEPT'
-        postup_input_port = f'iptables -I INPUT -p udp --dport {port} -j ACCEPT'
-        postdown_input_interface = 'iptables -D INPUT -i %i -j ACCEPT || true'
-        postdown_input_port = f'iptables -D INPUT -p udp --dport {port} -j ACCEPT || true'
+        postup_input_interface = f'iptables -I INPUT -i %i -j ACCEPT -m comment --comment "wirescale-{self.interface}"'
+        postup_input_port = f'iptables -I INPUT -p udp --dport {port} -j ACCEPT -m comment --comment "wirescale-{self.interface}"'
+        postdown_input_interface = self.__remove_iptable_rule(postup_input_interface)
+        postdown_input_port = self.__remove_iptable_rule(postup_input_port)
         self.add_script('postup', postup_input_interface)
         self.add_script('postup', postup_input_port)
         self.add_script('postdown', postdown_input_interface, first_place=True)
         self.add_script('postdown', postdown_input_port, first_place=True)
 
     def add_iptables_forward(self):
-        postup_forward = 'iptables -I FORWARD -i %i -j ACCEPT'
-        postdown_forward = 'iptables -D FORWARD -i %i -j ACCEPT || true'
+        postup_forward = f'iptables -I FORWARD -i %i -j ACCEPT -m comment --comment "wirescale-{self.interface}"'
+        postdown_forward = self.__remove_iptable_rule(postup_forward)
         self.add_script('postup', postup_forward)
         self.add_script('postdown', postdown_forward, first_place=True)
 
     def add_iptables_masquerade(self):
-        postup_mark = f'iptables -I FORWARD -i %i -j MARK --set-mark {self.mark}'
-        postup_masquerade = f'iptables -t nat -I POSTROUTING ! -o %i -m mark --mark {self.mark} -j MASQUERADE'
-        postdown_mark = f'iptables -D FORWARD -i %i -j MARK --set-mark {self.mark} || true'
-        postdown_masquerade = f'iptables -t nat -D POSTROUTING ! -o %i -m mark --mark {self.mark} -j MASQUERADE || true'
+        postup_mark = f'iptables -I FORWARD -i %i -j MARK --set-mark {self.mark} -m comment --comment "wirescale-{self.interface}"'
+        postup_masquerade = f'iptables -t nat -I POSTROUTING ! -o %i -m mark --mark {self.mark} -j MASQUERADE -m comment --comment "wirescale-{self.interface}"'
+        postdown_mark = self.__remove_iptable_rule(postup_mark)
+        postdown_masquerade = self.__remove_iptable_rule(postup_masquerade)
         self.add_script('postup', postup_mark)
         self.add_script('postup', postup_masquerade)
         self.add_script('postdown', postdown_mark, first_place=True)
