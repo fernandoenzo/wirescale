@@ -71,8 +71,8 @@ class WGConfig:
     @cached_property
     def mark(self) -> int:
         encoded_interface = BytesStrConverter.str_to_bytes(self.interface)
-        hash_sha256 = hashlib.sha256(encoded_interface).hexdigest()
-        return int(hash_sha256, 16) & 0xFFFFFFFF  # return the last 32 bits
+        hash_sha384 = hashlib.sha384(encoded_interface).hexdigest()
+        return int(hash_sha384[:8], 16)  # return the first 32 bits
 
     def read_config(self):
         with open(self.file_path, 'r') as f:
