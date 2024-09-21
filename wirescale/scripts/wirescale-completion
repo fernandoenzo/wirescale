@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+
+# This function provides autocompletion for the wirescale command
+_wirescale_completion() {
+  # Initialize local variables
+  local cur prev words cword
+  # _init_completion is a helper function provided by bash-completion
+  # It populates cur (current word), prev (previous word), words (array of words in command line),
+  # and cword (index of current word)
+  _init_completion || return
+
+  # Main case statement to handle different subcommands
+  case "${words[1]}" in
+    daemon)
+      # Handle 'daemon' subcommand
+      case "${words[2]}" in
+        start)
+          # For 'daemon start', provide options similar to 'upgrade'
+          if [[ ${#words[@]} -gt 3 ]]; then
+            COMPREPLY=($(compgen -W "--iptables-accept --no-iptables-accept --iptables-forward --no-iptables-forward --iptables-masquerade --no-iptables-masquerade --suffix --no-suffix" -- "$cur"))
+          fi
+          ;;
+        stop)
+          # 'daemon stop' has no additional options
+          return 0
+          ;;
+        *)
+          # If no subcommand is specified yet, offer 'start' and 'stop'
+          COMPREPLY=($(compgen -W "start stop" -- "$cur"))
+          ;;
+      esac
+      ;;
+    down)
+      # Handle 'down' subcommand
+      # Note: ${#words[@]} is 3 here because bash adds an empty word for completion
+      if [[ ${#words[@]} -eq 3 ]]; then
+        # Offer completion for .conf files in /run/wirescale, without the .conf extension
+        COMPREPLY=($(compgen -W "$(find /run/wirescale -name '*.conf' -exec basename {} .conf \;)" -- "$cur"))
+      fi
+      ;;
+    upgrade)
+      # Handle 'upgrade' subcommand
+      if [[ ${#words[@]} -eq 3 ]]; then
+        # Offer peer names for the first argument of 'upgrade'
+        # Get Tailscale status and process it with jq
+        local json_output=$(tailscale status --json 2> /dev/null)
+        local suffix=$(echo "$json_output" | jq -r '.MagicDNSSuffix')
+        # Remove the domain suffix from peer names
+        local peers=$(echo "$json_output" | jq -r --arg suffix ".$suffix" '.Peer[].DNSName | sub($suffix; "")')
+        COMPREPLY=($(compgen -W "$peers" -- "$cur"))
+      elif [[ ${#words[@]} -gt 3 ]]; then
+        # Offer additional options for 'upgrade' after the peer name is specified
+        COMPREPLY=($(compgen -W "--iptables-accept --no-iptables-accept --iptables-forward --no-iptables-forward --iptables-masquerade --no-iptables-masquerade --suffix --no-suffix --suffix-number --interface -i --remote-interface --recover-tries --recreate-tries" -- "$cur"))
+      fi
+      ;;
+    recover)
+      # Handle 'recover' subcommand
+      if [[ ${#words[@]} -eq 3 ]]; then
+        # Offer completion for .conf files in /run/wirescale, without the .conf extension
+        COMPREPLY=($(compgen -W "$(find /run/wirescale -name '*.conf' -exec basename {} .conf \;)" -- "$cur"))
+      fi
+      ;;
+    *)
+      # If no subcommand is specified yet, offer all available subcommands
+      COMPREPLY=($(compgen -W "daemon down upgrade recover" -- "$cur"))
+      ;;
+  esac
+}
+
+# Register the completion function for the wirescale command
+complete -F _wirescale_completion wirescale
