@@ -78,7 +78,7 @@ entry_points = {
 
 package_data = {
     'wirescale': [
-        'scripts/wirescale-autoremove',
+        'scripts/*',
         'systemd/*',
     ],
 }

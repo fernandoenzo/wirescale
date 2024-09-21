@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 _wirescale_completion() {
-
   local cur prev words cword
   _init_completion || return
 

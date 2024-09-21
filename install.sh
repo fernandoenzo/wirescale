@@ -19,11 +19,13 @@ systemctl disable "$SERVICE" > /dev/null 2>&1 || true
 systemctl disable "$SOCKET" > /dev/null 2>&1 || true
 rm -rf "/etc/systemd/system/$SERVICE" > /dev/null 2>&1 || true
 rm -rf "/etc/systemd/system/$SOCKET" > /dev/null 2>&1 || true
+rm -rf "/etc/bash_completion.d/wirescale-completion" > /dev/null 2>&1 || true
 systemctl daemon-reload
 
 PYTHON_DIR=$(find /opt/pipx/venvs/wirescale/lib -name 'python*' -type d)
 ln -s "$PYTHON_DIR/site-packages/wirescale/systemd/$SOCKET" "/etc/systemd/system/"
 ln -s "$PYTHON_DIR/site-packages/wirescale/systemd/$SERVICE" "/etc/systemd/system/"
+ln -s "$PYTHON_DIR/site-packages/wirescale/scripts/wirescale-completion" "/etc/bash_completion.d/"
 systemctl daemon-reload
 
 systemctl enable "$SOCKET" "$SERVICE"
