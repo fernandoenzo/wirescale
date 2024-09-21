@@ -1,47 +1,18 @@
 #!/usr/bin/env bash
 
-# This function provides autocompletion for the wirescale command
 _wirescale_completion() {
-  # Initialize local variables
+
   local cur prev words cword
-  # _init_completion is a helper function provided by bash-completion
-  # It populates cur (current word), prev (previous word), words (array of words in command line),
-  # and cword (index of current word)
   _init_completion || return
 
-  # Explanation of ${#words[@]} behavior in completion functions:
-  # In the context of a bash completion function, ${#words[@]} behaves differently
-  # than it would in a regular script or on the command line. Here's why:
-  #
-  # 1. When you type a command and press Tab for completion, bash adds an extra
-  #    "phantom" word to the words array. This phantom word represents where the
-  #    cursor is and what you might be about to type.
-  #
-  # 2. So, when you've typed "wirescale down " and press Tab:
-  #    - words[0] = "wirescale"
-  #    - words[1] = "down"
-  #    - words[2] = "" (the phantom word where your cursor is)
-  #    Therefore, ${#words[@]} equals 3, not 2 as you might expect.
-  #
-  # 3. This behavior allows the completion function to distinguish between:
-  #    - When you've finished typing a word and pressed space (phantom word is empty)
-  #    - When you're in the middle of typing a word (phantom word contains what you've typed so far)
-  #
-  # 4. That's why we use [[ ${#words[@]} -eq 3 ]] to check if we should complete
-  #    the first argument after a subcommand, even though visually it looks like
-  #    only two words have been typed.
-
-  # Main case statement to handle different subcommands
   case "${words[1]}" in
     down)
-      # Handle 'down' subcommand
       if [[ ${#words[@]} -eq 3 ]]; then
         # Offer completion for .conf files in /run/wirescale, without the .conf extension
         COMPREPLY=($(compgen -W "$(find /run/wirescale -name '*.conf' -exec basename {} .conf \;)" -- "$cur"))
       fi
       ;;
     upgrade)
-      # Handle 'upgrade' subcommand
       if [[ ${#words[@]} -eq 3 ]]; then
         # Offer peer names for the first argument of 'upgrade'
         # Get Tailscale status and process it with jq
@@ -62,5 +33,4 @@ _wirescale_completion() {
   esac
 }
 
-# Register the completion function for the wirescale command
 complete -F _wirescale_completion wirescale
