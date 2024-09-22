@@ -36,7 +36,7 @@ def parse_args():
     args = vars(top_parser.parse_args())
     ARGS.DAEMON = args.get('opt') == 'daemon'
     ARGS.DOWN = args.get('opt') == 'down'
-    ARGS.EXIT_NODE = args.get('opt') == 'exit_node'
+    ARGS.EXIT_NODE = args.get('opt') == 'exit-node'
     ARGS.RECOVER = args.get('opt') == 'recover'
     ARGS.UPGRADE = args.get('opt') == 'upgrade'
     ARGS.START = args.get('command') == 'start'
@@ -60,6 +60,8 @@ def parse_args():
         ARGS.LATEST_HANDSHAKE = get_latest_handshake(ARGS.INTERFACE)
     elif ARGS.EXIT_NODE:
         ARGS.INTERFACE = args.get('interface')
+        if ARGS.INTERFACE is not None:
+            ARGS.INTERFACE = ARGS.INTERFACE.stem
         ARGS.STOP = args.get('stop')
     elif ARGS.DOWN:
         ARGS.CONFIGFILE = args.get('interface')

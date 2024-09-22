@@ -22,6 +22,7 @@ from parallel_utils.thread import create_thread
 from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS, file_locker, subprocess_run_tmpfile
 from wirescale.communications.messages import ActionCodes, ErrorMessages, Messages
 from wirescale.communications.systemd import Systemd
+from wirescale.vpn.exit_node import ExitNode
 from wirescale.vpn.iptables import IPTABLES
 from wirescale.vpn.tsmanager import TSManager
 
@@ -44,6 +45,7 @@ class WGConfig:
         self.listen_port = TSManager.local_port()
         self.listen_ext_port: int = None
         self.endpoint: Tuple[IPv4Address, int] = None
+        self.exit_node: bool = False
         self.table = self.get_field('Interface', 'Table')
         self.mtu = self.get_field('Interface', 'MTU')
         self.nat: bool = None
@@ -157,6 +159,12 @@ class WGConfig:
                      "if [ $handshake -eq 0 ]; then sleep 0.5; count=$((count+1)); else exit 0; fi; done; exit 1'")
         self.add_script('postup', handshake, first_place=True)
 
+    def remove_exit_node(self):
+        remove = rf"/bin/sh -c '[ -f /run/wirescale/control/exit-node-{self.interface} ] && wirescale exit-node --stop'"
+        wipe_allowed_ips = rf"""/bin/sh -c 'sudo wg set {self.interface} peer {self.remote_pubkey} allowed-ips  ""'"""
+        self.add_script('predown', remove)
+        self.add_script('predown', wipe_allowed_ips)
+
     def autoremove_configfile(self):
         remove_configfile = f'rm -f {self.configfile}'
         self.add_script('postdown', remove_configfile, first_place=True)
@@ -196,6 +204,7 @@ class WGConfig:
             self.add_iptables_forward()
         if self.iptables_masquerade:
             self.add_iptables_masquerade()
+        self.remove_exit_node()
         # self.first_handshake()
         self.autoremove_configfile()
         repeatable_fields = [field for field in self.repeatable_fields if field != allowedips]
@@ -211,8 +220,14 @@ class WGConfig:
         new_config.set(peer, 'PresharedKey', self.psk)
         new_config.set(peer, 'Endpoint', f'{self.endpoint[0]}:{self.endpoint[1]}')
         new_config.set(peer, 'PersistentKeepalive', '10')
-        for i, value in enumerate(self.get_field(peer, allowedips), start=1):
-            new_config.set(peer, f'{allowedips}{i}_', value)
+        if ExitNode.GLOBAL_NETWORK in self.allowed_ips:
+            self.exit_node = True
+            if len(self.allowed_ips) == 1:
+                self.table = 'off'
+            else:
+                self.allowed_ips = set(self.allowed_ips)
+                self.allowed_ips.remove(ExitNode.GLOBAL_NETWORK)
+        new_config.set(peer, allowedips, ', '.join(str(x) for x in self.allowed_ips))
         new_config = self.write_config(new_config, self.suffix)
         self.new_config_path.write_text(new_config, encoding='utf-8')
 
@@ -269,6 +284,7 @@ class WGConfig:
         TSManager.start()
         create_thread(TSManager.wait_tailscale_restarted, pair, stack)
         if wgquick.returncode == 0:
+            ExitNode.set(self.interface, self.remote_pubkey) if self.exit_node else None
             Messages.send_info_message(local_message='Verifying handshake with the other peer...')
             updated = check_updated_handshake(self.interface)
             if not updated:

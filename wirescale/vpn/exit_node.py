@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+# encoding:utf-8
+
+
+import subprocess
+from ipaddress import ip_network, IPv4Network, IPv6Network
+from pathlib import Path
+from typing import Set
+
+from wirescale.communications.common import EXIT_NODE_MARK, WIRESCALE_TABLE
+from wirescale.communications.systemd import Systemd
+from wirescale.vpn.iptables import IPTABLES
+
+
+class ExitNode:
+    GLOBAL_NETWORK = ip_network('0.0.0.0/0')
+    DIRECTORY = Path('/run/wirescale/control/')
+
+    @staticmethod
+    def get_fwmark(interface: str) -> int | None:
+        command = ['wg', 'show', interface, 'fwmark']
+        mark = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='utf-8').stdout.strip()
+        return int(mark, 16) if mark != 'off' else None
+
+    @classmethod
+    def get_exit_node(cls):
+        try:
+            file = next(cls.DIRECTORY.glob('exit-node-*'))
+            with file.open() as f:
+                has_allowed_ips = f.read().strip() == '1'
+            return file.name.split('exit-node-')[-1], has_allowed_ips
+        except StopIteration:
+            return None, None
+
+    @classmethod
+    def set(cls, interface: str):
+        cls.remove_exit_node()
+        fwmark = cls.get_fwmark(interface) or EXIT_NODE_MARK
+        if fwmark == EXIT_NODE_MARK:
+            cls.set_fwmark(interface, fwmark)
+        save_connmark = IPTABLES.SAVE_CONNMARK.format(mark=fwmark, interface=interface)
+        restore_connmark = IPTABLES.RESTORE_CONNMARK.format(interface=interface)
+        modified = cls.modify_allowed_ips(interface)
+        file = cls.DIRECTORY.joinpath(f'exit-node-{interface}')
+        with file.open('w') as f:
+            f.write('1\n') if modified else f.write('0\n')
+        add_route = ['ip', '-4', 'route', 'add', str(cls.GLOBAL_NETWORK), 'dev', interface, 'table', str(WIRESCALE_TABLE)]
+        add_rule_not_fwmark = ['ip', '-4', 'rule', 'add', 'not', 'fwmark', str(fwmark), 'table', str(WIRESCALE_TABLE)]
+        add_rule_suppress = ['ip', '-4', 'rule', 'add', 'table', 'main', 'suppress_prefixlength', '0']
+        subprocess.run(restore_connmark, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(save_connmark, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(add_route, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(add_rule_not_fwmark, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(add_rule_suppress, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    @staticmethod
+    def set_fwmark(interface: str, mark: int | None):
+        mark = mark if mark is not None else 0
+        command = ['wg', 'set', interface, 'fwmark', str(mark)]
+        subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    @classmethod
+    def remove_exit_node(cls):
+        node, remove_allowed_ips = cls.get_exit_node()
+        if node is None:
+            return
+        if remove_allowed_ips:
+            cls.modify_allowed_ips(interface=node, remove=True)
+        fwmark = cls.get_fwmark(node)
+        if fwmark == EXIT_NODE_MARK:
+            cls.set_fwmark(node, None)
+        save_connmark = IPTABLES.remove_rule(IPTABLES.SAVE_CONNMARK.format(mark=fwmark, interface=node))
+        restore_connmark = IPTABLES.remove_rule(IPTABLES.RESTORE_CONNMARK.format(interface=node))
+        del_route = ['ip', 'route', 'flush', 'table', str(WIRESCALE_TABLE)]
+        del_rule_not_fwmark = ['ip', '-4', 'rule', 'del', 'not', 'fwmark', str(fwmark), 'table', str(WIRESCALE_TABLE)]
+        del_rule_suppress = ['ip', '-4', 'rule', 'del', 'table', 'main', 'suppress_prefixlength', '0']
+        subprocess.run(restore_connmark, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(save_connmark, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(del_route, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(del_rule_not_fwmark, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(del_rule_suppress, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        cls.DIRECTORY.joinpath(f'exit-node-{node}').unlink()
+
+    @staticmethod
+    def get_allowed_ips(interface: str) -> Set[IPv4Network | IPv6Network]:
+        node = Systemd.create_from_autoremove(f'autoremove-{interface}.service')
+        command = ['wg', 'show', interface, 'allowed-ips']
+        peers = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='utf-8').stdout.splitlines()
+        peers = [x.split() for x in peers]
+        return set(ip_network(network) for peer in peers if peer[0] == node.remote_pubkey for network in peer[1:])
+
+    @classmethod
+    def modify_allowed_ips(cls, interface: str, remove: bool = False) -> bool:
+        node = Systemd.create_from_autoremove(f'autoremove-{interface}.service')
+        all_networks = cls.get_allowed_ips(interface)
+        if remove:
+            try:
+                all_networks.remove(cls.GLOBAL_NETWORK)
+            except KeyError:
+                return False
+        else:
+            if cls.GLOBAL_NETWORK in all_networks:
+                return False
+            all_networks.add(cls.GLOBAL_NETWORK)
+        all_networks = ','.join(str(x) for x in all_networks)
+        command = ['wg', 'set', interface, 'peer', node.remote_pubkey, 'allowed-ips', all_networks]
+        subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return True

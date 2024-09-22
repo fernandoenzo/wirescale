@@ -5,7 +5,7 @@
 from argparse import ArgumentParser, BooleanOptionalAction
 
 from wirescale.parsers.utils import CustomArgumentFormatter
-from wirescale.parsers.validators import check_existing_conf, check_existing_conf_and_systemd, check_existing_wg_interface, check_peer, check_positive, interface_name_validator
+from wirescale.parsers.validators import check_existing_conf, check_existing_conf_and_systemd, check_peer, check_positive, interface_name_validator
 from wirescale.version import version_msg
 
 top_parser = ArgumentParser(prog='wirescale', description='Upgrade your existing Tailscale connection by transitioning to pure WireGuard', formatter_class=CustomArgumentFormatter)
@@ -64,7 +64,7 @@ upgrade_subparser.add_argument('--recreate-tries', type=int, metavar='N',
 # Exit-node subparser
 exit_node_subparser = subparsers.add_parser('exit-node', formatter_class=CustomArgumentFormatter, help='set up a peer as an exit node for all outgoing traffic',
                                             description='Configure a peer with an existing WireGuard connection as an exit node. This will route all outgoing traffic through the specified peer')
-exit_node_subparser.add_argument('peer', nargs='?', default=None, type=check_existing_wg_interface, help='name of the peer to use as the exit node')
+exit_node_subparser.add_argument('interface', nargs='?', default=None, type=check_existing_conf, help='interface to use as the exit node')
 exit_node_subparser.add_argument('--stop', action='store_true', help='disable exit node functionality and revert to normal routing')
 
 recover_subparser = subparsers.add_parser('recover', formatter_class=CustomArgumentFormatter, help='recover a dropped connection by forcing a new hole punching.\nIntended for internal use only',

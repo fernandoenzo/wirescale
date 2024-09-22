@@ -20,7 +20,7 @@ CONNECTION_PAIRS: Dict[int, 'ConnectionPair'] = {}
 SHUTDOWN = Event()
 SOCKET_PATH = Path('/run/wirescale/wirescaled.sock').resolve()
 TCP_PORT = 41642
-WIRESCALE_TABLE = 2693596026
+WIRESCALE_TABLE = 0xA08D037A  # 2693596026
 EXIT_NODE_MARK = WIRESCALE_TABLE + 1
 
 

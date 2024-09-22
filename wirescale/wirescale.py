@@ -18,6 +18,7 @@ from wirescale.communications.unix_client import UnixClient
 from wirescale.communications.unix_server import UnixServer
 from wirescale.parsers import top_parser
 from wirescale.parsers.args import ARGS, parse_args
+from wirescale.vpn.exit_node import ExitNode
 from wirescale.vpn.watch import ACTIVE_SOCKETS
 
 sys.tracebacklimit = 0
@@ -72,6 +73,12 @@ def main():
             UnixClient.stop()
     elif ARGS.UPGRADE:
         UnixClient.upgrade()
+    elif ARGS.EXIT_NODE:
+        check_root()
+        if ARGS.STOP:
+            ExitNode.remove_exit_node()
+        else:
+            ExitNode.set(ARGS.INTERFACE)
     elif ARGS.RECOVER:
         check_root()
         main_pid = subprocess.run(['systemctl', 'show', '-p', 'MainPID', f'autoremove-{ARGS.INTERFACE}.service'], capture_output=True, text=True).stdout.strip()
