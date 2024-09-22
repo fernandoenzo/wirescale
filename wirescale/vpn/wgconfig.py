@@ -22,6 +22,7 @@ from parallel_utils.thread import create_thread
 from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS, file_locker, subprocess_run_tmpfile
 from wirescale.communications.messages import ActionCodes, ErrorMessages, Messages
 from wirescale.communications.systemd import Systemd
+from wirescale.vpn.iptables import IPTABLES
 from wirescale.vpn.tsmanager import TSManager
 
 
@@ -63,10 +64,6 @@ class WGConfig:
         self.psk = self.psk or self.generate_wg_psk()
         self.start_time: int = datetime.now().second
         self.suffix: int = None
-
-    @staticmethod
-    def __remove_iptable_rule(rule: str) -> str:
-        return f"{rule.replace('-I', '-D', 1)} || true"
 
     @cached_property
     def mark(self) -> int:
@@ -130,26 +127,26 @@ class WGConfig:
 
     def add_iptables_accept(self):
         port = TSManager.local_port()
-        postup_input_interface = f'iptables -I INPUT -i %i -j ACCEPT -m comment --comment "wirescale-{self.interface}"'
-        postup_input_port = f'iptables -I INPUT -p udp --dport {port} -j ACCEPT -m comment --comment "wirescale-{self.interface}"'
-        postdown_input_interface = self.__remove_iptable_rule(postup_input_interface)
-        postdown_input_port = self.__remove_iptable_rule(postup_input_port)
+        postup_input_interface = IPTABLES.INPUT_ACCEPT_INTERFACE.format(interface=self.interface)
+        postup_input_port = IPTABLES.INPUT_ACCEPT_PORT.format(port=port, interface=self.interface)
+        postdown_input_interface = IPTABLES.remove_rule(postup_input_interface)
+        postdown_input_port = IPTABLES.remove_rule(postup_input_port)
         self.add_script('postup', postup_input_interface)
         self.add_script('postup', postup_input_port)
         self.add_script('postdown', postdown_input_interface, first_place=True)
         self.add_script('postdown', postdown_input_port, first_place=True)
 
     def add_iptables_forward(self):
-        postup_forward = f'iptables -I FORWARD -i %i -j ACCEPT -m comment --comment "wirescale-{self.interface}"'
-        postdown_forward = self.__remove_iptable_rule(postup_forward)
+        postup_forward = IPTABLES.FORWARD.format(interface=self.interface)
+        postdown_forward = IPTABLES.remove_rule(postup_forward)
         self.add_script('postup', postup_forward)
         self.add_script('postdown', postdown_forward, first_place=True)
 
     def add_iptables_masquerade(self):
-        postup_mark = f'iptables -I FORWARD -i %i -j MARK --set-mark {self.mark} -m comment --comment "wirescale-{self.interface}"'
-        postup_masquerade = f'iptables -t nat -I POSTROUTING ! -o %i -m mark --mark {self.mark} -j MASQUERADE -m comment --comment "wirescale-{self.interface}"'
-        postdown_mark = self.__remove_iptable_rule(postup_mark)
-        postdown_masquerade = self.__remove_iptable_rule(postup_masquerade)
+        postup_mark = IPTABLES.FORWARD_MARK.format(mark=self.mark, interface=self.interface)
+        postup_masquerade = IPTABLES.MASQUERADE.format(mark=self.mark, interface=self.interface)
+        postdown_mark = IPTABLES.remove_rule(postup_mark)
+        postdown_masquerade = IPTABLES.remove_rule(postup_masquerade)
         self.add_script('postup', postup_mark)
         self.add_script('postup', postup_masquerade)
         self.add_script('postdown', postdown_mark, first_place=True)
