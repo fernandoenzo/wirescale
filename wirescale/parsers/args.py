@@ -15,6 +15,7 @@ class ARGS:
     CONFIGFILE: str = None
     DAEMON: bool = None
     DOWN: Path = None
+    EXIT_NODE: bool = None
     INTERFACE: str = None
     IPTABLES_ACCEPT: bool = None
     IPTABLES_FORWARD: bool = None
@@ -35,6 +36,7 @@ def parse_args():
     args = vars(top_parser.parse_args())
     ARGS.DAEMON = args.get('opt') == 'daemon'
     ARGS.DOWN = args.get('opt') == 'down'
+    ARGS.EXIT_NODE = args.get('opt') == 'exit_node'
     ARGS.RECOVER = args.get('opt') == 'recover'
     ARGS.UPGRADE = args.get('opt') == 'upgrade'
     ARGS.START = args.get('command') == 'start'
@@ -53,8 +55,11 @@ def parse_args():
         ARGS.SUFFIX_NUMBER = args.get('suffix_number')
         if ARGS.SUFFIX_NUMBER is not None:
             ARGS.ALLOW_SUFFIX = False
-    if ARGS.RECOVER:
+    elif ARGS.RECOVER:
         ARGS.INTERFACE = args.get('interface')
         ARGS.LATEST_HANDSHAKE = get_latest_handshake(ARGS.INTERFACE)
+    elif ARGS.EXIT_NODE:
+        ARGS.INTERFACE = args.get('interface')
+        ARGS.STOP = args.get('stop')
     elif ARGS.DOWN:
         ARGS.CONFIGFILE = args.get('interface')

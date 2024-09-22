@@ -5,13 +5,14 @@
 from argparse import ArgumentParser, BooleanOptionalAction
 
 from wirescale.parsers.utils import CustomArgumentFormatter
-from wirescale.parsers.validators import check_existing_conf, check_existing_conf_and_systemd, check_peer, check_positive, interface_name_validator
+from wirescale.parsers.validators import check_existing_conf, check_existing_conf_and_systemd, check_existing_wg_interface, check_peer, check_positive, interface_name_validator
 from wirescale.version import version_msg
 
 top_parser = ArgumentParser(prog='wirescale', description='Upgrade your existing Tailscale connection by transitioning to pure WireGuard', formatter_class=CustomArgumentFormatter)
 subparsers = top_parser.add_subparsers(dest='opt')
 
-daemon_subparser = subparsers.add_parser('daemon', help='commands for systemd to manage the daemon', description='Commands for systemd to manage the daemon', formatter_class=CustomArgumentFormatter)
+daemon_subparser = subparsers.add_parser('daemon', formatter_class=CustomArgumentFormatter, help='commands for systemd to manage the daemon',
+                                         description='Commands for systemd to manage the daemon')
 order_subparser = daemon_subparser.add_subparsers(dest='command', required=True)
 order_subparser.add_parser('start', help="start the daemon. Must be run by systemd", add_help=False)
 order_subparser.add_parser('stop', help="stop the daemon. Must be run with sudo", add_help=False)
@@ -27,10 +28,12 @@ daemon_subparser.add_argument('--suffix', action=BooleanOptionalAction,
                               help='add numeric suffix to new interfaces with existing names.\n'
                                    'Disabled by default')
 
-down_subparser = subparsers.add_parser('down', help='deactivates a WireGuard interface set up by wirescale', formatter_class=CustomArgumentFormatter)
+down_subparser = subparsers.add_parser('down', formatter_class=CustomArgumentFormatter, help='deactivates a WireGuard interface set up by wirescale',
+                                       description='Deactivates a WireGuard interface set up by wirescale', )
 down_subparser.add_argument('interface', type=check_existing_conf, help="shortcut for 'wg-quick down /run/wirescale/{interface}.conf'")
 
-upgrade_subparser = subparsers.add_parser('upgrade', help='duplicates a Tailscale connection with pure WireGuard', formatter_class=CustomArgumentFormatter)
+upgrade_subparser = subparsers.add_parser('upgrade', formatter_class=CustomArgumentFormatter, help='duplicates a Tailscale connection with pure WireGuard',
+                                          description='Duplicates a Tailscale connection with pure WireGuard')
 upgrade_subparser.add_argument('peer', type=check_peer, help='either the Tailscale IP address or the name of the peer you want to connect to')
 upgrade_subparser.add_argument('--iptables-accept', action=BooleanOptionalAction,
                                help='add iptables rules that allow incoming traffic through the new network interface. Use this only if the connection is unstable.\n'
@@ -58,8 +61,14 @@ upgrade_subparser.add_argument('--recreate-tries', type=int, metavar='N',
                                help='number of tries to create a new tunnel if the network interface was brought down after failing at recovering it. '
                                     'Negative values indicate unlimited retries.\nDefault is 0')
 
-recover_subparser = subparsers.add_parser('recover', formatter_class=CustomArgumentFormatter,
-                                          help='recover a dropped connection by forcing a new hole punching.\nIntended for internal use only')
+# Exit-node subparser
+exit_node_subparser = subparsers.add_parser('exit-node', formatter_class=CustomArgumentFormatter, help='set up a peer as an exit node for all outgoing traffic',
+                                            description='Configure a peer with an existing WireGuard connection as an exit node. This will route all outgoing traffic through the specified peer')
+exit_node_subparser.add_argument('peer', nargs='?', default=None, type=check_existing_wg_interface, help='name of the peer to use as the exit node')
+exit_node_subparser.add_argument('--stop', action='store_true', help='disable exit node functionality and revert to normal routing')
+
+recover_subparser = subparsers.add_parser('recover', formatter_class=CustomArgumentFormatter, help='recover a dropped connection by forcing a new hole punching.\nIntended for internal use only',
+                                          description='Recover a dropped connection by forcing a new hole punching')
 recover_subparser.add_argument('interface', type=check_existing_conf_and_systemd, help='local WireGuard interface to recover')
 
 top_parser.add_argument('--version', '-v', help='print version information and exit', action='version', version=version_msg)
