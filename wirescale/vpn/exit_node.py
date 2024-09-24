@@ -3,11 +3,13 @@
 
 
 import subprocess
+import sys
 from ipaddress import ip_network, IPv4Network, IPv6Network
 from pathlib import Path
 from typing import Set
 
 from wirescale.communications.common import EXIT_NODE_MARK, WIRESCALE_TABLE
+from wirescale.communications.messages import Messages
 from wirescale.communications.systemd import Systemd
 from wirescale.vpn.iptables import IPTABLES
 
@@ -15,6 +17,8 @@ from wirescale.vpn.iptables import IPTABLES
 class ExitNode:
     GLOBAL_NETWORK = ip_network('0.0.0.0/0')
     DIRECTORY = Path('/run/wirescale/control/')
+    GOOD = '✅'
+    BAD = '❌'
 
     @staticmethod
     def get_fwmark(interface: str) -> int | None:
@@ -34,13 +38,18 @@ class ExitNode:
 
     @classmethod
     def set(cls, interface: str):
-        cls.remove_exit_node()
+        node, _ = cls.get_exit_node()
+        if interface == node:
+            Messages.send_info_message(local_message=f"Warning: Interface '{interface}' is already the exit node")
+            sys.exit(0)
+        if node is not None:
+            cls.remove_exit_node()
         fwmark = cls.get_fwmark(interface) or EXIT_NODE_MARK
         if fwmark == EXIT_NODE_MARK:
             cls.set_fwmark(interface, fwmark)
-        save_connmark = IPTABLES.SAVE_CONNMARK.replace('"','').format(mark=fwmark, interface='{interface}').split()
+        save_connmark = IPTABLES.SAVE_CONNMARK.replace('"', '').format(mark=fwmark, interface='{interface}').split()
         save_connmark[-1] = save_connmark[-1].format(interface=interface)
-        restore_connmark = IPTABLES.RESTORE_CONNMARK.replace('"','').split()
+        restore_connmark = IPTABLES.RESTORE_CONNMARK.replace('"', '').split()
         restore_connmark[-1] = restore_connmark[-1].format(interface=interface)
         modified = cls.modify_allowed_ips(interface)
         file = cls.DIRECTORY.joinpath(f'exit-node-{interface}')
@@ -54,6 +63,7 @@ class ExitNode:
         subprocess.run(add_route, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(add_rule_not_fwmark, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(add_rule_suppress, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        Messages.send_info_message(local_message=f"Interface '{interface}' has been enabled as an exit node {cls.GOOD}")
 
     @staticmethod
     def set_fwmark(interface: str, mark: int | None):
@@ -65,15 +75,16 @@ class ExitNode:
     def remove_exit_node(cls):
         node, remove_allowed_ips = cls.get_exit_node()
         if node is None:
-            return
+            Messages.send_info_message(local_message='Warning: There is currently no active exit node')
+            sys.exit(0)
         if remove_allowed_ips:
             cls.modify_allowed_ips(interface=node, remove=True)
         fwmark = cls.get_fwmark(node)
         if fwmark == EXIT_NODE_MARK:
             cls.set_fwmark(node, None)
-        save_connmark = IPTABLES.remove_rule(IPTABLES.SAVE_CONNMARK.replace('"','').format(mark=fwmark, interface='{interface}')).split()
+        save_connmark = IPTABLES.remove_rule(IPTABLES.SAVE_CONNMARK.replace('"', '').format(mark=fwmark, interface='{interface}')).split()
         save_connmark[-1] = save_connmark[-1].format(interface=node)
-        restore_connmark = IPTABLES.remove_rule(IPTABLES.RESTORE_CONNMARK.replace('"','')).split()
+        restore_connmark = IPTABLES.remove_rule(IPTABLES.RESTORE_CONNMARK.replace('"', '')).split()
         restore_connmark[-1] = restore_connmark[-1].format(interface=node)
         del_route = ['ip', 'route', 'flush', 'table', str(WIRESCALE_TABLE)]
         del_rule_not_fwmark = ['ip', '-4', 'rule', 'del', 'not', 'fwmark', str(fwmark), 'table', str(WIRESCALE_TABLE)]
@@ -84,6 +95,7 @@ class ExitNode:
         subprocess.run(del_rule_not_fwmark, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(del_rule_suppress, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         cls.DIRECTORY.joinpath(f'exit-node-{node}').unlink()
+        Messages.send_info_message(local_message=f"Interface '{node}' has been deactivated as an exit node {cls.BAD}")
 
     @staticmethod
     def get_allowed_ips(interface: str) -> Set[IPv4Network | IPv6Network]:
