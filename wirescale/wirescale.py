@@ -26,12 +26,12 @@ sys.tracebacklimit = 0
 os.umask(0o177)  # chmod 600
 
 
-def check_root(systemd=False):
+def check_root(message: str = None):
     try:
         os.setuid(0)
     except PermissionError:
-        if systemd:
-            print(ErrorMessages.ROOT_SYSTEMD, file=sys.stderr, flush=True)
+        if message:
+            print(message, file=sys.stderr, flush=True)
         else:
             print(ErrorMessages.SUDO, file=sys.stderr, flush=True)
         sys.exit(1)
@@ -47,7 +47,7 @@ def copy_script():
 def main():
     parse_args()
     if ARGS.DAEMON:
-        check_root(systemd=True)
+        check_root(message="Error: Wirescale daemon must be managed by root's systemd")
         unit = 'wirescaled.service'
         systemd_exec_pid = int(os.environ.get('SYSTEMD_EXEC_PID', default=-1))
         if ARGS.START:
@@ -74,13 +74,13 @@ def main():
     elif ARGS.UPGRADE:
         UnixClient.upgrade()
     elif ARGS.EXIT_NODE:
-        check_root()
+        check_root(message="Error: The 'exit-node' option requires sudo privileges.")
         if ARGS.STOP:
             ExitNode.remove_exit_node()
         else:
             ExitNode.set(ARGS.INTERFACE)
     elif ARGS.RECOVER:
-        check_root()
+        check_root(message="Error: The 'recover' option must be called by an autoremove unit")
         main_pid = subprocess.run(['systemctl', 'show', '-p', 'MainPID', f'autoremove-{ARGS.INTERFACE}.service'], capture_output=True, text=True).stdout.strip()
         main_pid = int(main_pid.replace('MainPID=', ''))
         systemd_exec_pid = int(os.environ.get('SYSTEMD_EXEC_PID', default=-1))
