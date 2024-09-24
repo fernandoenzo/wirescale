@@ -11,6 +11,12 @@ _wirescale_completion() {
         COMPREPLY=($(compgen -W "$(find /run/wirescale -name '*.conf' -exec basename {} .conf \;)" -- "$cur"))
       fi
       ;;
+    exit-node)
+      if [[ ${#words[@]} -eq 3 ]]; then
+        # Same as down, plus a stop option
+        COMPREPLY=($(compgen -W "$(find /run/wirescale -name '*.conf' -exec basename {} .conf \;) --stop" -- "$cur"))
+      fi
+      ;;
     upgrade)
       if [[ ${#words[@]} -eq 3 ]]; then
         # Offer peer names for the first argument of 'upgrade'
@@ -27,7 +33,7 @@ _wirescale_completion() {
       ;;
     *)
       # If no subcommand is specified yet, offer available subcommands
-      COMPREPLY=($(compgen -W "down upgrade" -- "$cur"))
+      COMPREPLY=($(compgen -W "down exit-node upgrade" -- "$cur"))
       ;;
   esac
 }
