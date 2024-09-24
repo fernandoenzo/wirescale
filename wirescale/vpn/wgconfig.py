@@ -131,8 +131,8 @@ class WGConfig:
         port = TSManager.local_port()
         postup_input_interface = IPTABLES.INPUT_ACCEPT_INTERFACE.format(interface=self.interface)
         postup_input_port = IPTABLES.INPUT_ACCEPT_PORT.format(port=port, interface=self.interface)
-        postdown_input_interface = IPTABLES.remove_rule(postup_input_interface)
-        postdown_input_port = IPTABLES.remove_rule(postup_input_port)
+        postdown_input_interface = IPTABLES.or_true(IPTABLES.remove_rule(postup_input_interface))
+        postdown_input_port = IPTABLES.or_true(IPTABLES.remove_rule(postup_input_port))
         self.add_script('postup', postup_input_interface)
         self.add_script('postup', postup_input_port)
         self.add_script('postdown', postdown_input_interface, first_place=True)
@@ -140,15 +140,15 @@ class WGConfig:
 
     def add_iptables_forward(self):
         postup_forward = IPTABLES.FORWARD.format(interface=self.interface)
-        postdown_forward = IPTABLES.remove_rule(postup_forward)
+        postdown_forward = IPTABLES.or_true(IPTABLES.remove_rule(postup_forward))
         self.add_script('postup', postup_forward)
         self.add_script('postdown', postdown_forward, first_place=True)
 
     def add_iptables_masquerade(self):
         postup_mark = IPTABLES.FORWARD_MARK.format(mark=self.mark, interface=self.interface)
         postup_masquerade = IPTABLES.MASQUERADE.format(mark=self.mark, interface=self.interface)
-        postdown_mark = IPTABLES.remove_rule(postup_mark)
-        postdown_masquerade = IPTABLES.remove_rule(postup_masquerade)
+        postdown_mark = IPTABLES.or_true(IPTABLES.remove_rule(postup_mark))
+        postdown_masquerade = IPTABLES.or_true(IPTABLES.remove_rule(postup_masquerade))
         self.add_script('postup', postup_mark)
         self.add_script('postup', postup_masquerade)
         self.add_script('postdown', postdown_mark, first_place=True)

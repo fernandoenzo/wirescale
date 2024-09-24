@@ -38,8 +38,10 @@ class ExitNode:
         fwmark = cls.get_fwmark(interface) or EXIT_NODE_MARK
         if fwmark == EXIT_NODE_MARK:
             cls.set_fwmark(interface, fwmark)
-        save_connmark = IPTABLES.SAVE_CONNMARK.format(mark=fwmark, interface=interface)
-        restore_connmark = IPTABLES.RESTORE_CONNMARK.format(interface=interface)
+        save_connmark = IPTABLES.SAVE_CONNMARK.replace('"','').format(mark=fwmark, interface='{interface}').split()
+        save_connmark[-1] = save_connmark[-1].format(interface=interface)
+        restore_connmark = IPTABLES.RESTORE_CONNMARK.replace('"','').split()
+        restore_connmark[-1] = restore_connmark[-1].format(interface=interface)
         modified = cls.modify_allowed_ips(interface)
         file = cls.DIRECTORY.joinpath(f'exit-node-{interface}')
         with file.open('w') as f:
@@ -47,8 +49,8 @@ class ExitNode:
         add_route = ['ip', '-4', 'route', 'add', str(cls.GLOBAL_NETWORK), 'dev', interface, 'table', str(WIRESCALE_TABLE)]
         add_rule_not_fwmark = ['ip', '-4', 'rule', 'add', 'not', 'fwmark', str(fwmark), 'table', str(WIRESCALE_TABLE)]
         add_rule_suppress = ['ip', '-4', 'rule', 'add', 'table', 'main', 'suppress_prefixlength', '0']
-        subprocess.run(restore_connmark, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.run(save_connmark, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(restore_connmark, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(save_connmark, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(add_route, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(add_rule_not_fwmark, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(add_rule_suppress, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -69,13 +71,15 @@ class ExitNode:
         fwmark = cls.get_fwmark(node)
         if fwmark == EXIT_NODE_MARK:
             cls.set_fwmark(node, None)
-        save_connmark = IPTABLES.remove_rule(IPTABLES.SAVE_CONNMARK.format(mark=fwmark, interface=node))
-        restore_connmark = IPTABLES.remove_rule(IPTABLES.RESTORE_CONNMARK.format(interface=node))
+        save_connmark = IPTABLES.remove_rule(IPTABLES.SAVE_CONNMARK.replace('"','').format(mark=fwmark, interface='{interface}')).split()
+        save_connmark[-1] = save_connmark[-1].format(interface=node)
+        restore_connmark = IPTABLES.remove_rule(IPTABLES.RESTORE_CONNMARK.replace('"','')).split()
+        restore_connmark[-1] = restore_connmark[-1].format(interface=node)
         del_route = ['ip', 'route', 'flush', 'table', str(WIRESCALE_TABLE)]
         del_rule_not_fwmark = ['ip', '-4', 'rule', 'del', 'not', 'fwmark', str(fwmark), 'table', str(WIRESCALE_TABLE)]
         del_rule_suppress = ['ip', '-4', 'rule', 'del', 'table', 'main', 'suppress_prefixlength', '0']
-        subprocess.run(restore_connmark, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.run(save_connmark, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(restore_connmark, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(save_connmark, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(del_route, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(del_rule_not_fwmark, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(del_rule_suppress, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

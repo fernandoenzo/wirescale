@@ -15,4 +15,8 @@ class IPTABLES:
 
     @staticmethod
     def remove_rule(rule: str) -> str:
-        return f"{rule.replace('-I', '-D', 1)} || true"
+        return rule.replace('-I', '-D', 1)
+
+    @staticmethod
+    def or_true(rule: str) -> str:
+        return f'{rule} || true'
