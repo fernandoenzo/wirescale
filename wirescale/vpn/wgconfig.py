@@ -284,7 +284,7 @@ class WGConfig:
         TSManager.start()
         create_thread(TSManager.wait_tailscale_restarted, pair, stack)
         if wgquick.returncode == 0:
-            ExitNode.set(self.interface, self.remote_pubkey) if self.exit_node else None
+            ExitNode.set(self.interface) if self.exit_node else None
             Messages.send_info_message(local_message='Verifying handshake with the other peer...')
             updated = check_updated_handshake(self.interface)
             if not updated:
