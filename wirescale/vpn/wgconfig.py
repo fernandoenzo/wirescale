@@ -293,7 +293,7 @@ class WGConfig:
             Systemd.launch_autoremove(config=self, pair=pair)
             if self.exit_node:
                 ExitNode.modify_allowed_ips(self.interface)
-                ExitNode.set(self.interface)
+                ExitNode.set_exit_node(self.interface)
             success = Messages.SUCCESS.format(interface=self.interface)
             Messages.send_info_message(local_message=success, code=ActionCodes.SUCCESS)
         else:
