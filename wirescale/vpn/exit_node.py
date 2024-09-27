@@ -72,20 +72,12 @@ class ExitNode:
         # Get or set, if None, a specific fwmark:
         fwmark = cls.get_fwmark(interface) or cls.set_fwmark(interface, EXIT_NODE_MARK) or EXIT_NODE_MARK
 
-        # Create a base config structure
+        # Create and save a base config structure
         config = {cls.EXIT_NODE: interface, cls.ADD_ALLOWEDIPS: modified, cls.NODES: {}}
-        peers = [peer.stem for peer in cls.DIRECTORY.glob('*.conf')]
-        i = 5502
-        for peer in peers:
-            mark = cls.get_fwmark(peer)
-            config[cls.NODES][peer] = mark or i  # None or the id of the ip rule
-            if mark is None:
-                cls.set_fwmark(peer, GLOB_MARK)
-            else:
-                i += 1
-
-        # Save the config
         cls.save_config(config)
+
+        # Add the nodes
+        cls.add_missing_interfaces()
 
         # Set iptables connmark rules
         save_connmark = cls.SAVE_CONNMARK.copy()
@@ -103,12 +95,6 @@ class ExitNode:
         cls.RULES[cls.EXIT_NODE][8] = str(fwmark)
         subprocess.run(cls.RULES[cls.SUPPRESS], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(cls.RULES[cls.NODES], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        for peer, priority in config[cls.NODES].items():
-            if priority is not None:
-                rule = cls.RULES[cls.NODES].copy()
-                rule[5] = str(priority)
-                rule[7] = str(cls.get_fwmark(peer))
-                subprocess.run(rule, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(cls.RULES[cls.EXIT_NODE], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         Messages.send_info_message(local_message=f"Interface '{interface}' has been enabled as an exit node {cls.GOOD}")
@@ -166,6 +152,8 @@ class ExitNode:
         config = cls.load_config()
         if config is None:
             sys.exit(0)
+        cls.clean_missing_interfaces()
+        cls.add_missing_interfaces()
 
     @classmethod
     def remove_exit_node(cls):
