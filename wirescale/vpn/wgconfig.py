@@ -143,6 +143,7 @@ class WGConfig:
         postdown_forward = IPTABLES.or_true(IPTABLES.remove_rule(postup_forward))
         self.add_script('postup', postup_forward)
         self.add_script('postdown', postdown_forward, first_place=True)
+        subprocess.run(['sysctl', '-w', 'net.ipv4.ip_forward=1'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     def add_iptables_masquerade(self):
         postup_mark = IPTABLES.FORWARD_MARK.format(mark=self.mark, interface=self.interface)
