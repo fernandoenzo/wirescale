@@ -24,6 +24,9 @@ and Tailscale’s unbeatable udp hole-punching capabilities to create a robust, 
 * [Use case](#use-case)
     * [Architecture](#architecture)
     * [Upgrading a connection](#upgrading-a-connection)
+    * [Exit Nodes](#exit-nodes)
+        * [Example usage](#example-usage)
+        * [Considerations about `fwmarks` and `ip rules`](#considerations-about-fwmarks-and-ip-rules)
     * [The `autoremove-%i` unit](#the-autoremove-i-unit)
     * [The `[Wirescale]` section](#the-wirescale-section)
 * [Packaging](#packaging)
@@ -123,9 +126,10 @@ requests for a directed upgrade to another peer.
 Curious about the different modes of operation? Run `wirescale -h` to see them:
 
 - `daemon` mode is launched from the `systemd` unit. Configure it with the options that suit your needs (`wirescale daemon -h` will list them all).
+- `upgrade` option is where the magic happens, and we’ll dive deeper into this shortly.
 - `recover`  option will attempt to re-establish the connection for an interface that has been detected as down, ensuring it reconnects with its peer.
   This option is for internal use only.
-- `upgrade` option is where the magic happens, and we’ll dive deeper into this shortly.
+- `exit-node` option will allow you to route all your outgoing traffic through a peer acting as an exit node.
 - `down` option is the easiest way to take down a network interface raised with Wirescale.
 
 ### Upgrading a connection
@@ -164,7 +168,8 @@ PresharedKey = YFSVOA8Eo0Cj5q9ef0LBA3TudRhKP+3hZMwCljUnKms=
 AllowedIPs = 192.168.3.0/24
 
 [Wirescale]
-iptables = false
+iptables-forward = True
+iptables-masquerade = True
 interface = custom_name
 suffix = true
 recover-tries = 2
@@ -252,6 +257,58 @@ Just a quick heads-up! If you stumble upon an "unexpected" `Endpoint` (like seei
 between your machine and the peer), don’t be alarmed! You might have run into a [known issue](https://github.com/tailscale/tailscale/issues/1552) that Tailscale
 has steadfastly refused to fix. However, I’ve independently addressed this in my [TailGate](https://github.com/fernandoenzo/tailgate/) project, which you'll
 definitely find worth exploring.
+
+### Exit Nodes
+
+The `exit-node` option allows you to route all outgoing traffic through a peer that acts as an exit node. This setup is ideal when you want to send all your
+traffic to the internet through another machine in your WireGuard network. When using this option, `wirescale` will ensure that your traffic is intelligently
+routed, meaning that local traffic to other nodes, be it in Wirescale or Tailscale networks, will not be affected. Only internet-bound traffic is forwarded
+through the exit node.
+
+#### Example usage:
+
+Continuing with the previous example, to enable already set up interface `bob` as an exit node, simply run the following command:
+
+```commandline
+~ $ wirescale exit-node bob
+```
+
+If successful, you will see the following output:
+
+```commandline
+Interface 'bob' has been enabled as an exit node ✅
+```
+
+To stop routing traffic through the exit node and revert to the previous configuration, run:
+
+```commandline
+Interface 'bob' has been deactivated as an exit node ❌
+```
+
+If you try to set a new exit node while one is already active, the current exit node will be automatically deactivated, and the new one will take over:
+
+```commandline
+~ $ wirescale exit-node alice
+Interface 'bob' has been deactivated as an exit node ❌
+Interface 'alice' has been enabled as an exit node ✅
+```
+
+For the exit node to function properly, the chosen peer must have both the `iptables-masquerade` and `iptables-forward` options enabled. Otherwise, the traffic
+forwarding to the internet might not work as expected or even at all.
+
+#### Considerations about `fwmarks` and `ip rules`
+
+If you plan to use the `fwmark` option in your WireGuard configuration files or are thinking about tinkering with the `ip rules` on your machine, there are
+some reserved values you need to keep in mind to avoid conflicts. Below is a list of the key values that both Wirescale (only while an `exit-node` is active)
+and Tailscale use:
+
+1. Tailscale filters out any fwmark matching `0x80000/0xff0000`
+2. Wirescale filters out the fwmarks `0xa08d037b` and `0xa08d037c`
+3. Tailscale uses the IP rule IDs `5210`, `5230`, `5250`, and `5270` for its own rules
+4. Wirescale uses IP rule IDs between `5500` and `6000` as needed
+5. Wirescale sets a routing table with ID `0xA08D037A`
+
+So, if you're planning to mess around with IP rules or fwmarks, make sure you don’t break anything based on what we've just listed.
 
 ### The `autoremove-%i` unit
 
