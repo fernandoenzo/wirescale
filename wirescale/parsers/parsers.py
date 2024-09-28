@@ -61,11 +61,12 @@ upgrade_subparser.add_argument('--recreate-tries', type=int, metavar='N',
                                help='number of tries to create a new tunnel if the network interface was brought down after failing at recovering it. '
                                     'Negative values indicate unlimited retries.\nDefault is 0')
 
-# Exit-node subparser
 exit_node_subparser = subparsers.add_parser('exit-node', formatter_class=CustomArgumentFormatter, help='set up a peer as an exit node for all outgoing traffic',
                                             description='Configure a peer with an existing WireGuard connection as an exit node. This will route all outgoing traffic through the specified peer')
-exit_node_subparser.add_argument('interface', nargs='?', default=None, type=check_existing_conf, help='interface to use as the exit node')
-exit_node_subparser.add_argument('--stop', action='store_true', help='disable exit node functionality and revert to normal routing')
+mutex_group = exit_node_subparser.add_mutually_exclusive_group(required=True)
+mutex_group.add_argument('interface', nargs='?', default=None, type=check_existing_conf, help='interface to use as the exit node')
+mutex_group.add_argument('--sync', action='store_true', help='sync state between peers and config file.')
+mutex_group.add_argument('--stop', action='store_true', help='disable exit node functionality and revert to normal routing')
 
 recover_subparser = subparsers.add_parser('recover', formatter_class=CustomArgumentFormatter, help='recover a dropped connection by forcing a new hole punching.\nIntended for internal use only',
                                           description='Recover a dropped connection by forcing a new hole punching')

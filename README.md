@@ -38,6 +38,7 @@ and Tailscale’s unbeatable udp hole-punching capabilities to create a robust, 
 
 ### Prerequisites
 
+- `jq >= 1.6`
 - `ping`
 - `pipx >= 1.1.0`
 - `python >= 3.11`

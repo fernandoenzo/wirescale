@@ -46,7 +46,7 @@ class WGConfig:
         self.listen_ext_port: int = None
         self.endpoint: Tuple[IPv4Address, int] = None
         self.exit_node: bool = False
-        self.table = self.get_field('Interface', 'Table')
+        self.table = table.lower() if (table := self.get_field('Interface', 'Table')) else None
         self.mtu = self.get_field('Interface', 'MTU')
         self.nat: bool = None
         self.fwmark = self.get_field('Interface', 'FwMark')
@@ -160,10 +160,15 @@ class WGConfig:
         self.add_script('postup', handshake, first_place=True)
 
     def remove_exit_node(self):
-        remove = rf"/bin/sh -c '[ -f /run/wirescale/control/exit-node-{self.interface} ] && wirescale exit-node --stop'"
+        remove = rf"""/bin/sh -c '[ -f "/run/wirescale/control/exit-node" ] && jq -e '"'"'.["exit-node"] == "{self.interface}"'"'"' /run/wirescale/control/exit-node && wirescale exit-node --stop'"""
         wipe_allowed_ips = rf"""/bin/sh -c 'sudo wg set {self.interface} peer {self.remote_pubkey} allowed-ips  ""'"""
-        self.add_script('predown', remove)
+        self.add_script('predown', f'{remove} || true')
         self.add_script('predown', wipe_allowed_ips)
+
+    def sync_exit_node(self):
+        sync = r"/bin/sh -c 'wirescale exit-node --sync'"
+        self.add_script('postup', sync, first_place=True)
+        self.add_script('postdown', sync)
 
     def autoremove_configfile(self):
         remove_configfile = f'rm -f {self.configfile}'
@@ -205,6 +210,7 @@ class WGConfig:
         if self.iptables_masquerade:
             self.add_iptables_masquerade()
         self.remove_exit_node()
+        self.sync_exit_node()
         # self.first_handshake()
         self.autoremove_configfile()
         repeatable_fields = [field for field in self.repeatable_fields if field != allowedips]
@@ -213,20 +219,20 @@ class WGConfig:
                 new_config.set(interface, f'{field}{i}_', value)
         new_config.set(interface, 'ListenPort', str(self.listen_port))
         new_config.set(interface, 'PrivateKey', self.private_key)
-        new_config.set(interface, 'Table', self.table) if self.table else None
         new_config.set(interface, 'MTU', self.mtu) if self.mtu else None
         new_config.set(interface, 'FwMark', self.fwmark) if self.fwmark else None
         new_config.set(peer, 'PublicKey', self.remote_pubkey)
         new_config.set(peer, 'PresharedKey', self.psk)
         new_config.set(peer, 'Endpoint', f'{self.endpoint[0]}:{self.endpoint[1]}')
         new_config.set(peer, 'PersistentKeepalive', '10')
-        if ExitNode.GLOBAL_NETWORK in self.allowed_ips:
+        if self.table != 'off' and ExitNode.GLOBAL_NETWORK in self.allowed_ips:
             self.exit_node = True
             if len(self.allowed_ips) == 1:
                 self.table = 'off'
             else:
                 self.allowed_ips = set(self.allowed_ips)
                 self.allowed_ips.remove(ExitNode.GLOBAL_NETWORK)
+        new_config.set(interface, 'Table', self.table) if self.table else None
         new_config.set(peer, allowedips, ', '.join(str(x) for x in self.allowed_ips))
         new_config = self.write_config(new_config, self.suffix)
         self.new_config_path.write_text(new_config, encoding='utf-8')

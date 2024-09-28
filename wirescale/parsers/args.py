@@ -28,6 +28,7 @@ class ARGS:
     EXPECTED_INTERFACE: str = None
     START: bool = None
     STOP: bool = None
+    SYNC: bool = None
     SUFFIX_NUMBER: int = None
     UPGRADE: bool = None
 
@@ -63,5 +64,6 @@ def parse_args():
         if ARGS.INTERFACE is not None:
             ARGS.INTERFACE = ARGS.INTERFACE.stem
         ARGS.STOP = args.get('stop')
+        ARGS.SYNC = args.get('sync')
     elif ARGS.DOWN:
         ARGS.CONFIGFILE = args.get('interface')

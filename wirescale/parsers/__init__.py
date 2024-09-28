@@ -2,10 +2,12 @@
 # encoding:utf-8
 
 
-from wirescale.parsers.parsers import daemon_subparser, subparsers, top_parser, upgrade_subparser
+from wirescale.parsers.parsers import daemon_subparser, exit_node_subparser, recover_subparser, subparsers, top_parser, upgrade_subparser
 from wirescale.parsers.utils import sort_argparse_help
 
 sort_argparse_help(top_parser)
 sort_argparse_help(subparsers)
 sort_argparse_help(daemon_subparser)
+sort_argparse_help(exit_node_subparser)
+sort_argparse_help(recover_subparser)
 sort_argparse_help(upgrade_subparser)

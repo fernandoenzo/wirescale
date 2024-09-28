@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # encoding:utf-8
 
+
 import os
 import shutil
 import subprocess
@@ -75,10 +76,13 @@ def main():
         UnixClient.upgrade()
     elif ARGS.EXIT_NODE:
         check_root(message="Error: The 'exit-node' option requires sudo privileges.")
-        if ARGS.STOP:
-            ExitNode.remove_exit_node()
-        else:
-            ExitNode.set_exit_node(ARGS.INTERFACE)
+        with ExitNode.locker():
+            if ARGS.STOP:
+                ExitNode.remove_exit_node()
+            elif ARGS.SYNC:
+                ExitNode.sync()
+            else:
+                ExitNode.set_exit_node(ARGS.INTERFACE)
     elif ARGS.RECOVER:
         check_root(message="Error: The 'recover' option must be called by an autoremove unit")
         main_pid = subprocess.run(['systemctl', 'show', '-p', 'MainPID', f'autoremove-{ARGS.INTERFACE}.service'], capture_output=True, text=True).stdout.strip()
