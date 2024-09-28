@@ -161,7 +161,7 @@ class WGConfig:
 
     def remove_exit_node(self):
         remove = rf"""/bin/sh -c '[ -f "/run/wirescale/control/exit-node" ] && jq -e '"'"'.["exit-node"] == "{self.interface}"'"'"' /run/wirescale/control/exit-node && wirescale exit-node --stop'"""
-        wipe_allowed_ips = rf"""/bin/sh -c 'sudo wg set {self.interface} peer {self.remote_pubkey} allowed-ips  ""'"""
+        wipe_allowed_ips = rf"""/bin/sh -c 'wg set {self.interface} peer {self.remote_pubkey} allowed-ips  ""'"""
         self.add_script('predown', f'{remove} || true')
         self.add_script('predown', wipe_allowed_ips)
 
@@ -175,8 +175,8 @@ class WGConfig:
         self.add_script('postdown', remove_configfile, first_place=True)
 
     def set_metric(self, metric: int):
-        metric = (r'/bin/bash -c "ip route | grep -w %i | while read -r line ; do sudo ip route del $line; if [[ ${line##* } == metric ]]; then line=${line% *}; line=${line% *}; fi; '
-                  fr'sudo ip route add $line metric {metric}; done"')
+        metric = (r'/bin/bash -c "ip route | grep -w %i | while read -r line ; do ip route del $line; if [[ ${line##* } == metric ]]; then line=${line% *}; line=${line% *}; fi; '
+                  fr'ip route add $line metric {metric}; done"')
         self.add_script('postup', metric, first_place=True)
 
     @staticmethod
