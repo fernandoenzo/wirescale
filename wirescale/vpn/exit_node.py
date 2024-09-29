@@ -50,6 +50,7 @@ class ExitNode:
         """Save the exit node configuration to file."""
         with cls.EXIT_FILE.open('w') as f:
             json.dump(config, f)
+        cls.EXIT_FILE.chmod(mode=0o644)
 
     @classmethod
     def status(cls) -> None:
