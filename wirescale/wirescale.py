@@ -86,7 +86,6 @@ def main():
             else:
                 ExitNode.set_exit_node(ARGS.INTERFACE)
     elif ARGS.RECOVER:
-        check_root(message="Error: The 'recover' option must be called by an autoremove unit")
         main_pid = subprocess.run(['systemctl', 'show', '-p', 'MainPID', f'autoremove-{ARGS.INTERFACE}.service'], capture_output=True, text=True).stdout.strip()
         main_pid = int(main_pid.replace('MainPID=', ''))
         systemd_exec_pid = int(os.environ.get('SYSTEMD_EXEC_PID', default=-1))
