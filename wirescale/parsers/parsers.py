@@ -65,6 +65,7 @@ exit_node_subparser = subparsers.add_parser('exit-node', formatter_class=CustomA
                                             description='Configure a peer with an existing WireGuard connection as an exit node. This will route all outgoing traffic through the specified peer')
 mutex_group = exit_node_subparser.add_mutually_exclusive_group(required=True)
 mutex_group.add_argument('interface', nargs='?', default=None, type=check_existing_conf, help='interface to use as the exit node')
+mutex_group.add_argument('--status', action='store_true', help='return the current exit node interface, if any')
 mutex_group.add_argument('--sync', action='store_true', help='sync between actual peers and state file.\nIntended for internal use only')
 mutex_group.add_argument('--stop', action='store_true', help='disable exit node functionality and revert to normal routing')
 

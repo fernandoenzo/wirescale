@@ -161,7 +161,7 @@ class WGConfig:
         self.add_script('postup', handshake, first_place=True)
 
     def remove_exit_node(self):
-        remove = rf"""/bin/sh -c '[ -f "/run/wirescale/control/exit-node" ] && jq -e '"'"'.["exit-node"] == "{self.interface}"'"'"' /run/wirescale/control/exit-node && wirescale exit-node --stop'"""
+        remove = rf"""/bin/sh -c '[ "$(wirescale exit-node --status)" = "{self.interface}" ] && wirescale exit-node --stop'"""
         wipe_allowed_ips = rf"""/bin/sh -c 'wg set {self.interface} peer {self.remote_pubkey} allowed-ips  ""'"""
         self.add_script('predown', f'{remove} || true')
         self.add_script('predown', wipe_allowed_ips)

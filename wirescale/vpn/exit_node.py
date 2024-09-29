@@ -51,6 +51,12 @@ class ExitNode:
         with cls.EXIT_FILE.open('w') as f:
             json.dump(config, f)
 
+    @classmethod
+    def status(cls) -> None:
+        config = cls.load_config()
+        if config is not None:
+            Messages.send_info_message(local_message=config[cls.EXIT_NODE])
+
     @staticmethod
     def get_fwmark(interface: str) -> Optional[int]:
         """Get the firewall mark for the given interface."""

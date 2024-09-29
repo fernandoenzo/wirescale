@@ -14,7 +14,7 @@ _wirescale_completion() {
     exit-node)
       if [[ ${#words[@]} -eq 3 ]]; then
         # Same as down, plus a stop option
-        COMPREPLY=($(compgen -W "$(find /run/wirescale -name '*.conf' -exec basename {} .conf \;) --stop --sync" -- "$cur"))
+        COMPREPLY=($(compgen -W "$(find /run/wirescale -name '*.conf' -exec basename {} .conf \;) --status --stop --sync" -- "$cur"))
       fi
       ;;
     upgrade)

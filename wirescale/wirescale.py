@@ -77,7 +77,9 @@ def main():
     elif ARGS.EXIT_NODE:
         check_root(message="Error: The 'exit-node' option requires sudo privileges.")
         with ExitNode.locker():
-            if ARGS.STOP:
+            if ARGS.STATUS:
+                ExitNode.status()
+            elif ARGS.STOP:
                 ExitNode.remove_exit_node()
             elif ARGS.SYNC:
                 ExitNode.sync()

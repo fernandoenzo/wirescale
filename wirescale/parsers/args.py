@@ -27,6 +27,7 @@ class ARGS:
     RECREATE_TRIES: int = None
     EXPECTED_INTERFACE: str = None
     START: bool = None
+    STATUS: bool = None
     STOP: bool = None
     SYNC: bool = None
     SUFFIX_NUMBER: int = None
@@ -63,6 +64,7 @@ def parse_args():
         ARGS.INTERFACE = args.get('interface')
         if ARGS.INTERFACE is not None:
             ARGS.INTERFACE = ARGS.INTERFACE.stem
+        ARGS.STATUS = args.get('status')
         ARGS.STOP = args.get('stop')
         ARGS.SYNC = args.get('sync')
     elif ARGS.DOWN:
