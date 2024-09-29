@@ -269,7 +269,7 @@ through the exit node.
 Continuing with the previous example, to enable already set up interface `bob` as an exit node, simply run the following command:
 
 ```commandline
-~ $ wirescale exit-node bob
+~ $ sudo wirescale exit-node bob
 ```
 
 If successful, you will see the following output:
@@ -278,16 +278,24 @@ If successful, you will see the following output:
 Interface 'bob' has been enabled as an exit node ✅
 ```
 
+You may ask at any time which interface is the current exit node:
+
+```commandline
+~ $ wirescale exit-node --status
+bob
+```
+
 To stop routing traffic through the exit node and revert to the previous configuration, run:
 
 ```commandline
+~ $ sudo wirescale exit-node --stop
 Interface 'bob' has been deactivated as an exit node ❌
 ```
 
 If you try to set a new exit node while one is already active, the current exit node will be automatically deactivated, and the new one will take over:
 
 ```commandline
-~ $ wirescale exit-node alice
+~ $ sudo wirescale exit-node alice
 Interface 'bob' has been deactivated as an exit node ❌
 Interface 'alice' has been enabled as an exit node ✅
 ```
