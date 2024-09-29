@@ -75,16 +75,17 @@ def main():
     elif ARGS.UPGRADE:
         UnixClient.upgrade()
     elif ARGS.EXIT_NODE:
-        check_root(message="Error: The 'exit-node' option requires sudo privileges.")
-        with ExitNode.locker():
-            if ARGS.STATUS:
-                ExitNode.status()
-            elif ARGS.STOP:
-                ExitNode.remove_exit_node()
-            elif ARGS.SYNC:
-                ExitNode.sync()
-            else:
-                ExitNode.set_exit_node(ARGS.INTERFACE)
+        if ARGS.STATUS:
+            ExitNode.status()
+        else:
+            check_root(message="Error: The 'exit-node' option requires sudo privileges.")
+            with ExitNode.locker():
+                if ARGS.STOP:
+                    ExitNode.remove_exit_node()
+                elif ARGS.SYNC:
+                    ExitNode.sync()
+                else:
+                    ExitNode.set_exit_node(ARGS.INTERFACE)
     elif ARGS.RECOVER:
         main_pid = subprocess.run(['systemctl', 'show', '-p', 'MainPID', f'autoremove-{ARGS.INTERFACE}.service'], capture_output=True, text=True).stdout.strip()
         main_pid = int(main_pid.replace('MainPID=', ''))
