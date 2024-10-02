@@ -266,7 +266,7 @@ through the exit node.
 
 #### Example usage:
 
-Continuing with the previous example, to enable already set up interface `bob` as an exit node, simply run the following command:
+Continuing with the previous example, to enable an already set up interface `bob` as an exit node, simply run the following command:
 
 ```commandline
 ~ $ sudo wirescale exit-node bob
