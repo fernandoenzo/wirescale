@@ -46,6 +46,7 @@ and Tailscale’s unbeatable udp hole-punching capabilities to create a robust, 
 - `python >= 3.11`
 - `systemd >= 252`
 - `tailscale >= 1.60`
+- `wireguard-tools`
 
 ### Install
 

@@ -1,4 +1,4 @@
-FROM python:3.12-bullseye AS base
+FROM python:3.12-bookworm
 
 RUN apt update ; apt install -y patchelf
 RUN pip install pyinstaller staticx
