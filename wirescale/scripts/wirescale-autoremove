@@ -77,7 +77,7 @@ finish() {
   if [ "$recreate_tries" -ne 0 ]; then
     echo "Launching a unit to create a new tunnel with the same settings"
     systemd-run -u recreate-"$interface" /bin/sh /run/wirescale/wirescale-autoremove new_upgrade "$interface" "$suffix" "$ts_ip" \
-      "$remote_interface" "$iptables" "$recover_tries" "$recreate_tries"
+      "$remote_interface" "$iptables_accept" "$iptables_forward" "$iptables_masquerade" "$recover_tries" "$recreate_tries"
   fi
   exit 0
 }
@@ -116,13 +116,15 @@ start() {
   nat=${10}
   remote_interface=${11}
   remote_port=${12}
-  iptables=${13}
-  recover_tries=${14}
-  recreate_tries=${15}
+  iptables_accept=${13}
+  iptables_forward=${14}
+  iptables_masquerade=${15}
+  recover_tries=${16}
+  recreate_tries=${17}
   flag_file_stop="/run/wirescale/control/$interface-stop"
   start_time=$(date +%s)
-  export interface suffix ts_ip remote_pubkey wg_ip running_in_remote local_port remote_interface
-  export remote_port start_time iptables recover_tries recreate_tries flag_file_stop
+  export interface suffix ts_ip remote_pubkey wg_ip running_in_remote local_port remote_interface remote_port
+  export start_time iptables_accept iptables_forward iptables_masquerade recover_tries recreate_tries flag_file_stop
 
   rm -rf "$flag_file_stop"
   ping_wg_periodic &
@@ -137,9 +139,11 @@ new_upgrade() {
   interface=$(echo "$1" | sed "s/$suffix\$//")
   ts_ip=$3
   remote_interface=$4
-  iptables=$5
-  recover_tries=$6
-  recreate_tries=$7
+  iptables_accept=$5
+  iptables_forward=$6
+  iptables_masquerade=$7
+  recover_tries=$8
+  recreate_tries=$9
   status=1
   tries="$recreate_tries"
   call="wirescale upgrade --no-suffix --interface $interface --remote-interface $remote_interface \
@@ -147,10 +151,20 @@ new_upgrade() {
   if [ "$suffix" -ne 0 ]; then
     call="$call --suffix-number $suffix"
   fi
-  if [ "$iptables" -eq 0 ]; then
-    call="$call --no-iptables"
+  if [ "$iptables_accept" -eq 0 ]; then
+    call="$call --no-iptables-accept"
   else
-    call="$call --iptables"
+    call="$call --iptables-accept"
+  fi
+  if [ "$iptables_forward" -eq 0 ]; then
+    call="$call --no-iptables-forward"
+  else
+    call="$call --iptables-forward"
+  fi
+  if [ "$iptables_masquerade" -eq 0 ]; then
+    call="$call --no-iptables-masquerade"
+  else
+    call="$call --iptables-masquerade"
   fi
   call="$call $ts_ip"
   while [ "$status" -ne 0 ] && [ "$tries" -ne 0 ]; do

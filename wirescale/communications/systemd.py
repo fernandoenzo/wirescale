@@ -33,6 +33,8 @@ class Systemd:
         self.remote_interface: str = None
         self.remote_local_port: int = None
         self.iptables_accept: bool = None
+        self.iptables_forward: bool = None
+        self.iptables_masquerade: bool = None
         self.recover_tries: int = None
         self.recreate_tries: int = None
 
@@ -53,8 +55,10 @@ class Systemd:
         res.remote_interface = args[11]
         res.remote_local_port = int(args[12])
         res.iptables_accept = bool(int(args[13]))
-        res.recover_tries = int(args[14])
-        res.recreate_tries = int(args[15])
+        res.iptables_forward = bool(int(args[14]))
+        res.iptables_masquerade = bool(int(args[15]))
+        res.recover_tries = int(args[16])
+        res.recreate_tries = int(args[17])
         return res
 
     @classmethod
@@ -111,8 +115,8 @@ class Systemd:
         running_in_remote: bool = config.running_in_remote if hasattr(config, 'running_in_remote') else pair.running_in_remote
         listen_port: int = config.new_port if hasattr(config, 'new_port') else config.listen_port
         args = [config.interface, str(config.suffix), str(pair.peer_ip), remote_pubkey, str(wg_ip), str(int(running_in_remote)), str(config.start_time), str(listen_port),
-                str(config.listen_ext_port), str(int(config.nat)), config.remote_interface, str(config.remote_local_port), str(int(config.iptables_accept)), str(config.recover_tries),
-                str(config.recreate_tries)]
+                str(config.listen_ext_port), str(int(config.nat)), config.remote_interface, str(config.remote_local_port), str(int(config.iptables_accept)),
+                str(int(config.iptables_forward)), str(int(config.iptables_masquerade)), str(config.recover_tries), str(config.recreate_tries)]
 
         systemd = subprocess.run(['systemd-run', '-u', unit, '/bin/sh', '/run/wirescale/wirescale-autoremove', 'start', *args],
                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)

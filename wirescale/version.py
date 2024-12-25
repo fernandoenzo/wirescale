@@ -2,8 +2,8 @@
 # encoding:utf-8
 
 
-VERSION = '1.0'
-DATE = '2024 Dec 6'
+VERSION = '1.0.1'
+DATE = '2024 Dec 25'
 
 version_msg = f'''wirescale {VERSION} ({DATE})
 Copyright © 2024 Fernando Enzo Guarini
