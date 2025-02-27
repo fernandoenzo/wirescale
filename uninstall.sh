@@ -18,7 +18,6 @@ systemctl disable "$SOCKET" > /dev/null 2>&1 || true
 rm -rf "/etc/systemd/system/$SERVICE" > /dev/null 2>&1 || true
 rm -rf "/etc/systemd/system/$SOCKET" > /dev/null 2>&1 || true
 rm -rf "/etc/bash_completion.d/wirescale-completion" > /dev/null 2>&1 || true
-rm -rf "/etc/iproute2/rt_tables.d/wirescale.conf" > /dev/null 2>&1 || true
 systemctl daemon-reload
 
 PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx uninstall wirescale || true

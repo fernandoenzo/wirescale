@@ -20,14 +20,12 @@ systemctl disable "$SOCKET" > /dev/null 2>&1 || true
 rm -rf "/etc/systemd/system/$SERVICE" > /dev/null 2>&1 || true
 rm -rf "/etc/systemd/system/$SOCKET" > /dev/null 2>&1 || true
 rm -rf "/etc/bash_completion.d/wirescale-completion" > /dev/null 2>&1 || true
-rm -rf "/etc/iproute2/rt_tables.d/wirescale.conf" > /dev/null 2>&1 || true
 systemctl daemon-reload
 
 PYTHON_DIR=$(find /opt/pipx/venvs/wirescale/lib -name 'python*' -type d)
 ln -s "$PYTHON_DIR/site-packages/wirescale/systemd/$SOCKET" "/etc/systemd/system/"
 ln -s "$PYTHON_DIR/site-packages/wirescale/systemd/$SERVICE" "/etc/systemd/system/"
 ln -s "$PYTHON_DIR/site-packages/wirescale/scripts/wirescale-completion" "/etc/bash_completion.d/"
-echo -e "# wirescale table\n#\n2693596026     wirescale" > "/etc/iproute2/rt_tables.d/wirescale.conf"
 systemctl daemon-reload
 
 systemctl enable "$SOCKET" "$SERVICE"
