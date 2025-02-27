@@ -17,7 +17,7 @@ and Tailscale’s unbeatable udp hole-punching capabilities to create a robust, 
 <!--ts-->
 
 * [Installation](#installation)
-    * [Prerequisites](#prerequisites)
+    * [Requirements](#requirements-for-installing-the-program)
     * [Install](#install)
     * [Upgrade](#upgrade)
     * [Uninstall](#uninstall)
@@ -39,10 +39,16 @@ and Tailscale’s unbeatable udp hole-punching capabilities to create a robust, 
 
 ## Installation
 
-### Prerequisites
+### Requirements for installing the program
+
+- `gcc >= 12.2`
+- `pipx >= 1.1.0`
+- `python >= 3.11`
+- `python-dev >= 3.11`
+
+### Requirements for regular use
 
 - `ping`
-- `pipx >= 1.1.0`
 - `python >= 3.11`
 - `systemd >= 252`
 - `tailscale >= 1.60`
