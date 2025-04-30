@@ -140,8 +140,12 @@ class WGConfig:
 
     def add_iptables_forward(self):
         postup_forward = IPTABLES.FORWARD.format(interface=self.interface)
+        postup_forward_back = IPTABLES.FORWARD_BACK.format(interface=self.interface)
         postdown_forward = IPTABLES.or_true(IPTABLES.remove_rule(postup_forward))
+        postdown_forward_back = IPTABLES.or_true(IPTABLES.remove_rule(postup_forward_back))
+        self.add_script('postup', postup_forward_back)
         self.add_script('postup', postup_forward)
+        self.add_script('postdown', postdown_forward_back, first_place=True)
         self.add_script('postdown', postdown_forward, first_place=True)
         subprocess.run(['sysctl', '-w', 'net.ipv4.ip_forward=1'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 

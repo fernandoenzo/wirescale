@@ -9,6 +9,7 @@ class IPTABLES:
     INPUT_ACCEPT_PORT = 'iptables -I INPUT -p udp --dport {port} -j ACCEPT ' + COMMENT_TEMPLATE
     FORWARD = 'iptables -I FORWARD -i %i -j ACCEPT ' + COMMENT_TEMPLATE
     FORWARD_MARK = 'iptables -I FORWARD -i %i -j MARK --set-mark {mark} ' + COMMENT_TEMPLATE
+    FORWARD_BACK = 'iptables -I FORWARD -o %i -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT ' + COMMENT_TEMPLATE
     MASQUERADE = 'iptables -t nat -I POSTROUTING ! -o %i -m mark --mark {mark} -j MASQUERADE ' + COMMENT_TEMPLATE
 
     @staticmethod
