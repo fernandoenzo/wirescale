@@ -350,8 +350,8 @@ have `ping` available on your system.
 The `[Wirescale]` section of config files seen before is entirely optional, and accepts the following fields:
 
 - `interface` The network interface name that WireGuard will set up for this peer. Defaults to the peer name.
-- `iptables-accept` Can be `true` or `false`. If set to `true`, iptables rules will be added to allow incoming traffic through the new network interface. Use
-  this only if the connection is unstable and needs to be recovered repeatedly. This should not be necessary in most cases. Defaults to `false`.
+- `iptables-accept` Can be `true` or `false`. If set to `true`, iptables rules will be added to allow incoming traffic through the new network interface.
+  Useful when the default INPUT policy is set to DROP. This should not be necessary in most cases. Defaults to `false`.
 - `iptables-forward` Can be `true` or `false`. If set to `true`, iptables rules will be added to enable forwarding of traffic through the new network interface.
   Defaults to `false`.
 - `iptables-masquerade` Can be `true` or `false`. If set to `true`, iptables rules will be added to mark and masquerade traffic routed through the new network
