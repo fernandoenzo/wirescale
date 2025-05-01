@@ -46,10 +46,10 @@ keywords = 'wireguard tunnel tunneling vpn tailscale secure networking mesh p2p 
 python_requires = '>=3.11'
 
 install_requires = [
-    "cryptography == 44.0.0",
+    "cryptography == 44.0.2",
     "netifaces == 0.11.0",
     "parallel-utils == 1.3.1",
-    "websockets == 14.1",
+    "websockets == 14.2",
 ]
 
 # https://pypi.org/classifiers/
@@ -64,6 +64,7 @@ classifiers = [
     'Programming Language :: Python :: 3 :: Only',
     'Programming Language :: Python :: 3.11',
     'Programming Language :: Python :: 3.12',
+    'Programming Language :: Python :: 3.13',
     'Topic :: Communications',
     'Topic :: Internet',
     'Topic :: System :: Networking',
