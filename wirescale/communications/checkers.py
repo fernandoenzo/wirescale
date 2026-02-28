@@ -3,7 +3,6 @@
 
 
 import json
-import shutil
 import subprocess
 import sys
 from _socket import if_nametoindex
@@ -59,9 +58,7 @@ def check_configfile() -> Path:
 
 
 def get_local_ip_addresses() -> List[IPv4Address]:
-    if not (ip := shutil.which('ip')):
-        raise RuntimeError("Command 'ip' not found")
-    result = subprocess.run([ip, '-j', 'addr', 'show'], capture_output=True, text=True)
+    result = subprocess.run(['ip', '-j', 'addr', 'show'], capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(f"Error running 'ip addr show': {result.stderr}")
 
