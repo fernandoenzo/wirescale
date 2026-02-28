@@ -35,7 +35,7 @@ class Semaphores(IntEnum):
 def check_with_timeout(func, timeout, sleep_time=0.5, *args, **kwargs) -> bool:
     while not (check := func(*args, **kwargs)) and timeout > 0:
         timeout -= sleep_time
-        sleep(0.5)
+        sleep(sleep_time)
     return check
 
 
@@ -55,13 +55,13 @@ class BytesStrConverter:
 
     @classmethod
     def raw_bytes_to_str64(cls, data: bytes) -> str:
-        data = base64.urlsafe_b64encode(data)
-        return cls.bytes_to_str(data)
+        data_enc = base64.urlsafe_b64encode(data)
+        return cls.bytes_to_str(data_enc)
 
     @classmethod
     def str64_to_raw_bytes(cls, data: str) -> bytes:
-        data = cls.str_to_bytes(data)
-        return base64.urlsafe_b64decode(data)
+        data_bytes = cls.str_to_bytes(data)
+        return base64.urlsafe_b64decode(data_bytes)
 
     @staticmethod
     def str_to_bytes(data: str) -> bytes:

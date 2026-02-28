@@ -2,17 +2,17 @@
 # encoding:utf-8
 
 
+import json
+import shutil
 import subprocess
 import sys
 from _socket import if_nametoindex
 from configparser import ConfigParser
-from ipaddress import IPv4Address, IPv4Interface
+from ipaddress import IPv4Address
 from pathlib import Path
 from threading import get_ident
 from time import sleep
-from typing import Tuple, TYPE_CHECKING
-
-from netifaces import AF_INET, ifaddresses, interfaces
+from typing import List, Tuple, TYPE_CHECKING
 
 from wirescale.communications.common import check_with_timeout, CONNECTION_PAIRS
 from wirescale.communications.messages import ErrorCodes, ErrorMessages
@@ -58,9 +58,28 @@ def check_configfile() -> Path:
     ErrorMessages.send_error_message(local_message=error, remote_message=remote_error, error_code=ErrorCodes.CONFIG_PATH_ERROR, remote_code=ErrorCodes.CONFIG_PATH_ERROR)
 
 
+def get_local_ip_addresses() -> List[IPv4Address]:
+    if not (ip := shutil.which('ip')):
+        raise RuntimeError("Command 'ip' not found")
+    result = subprocess.run([ip, '-j', 'addr', 'show'], capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"Error running 'ip addr show': {result.stderr}")
+
+    addresses = []
+    try:
+        data = json.loads(result.stdout)
+        for interface in data:
+            for addr_info in interface.get('addr_info', []):
+                if addr_info.get('family') == 'inet':
+                    addresses.append(IPv4Address(addr_info['local']))
+    except json.JSONDecodeError:
+        pass  # Handle or log error if needed
+    return addresses
+
+
 def check_behind_nat(ip: IPv4Address) -> bool:
-    local_addresses = (IPv4Interface(y[0]['addr'] + '/' + y[0]['netmask']) for x in interfaces() if (y := ifaddresses(x).get(AF_INET)) is not None)
-    return ip not in (x.ip for x in local_addresses)
+    local_addresses = get_local_ip_addresses()
+    return ip not in local_addresses
 
 
 def check_recover_config(recover: 'RecoverConfig'):

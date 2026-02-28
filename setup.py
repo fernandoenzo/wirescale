@@ -47,7 +47,6 @@ python_requires = '>=3.11'
 
 install_requires = [
     "cryptography == 44.0.2",
-    "netifaces == 0.11.0",
     "parallel-utils == 1.3.1",
     "websockets == 14.2",
 ]
