@@ -30,7 +30,7 @@ class ConnectionPair:
         self._check_lock = Lock()
         self.closing = False
         self.tcp_socket: ClientConnection | ServerConnection = None
-        self.unix_socket: ServerConnection = None
+        self.unix_socket: ClientConnection | ServerConnection = None
         self.token: str = None
         CONNECTION_PAIRS[get_ident()] = self
 

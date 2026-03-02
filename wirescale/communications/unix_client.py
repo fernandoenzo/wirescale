@@ -44,22 +44,26 @@ class UnixClient:
             except ConnectionClosedOK:
                 print('Connection has been successfully closed', flush=True)
 
+    @staticmethod
+    def _process_messages(pair):
+        for message in pair.local_socket:
+            message = json.loads(message)
+            ErrorMessages.process_error_message(message)
+            match message[MessageFields.CODE]:
+                case ActionCodes.INFO:
+                    print(message[MessageFields.MESSAGE], flush=True)
+                case ActionCodes.SUCCESS:
+                    print(message[MessageFields.MESSAGE], flush=True)
+                    pair.close_sockets()
+                    sys.exit(0)
+
     @classmethod
     def upgrade(cls):
         pair = ARGS.PAIR
         pair.unix_socket = cls.connect()
         with pair.local_socket:
             UnixMessages.send_upgrade_option()
-            for message in pair.local_socket:
-                message = json.loads(message)
-                ErrorMessages.process_error_message(message)
-                match message[MessageFields.CODE]:
-                    case ActionCodes.INFO:
-                        print(message[MessageFields.MESSAGE], flush=True)
-                    case ActionCodes.SUCCESS:
-                        print(message[MessageFields.MESSAGE], flush=True)
-                        pair.close_sockets()
-                        sys.exit(0)
+            cls._process_messages(pair)
 
     @classmethod
     def recover(cls):
@@ -68,13 +72,4 @@ class UnixClient:
         pair.unix_socket = cls.connect()
         with pair.local_socket:
             UnixMessages.send_recover(recover)
-            for message in pair.local_socket:
-                message = json.loads(message)
-                ErrorMessages.process_error_message(message)
-                match message[MessageFields.CODE]:
-                    case ActionCodes.INFO:
-                        print(message[MessageFields.MESSAGE], flush=True)
-                    case ActionCodes.SUCCESS:
-                        print(message[MessageFields.MESSAGE], flush=True)
-                        pair.close_sockets()
-                        sys.exit(0)
+            cls._process_messages(pair)
