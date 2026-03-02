@@ -124,22 +124,17 @@ class TCPServer:
         wgconfig.recover_tries = first_not_none(wgconfig.recover_tries, ARGS.RECOVER_TRIES, default=3)
         wgconfig.recreate_tries = first_not_none(wgconfig.recreate_tries, ARGS.RECREATE_TRIES, default=0)
         TCPMessages.send_upgrade_response(wgconfig)
-        for message in pair:
-            message = json.loads(message)
-            ErrorMessages.process_error_message(message)
-            match message[MessageFields.CODE]:
-                case ActionCodes.INFO:
-                    print(message[MessageFields.MESSAGE], flush=True)
-                case ActionCodes.GO:
-                    wgconfig.nat = message[MessageFields.NAT]
-                    wgconfig.upgrade()
-                    sys.exit(0)
+        cls._process_go_messages(pair, wgconfig, wgconfig.upgrade)
 
     @classmethod
     def recover(cls, message: dict):
         pair = CONNECTION_PAIRS[get_ident()]
         recover = TCPMessages.process_recover(message)
         TCPMessages.send_recover_response(recover)
+        cls._process_go_messages(pair, recover, recover.recover)
+
+    @staticmethod
+    def _process_go_messages(pair, config, action):
         for message in pair:
             message = json.loads(message)
             ErrorMessages.process_error_message(message)
@@ -147,6 +142,6 @@ class TCPServer:
                 case ActionCodes.INFO:
                     print(message[MessageFields.MESSAGE], flush=True)
                 case ActionCodes.GO:
-                    recover.nat = message[MessageFields.NAT]
-                    recover.recover()
+                    config.nat = message[MessageFields.NAT]
+                    action()
                     sys.exit(0)
