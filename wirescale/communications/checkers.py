@@ -183,7 +183,7 @@ def match_psk(wgconfig: WGConfig, remote_has_psk: bool, remote_psk: str):
 
 
 def check_addresses_in_allowedips(wgconfig: WGConfig):
-    check = next((False for ip in wgconfig.remote_addresses if not wgconfig.ip_is_allowed(ip)), True)
+    check = all(wgconfig.ip_is_allowed(ip) for ip in wgconfig.remote_addresses)
     if check:
         return
     pair = CONNECTION_PAIRS[get_ident()]

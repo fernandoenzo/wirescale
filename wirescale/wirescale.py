@@ -56,7 +56,7 @@ def main():
                 systemd = subprocess.run(['systemctl', 'start', unit], text=True)
                 sys.exit(systemd.returncode)
             systemd_envvars = ('LISTEN_PID', 'LISTEN_FDS', 'LISTEN_FDNAMES')
-            if next((True for e in systemd_envvars if e not in os.environ), False):
+            if any(e not in os.environ for e in systemd_envvars):
                 print('Error: Wirescale needs a UNIX socket supplied by systemd', file=sys.stderr, flush=True)
                 sys.exit(1)
             copy_script()

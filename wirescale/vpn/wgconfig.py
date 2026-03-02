@@ -115,7 +115,7 @@ class WGConfig:
         return frozenset(ip_network(addr.strip(), strict=False) for line in lines for addr in line.replace(',', ' ').split())
 
     def ip_is_allowed(self, ip: IPv4Address | IPv6Address) -> bool:
-        return next((True for network in self.allowed_ips if ip in network), False)
+        return any(ip in network for network in self.allowed_ips)
 
     def add_script(self, action: str, script: str, first_place=False):
         interface = next(section for section in self.config.sections() if section.lower() == 'interface')
