@@ -172,6 +172,10 @@ class TSManager:
             reachable = Messages.REACHABLE.format(peer_name=peer_name, peer_ip=ip)
             Messages.send_info_message(local_message=reachable, send_to_local=False)
             endpoint = force_endpoint.stdout.split()[-3]
+        # Validate format in case 'tailscale ping' changes its output
+        if ':' not in endpoint:
+            no_endpoint = ErrorMessages.TS_NO_ENDPOINT.format(peer_name=peer_name, peer_ip=ip)
+            ErrorMessages.send_error_message(local_message=no_endpoint, error_code=ErrorCodes.TS_UNREACHABLE, exit_code=4)
         return IPv4Address(endpoint.split(':')[0]), int(endpoint.split(':')[1])
 
     @classmethod
