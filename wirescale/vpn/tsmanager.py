@@ -186,7 +186,8 @@ class TSManager:
         except PermissionError:
             print(ErrorMessages.SUDO, file=sys.stderr, flush=True)
             sys.exit(1)
-        while True:
+        timeout = 20
+        while timeout > 0:
             result = subprocess.run(['ss', '-lunp4'], capture_output=True, text=True)
             port: int = None
             try:
@@ -196,4 +197,6 @@ class TSManager:
             except StopIteration:
                 if port:
                     return port
-                ErrorMessages.send_error_message(local_message=ErrorMessages.TS_NO_PORT)
+            timeout -= 0.1
+            sleep(0.1)
+        ErrorMessages.send_error_message(local_message=ErrorMessages.TS_NO_PORT)
