@@ -9,6 +9,7 @@ import subprocess
 from configparser import ConfigParser
 from contextlib import ExitStack
 from datetime import datetime
+from functools import cached_property
 from io import StringIO
 from ipaddress import ip_address, ip_network, IPv4Address, IPv4Network, IPv6Address, IPv6Network
 from pathlib import Path
@@ -16,7 +17,6 @@ from subprocess import STDOUT
 from threading import get_ident
 from typing import Dict, FrozenSet, Tuple
 
-from cryptography.utils import cached_property
 from parallel_utils.thread import create_thread
 
 from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS, file_locker, subprocess_run_tmpfile
