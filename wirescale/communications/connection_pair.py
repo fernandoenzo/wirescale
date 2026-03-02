@@ -7,7 +7,7 @@ import sys
 from contextlib import suppress
 from functools import cached_property
 from ipaddress import IPv4Address
-from threading import get_ident
+from threading import get_ident, Lock
 from typing import Iterator
 
 from parallel_utils.thread import create_thread
@@ -27,7 +27,7 @@ class ConnectionPair:
         self.receiver = receiver
         with file_locker():
             self.caller_name, self.receiver_name
-        self.check_running = False
+        self._check_lock = Lock()
         self.closing = False
         self.tcp_socket: ClientConnection | ServerConnection = None
         self.unix_socket: ServerConnection = None
@@ -62,10 +62,11 @@ class ConnectionPair:
                 return
 
     def check_broken_connection(self):
-        if self.closing or self.check_running:
+        if not self._check_lock.acquire(blocking=False):
             return
         try:
-            self.check_running = True
+            if self.closing:
+                return
             with file_locker():
                 checking_message = Messages.CHECKING_CONNECTION.format(peer_name=self.peer_name, peer_ip=self.peer_ip)
                 checking_message = Messages.add_id(self.id, checking_message)
@@ -81,7 +82,7 @@ class ConnectionPair:
                 message_ok = Messages.add_id(self.id, message_ok)
                 Messages.send_info_message(local_message=message_ok, send_to_local=False)
         finally:
-            self.check_running = False
+            self._check_lock.release()
 
     def close_sockets(self):
         if self.local_socket is not None:
