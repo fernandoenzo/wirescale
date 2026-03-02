@@ -297,7 +297,7 @@ class Messages:
     NEXT_RECOVER = "The recover request to peer '{peer_name}' ({peer_ip}) for interface '{interface}' is the next one in the processing queue"
     NEXT_UPGRADE = "The upgrade request for the peer '{peer_name}' ({peer_ip}) is the next one in the processing queue"
     REACHABLE = "Peer '{peer_name}' ({peer_ip}) is reachable"
-    RECOVER_SUCCES = "Success! WireGuard connection through interface '{interface}' is working again"
+    RECOVER_SUCCESS = "Success! WireGuard connection through interface '{interface}' is working again"
     SHUTDOWN_SET = 'The server has been set to shut down'
     SLEEP = 'Sleeping for {minutes} minutes'
     START_PROCESSING_FROM = "Starting to process the {{action}} request coming from peer '{peer_name}' ({peer_ip})"
