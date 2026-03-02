@@ -256,10 +256,9 @@ class ExitNode:
     @classmethod
     @contextmanager
     def locker(cls):
-        lockfile = cls.LOCKER.open(mode='w')
-        fcntl.flock(lockfile, fcntl.LOCK_EX)
-        try:
-            yield
-        finally:
-            fcntl.flock(lockfile, fcntl.LOCK_UN)
-            lockfile.close()
+        with cls.LOCKER.open(mode='w') as lockfile:
+            fcntl.flock(lockfile, fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(lockfile, fcntl.LOCK_UN)

@@ -80,10 +80,9 @@ class BytesStrConverter:
 
 @contextmanager
 def file_locker():
-    lockfile = Path('/run/wirescale/control/locker').open(mode='w')
-    fcntl.flock(lockfile, fcntl.LOCK_EX)
-    try:
-        yield
-    finally:
-        fcntl.flock(lockfile, fcntl.LOCK_UN)
-        lockfile.close()
+    with Path('/run/wirescale/control/locker').open(mode='w') as lockfile:
+        fcntl.flock(lockfile, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lockfile, fcntl.LOCK_UN)
