@@ -34,6 +34,10 @@ class Semaphores(IntEnum):
     WAIT_IF_SWITCHED = auto()
 
 
+def first_not_none(*values, default=None):
+    return next((v for v in values if v is not None), default)
+
+
 def check_with_timeout(func, timeout, sleep_time=0.5, *args, **kwargs) -> bool:
     while not (check := func(*args, **kwargs)) and timeout > 0:
         timeout -= sleep_time

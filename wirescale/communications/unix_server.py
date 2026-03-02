@@ -16,7 +16,7 @@ from websockets import ConnectionClosed
 from websockets.sync.server import ServerConnection, unix_serve, WebSocketServer
 
 from wirescale.communications.checkers import check_configfile, check_interface, check_recover_config, check_wgconfig, test_wgconfig
-from wirescale.communications.common import CONNECTION_PAIRS, Semaphores, SHUTDOWN, SOCKET_PATH
+from wirescale.communications.common import CONNECTION_PAIRS, first_not_none, Semaphores, SHUTDOWN, SOCKET_PATH
 from wirescale.communications.connection_pair import ConnectionPair
 from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, MessageFields, Messages
 from wirescale.communications.tcp_client import TCPClient
@@ -136,16 +136,16 @@ class UnixServer:
         interface = interface or wgconfig.interface or pair.peer_name
         if suffix_number is not None:
             interface = interface + str(suffix_number)
-        wgconfig.allow_suffix = allow_suffix if allow_suffix is not None else wgconfig.allow_suffix if wgconfig.allow_suffix is not None else False
+        wgconfig.allow_suffix = first_not_none(allow_suffix, wgconfig.allow_suffix, default=False)
         wgconfig.interface, wgconfig.suffix = check_interface(interface=interface, allow_suffix=wgconfig.allow_suffix)
         if suffix_number is not None:
             wgconfig.suffix = suffix_number
         test_wgconfig(wgconfig)
-        wgconfig.iptables_accept = iptables_accept if iptables_accept is not None else wgconfig.iptables_accept if wgconfig.iptables_accept is not None else False
-        wgconfig.iptables_forward = iptables_forward if iptables_forward is not None else wgconfig.iptables_forward if wgconfig.iptables_forward is not None else False
-        wgconfig.iptables_masquerade = iptables_masquerade if iptables_masquerade is not None else wgconfig.iptables_masquerade if wgconfig.iptables_masquerade is not None else False
-        wgconfig.recover_tries = recover_tries if recover_tries is not None else wgconfig.recover_tries if wgconfig.recover_tries is not None else 3
-        wgconfig.recreate_tries = recreate_tries if recreate_tries is not None else wgconfig.recreate_tries if wgconfig.recreate_tries is not None else 0
+        wgconfig.iptables_accept = first_not_none(iptables_accept, wgconfig.iptables_accept, default=False)
+        wgconfig.iptables_forward = first_not_none(iptables_forward, wgconfig.iptables_forward, default=False)
+        wgconfig.iptables_masquerade = first_not_none(iptables_masquerade, wgconfig.iptables_masquerade, default=False)
+        wgconfig.recover_tries = first_not_none(recover_tries, wgconfig.recover_tries, default=3)
+        wgconfig.recreate_tries = first_not_none(recreate_tries, wgconfig.recreate_tries, default=0)
         wgconfig.expected_interface = message[MessageFields.EXPECTED_INTERFACE]
         TCPClient.upgrade(wgconfig=wgconfig, interface=interface, suffix_number=suffix_number, stack=stack)
 

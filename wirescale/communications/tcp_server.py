@@ -12,7 +12,7 @@ from parallel_utils.thread import StaticMonitor
 from websockets.sync.server import serve, ServerConnection, WebSocketServer
 
 from wirescale.communications.checkers import check_addresses_in_allowedips, check_behind_nat, check_configfile, check_interface, check_wgconfig, match_psk, match_pubkeys, test_wgconfig
-from wirescale.communications.common import CONNECTION_PAIRS, file_locker, Semaphores, SHUTDOWN, TCP_PORT
+from wirescale.communications.common import CONNECTION_PAIRS, file_locker, first_not_none, Semaphores, SHUTDOWN, TCP_PORT
 from wirescale.communications.connection_pair import ConnectionPair
 from wirescale.communications.messages import ActionCodes, ErrorMessages, MessageFields, Messages, TCPMessages
 from wirescale.parsers.args import ARGS
@@ -99,7 +99,7 @@ class TCPServer:
         config = check_configfile()
         wgconfig = check_wgconfig(config)
         wgconfig.interface = wgconfig.interface or pair.peer_name
-        wgconfig.allow_suffix = wgconfig.allow_suffix if wgconfig.allow_suffix is not None else ARGS.ALLOW_SUFFIX if ARGS.ALLOW_SUFFIX is not None else False
+        wgconfig.allow_suffix = first_not_none(wgconfig.allow_suffix, ARGS.ALLOW_SUFFIX, default=False)
         wgconfig.interface, wgconfig.suffix = check_interface(interface=wgconfig.interface, allow_suffix=wgconfig.allow_suffix)
         expected_interface = message[MessageFields.EXPECTED_INTERFACE]
         if expected_interface is not None and wgconfig.interface != expected_interface:
@@ -107,9 +107,9 @@ class TCPServer:
             remote_error = ErrorMessages.REMOTE_INTERFACE_MISMATCH.format(my_name=pair.my_name, my_ip=pair.my_ip, interface=expected_interface)
             ErrorMessages.send_error_message(local_message=error, remote_message=remote_error)
         test_wgconfig(wgconfig)
-        wgconfig.iptables_accept = wgconfig.iptables_accept if wgconfig.iptables_accept is not None else ARGS.IPTABLES_ACCEPT if ARGS.IPTABLES_ACCEPT is not None else False
-        wgconfig.iptables_forward = wgconfig.iptables_forward if wgconfig.iptables_forward is not None else ARGS.IPTABLES_FORWARD if ARGS.IPTABLES_FORWARD is not None else False
-        wgconfig.iptables_masquerade = wgconfig.iptables_masquerade if wgconfig.iptables_masquerade is not None else ARGS.IPTABLES_MASQUERADE if ARGS.IPTABLES_MASQUERADE is not None else False
+        wgconfig.iptables_accept = first_not_none(wgconfig.iptables_accept, ARGS.IPTABLES_ACCEPT, default=False)
+        wgconfig.iptables_forward = first_not_none(wgconfig.iptables_forward, ARGS.IPTABLES_FORWARD, default=False)
+        wgconfig.iptables_masquerade = first_not_none(wgconfig.iptables_masquerade, ARGS.IPTABLES_MASQUERADE, default=False)
         with file_locker():
             wgconfig.endpoint = TSManager.peer_endpoint(pair.peer_ip)
         wgconfig.listen_ext_port = message[MessageFields.EXPOSED_PORT]
@@ -121,8 +121,8 @@ class TCPServer:
         check_addresses_in_allowedips(wgconfig)
         wgconfig.generate_new_config()
         wgconfig.nat = check_behind_nat(IPv4Address(message[MessageFields.PUBLIC_IP]))
-        wgconfig.recover_tries = wgconfig.recover_tries if wgconfig.recover_tries is not None else ARGS.RECOVER_TRIES if ARGS.RECOVER_TRIES is not None else 3
-        wgconfig.recreate_tries = wgconfig.recreate_tries if wgconfig.recreate_tries is not None else ARGS.RECREATE_TRIES if ARGS.RECREATE_TRIES is not None else 0
+        wgconfig.recover_tries = first_not_none(wgconfig.recover_tries, ARGS.RECOVER_TRIES, default=3)
+        wgconfig.recreate_tries = first_not_none(wgconfig.recreate_tries, ARGS.RECREATE_TRIES, default=0)
         TCPMessages.send_upgrade_response(wgconfig)
         for message in pair:
             message = json.loads(message)
