@@ -35,8 +35,7 @@ class TCPClient:
                     return None
 
     @classmethod
-    def upgrade(cls, wgconfig: 'WGConfig', interface: str, suffix_number: int, stack: ExitStack):
-        pair = CONNECTION_PAIRS[get_ident()]
+    def _establish_connection(cls, pair):
         try:
             pair.tcp_socket = cls.connect(uri=pair.peer_ip)
             if pair.tcp_socket is None:
@@ -45,15 +44,25 @@ class TCPClient:
         except ConnectionRefusedError:
             error = ErrorMessages.REMOTE_MISSING_WIRESCALE.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
             ErrorMessages.send_error_message(local_message=error)
+
+    @staticmethod
+    def _send_go_or_fail(pair, config):
+        sent = TCPMessages.send_go(config)
+        if not sent:
+            error = ErrorMessages.CONNECTION_LOST.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
+            ErrorMessages.send_error_message(local_message=error, error_code=ErrorCodes.TS_UNREACHABLE)
+
+    @classmethod
+    def upgrade(cls, wgconfig: 'WGConfig', interface: str, suffix_number: int, stack: ExitStack):
+        pair = CONNECTION_PAIRS[get_ident()]
+        cls._establish_connection(pair)
         with pair.remote_socket:
             TCPMessages.send_token()
             TCPMessages.send_hello()
             for message in pair:
                 message = json.loads(message)
                 if error_code := message[MessageFields.ERROR_CODE]:
-                    match error_code:
-                        case _:
-                            ErrorMessages.send_error_message(local_message=message[MessageFields.ERROR_MESSAGE], error_code=error_code)
+                    ErrorMessages.send_error_message(local_message=message[MessageFields.ERROR_MESSAGE], error_code=error_code)
                 elif code := message[MessageFields.CODE]:
                     match code:
                         case ActionCodes.ACK:
@@ -79,33 +88,21 @@ class TCPClient:
                             wgconfig.remote_interface = message[MessageFields.INTERFACE]
                             wgconfig.generate_new_config()
                             wgconfig.nat = message[MessageFields.NAT] and check_behind_nat(IPv4Address(message[MessageFields.PUBLIC_IP]))
-                            sent = TCPMessages.send_go(wgconfig)
-                            if not sent:
-                                error = ErrorMessages.CONNECTION_LOST.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
-                                ErrorMessages.send_error_message(local_message=error, error_code=ErrorCodes.TS_UNREACHABLE)
+                            cls._send_go_or_fail(pair, wgconfig)
                             wgconfig.upgrade()
                             sys.exit(0)
 
     @classmethod
     def recover(cls, recover: 'RecoverConfig', stack: ExitStack):
         pair = CONNECTION_PAIRS[get_ident()]
-        try:
-            pair.tcp_socket = cls.connect(uri=pair.peer_ip)
-        except ConnectionRefusedError:
-            error = ErrorMessages.REMOTE_MISSING_WIRESCALE.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
-            ErrorMessages.send_error_message(local_message=error)
+        cls._establish_connection(pair)
         with pair.remote_socket:
             TCPMessages.send_token()
             TCPMessages.send_hello()
             for message in pair:
                 message = json.loads(message)
                 if error_code := message[MessageFields.ERROR_CODE]:
-                    match error_code:
-                        case ErrorCodes.HANDSHAKE_MISMATCH:
-                            text = message[MessageFields.ERROR_MESSAGE]
-                            ErrorMessages.send_error_message(local_message=text, error_code=error_code)
-                        case _:
-                            ErrorMessages.send_error_message(local_message=message[MessageFields.ERROR_MESSAGE], error_code=error_code)
+                    ErrorMessages.send_error_message(local_message=message[MessageFields.ERROR_MESSAGE], error_code=error_code)
                 elif code := message[MessageFields.CODE]:
                     match code:
                         case ActionCodes.ACK:
@@ -120,9 +117,6 @@ class TCPClient:
                             Messages.send_info_message(local_message=message[MessageFields.MESSAGE])
                         case ActionCodes.RECOVER_RESPONSE:
                             TCPMessages.process_recover_response(message, recover)
-                            sent = TCPMessages.send_go(recover)
-                            if not sent:
-                                error = ErrorMessages.CONNECTION_LOST.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
-                                ErrorMessages.send_error_message(local_message=error, error_code=ErrorCodes.TS_UNREACHABLE)
+                            cls._send_go_or_fail(pair, recover)
                             recover.recover()
                             sys.exit(0)
