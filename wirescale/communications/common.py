@@ -40,13 +40,19 @@ def check_with_timeout(func, timeout, sleep_time=0.5, *args, **kwargs) -> bool:
 
 
 def subprocess_run_tmpfile(*args, **kwargs) -> subprocess.CompletedProcess[str]:
-    kwargs['encoding'] = kwargs.get('encoding', 'utf-8')
+    """Like subprocess.run(capture_output=True, text=True) but uses temporary files instead of pipes.
+    This avoids deadlocks when a child process writes more data than the pipe buffer can hold."""
+    encoding = kwargs.setdefault('encoding', 'utf-8')
+    # Remove incompatible flags — we handle streams ourselves
     collections.deque((kwargs.pop(field, None) for field in ('capture_output', 'text', 'universal_newlines')), maxlen=0)
     streams = ('stdout', 'stderr')
+    # Track which streams were already set by the caller (e.g. DEVNULL, PIPE, or a real file)
     streams_are_set = {stream: kwargs.get(stream, None) is not None for stream in streams}
     with ExitStack() as stack:
-        kwargs.update({stream: kwargs[stream] if streams_are_set[stream] else stack.enter_context(TemporaryFile(mode='w+', encoding=kwargs['encoding'])) for stream in streams})
+        # For streams NOT set by the caller, create a TemporaryFile managed by the ExitStack
+        kwargs.update({stream: kwargs[stream] if streams_are_set[stream] else stack.enter_context(TemporaryFile(mode='w+', encoding=encoding)) for stream in streams})
         p = subprocess.run(*args, **kwargs)
+        # Read back the temporary files into p.stdout / p.stderr; leave caller-provided streams untouched
         p.stdout, p.stderr = ((kwargs[stream].flush(), kwargs[stream].seek(0), kwargs[stream].read())[2] if not streams_are_set[stream] else getattr(p, stream) for stream in streams)
     return p
 
