@@ -3,7 +3,6 @@
 
 
 import json
-import subprocess
 import sys
 from contextlib import ExitStack
 from ipaddress import ip_address, IPv4Address

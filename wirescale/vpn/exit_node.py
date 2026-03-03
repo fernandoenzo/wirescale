@@ -9,19 +9,17 @@ import subprocess
 import sys
 from contextlib import contextmanager
 from ipaddress import ip_network, IPv4Network, IPv6Network
-from pathlib import Path
 from typing import Dict, List, Optional, Set
 
-from wirescale.communications.common import EXIT_NODE_MARK, GLOB_MARK, WIRESCALE_TABLE
+from wirescale.communications.common import EXIT_NODE_MARK, GLOB_MARK, RUN_DIR, WIRESCALE_TABLE
 from wirescale.communications.messages import Messages
 from wirescale.communications.systemd import Systemd
 
 
 class ExitNode:
     GLOBAL_NETWORK = ip_network('0.0.0.0/0')
-    DIRECTORY = Path('/run/wirescale/')
-    EXIT_FILE = DIRECTORY.joinpath('control/exit-node')
-    LOCKER = DIRECTORY.joinpath('control/exit-node-locker')
+    EXIT_FILE = RUN_DIR.joinpath('control/exit-node')
+    LOCKER = RUN_DIR.joinpath('control/exit-node-locker')
     ADD_ALLOWEDIPS = 'add-allowedips'
     EXIT_NODE = 'exit-node'
     NODES = 'nodes'
@@ -156,7 +154,7 @@ class ExitNode:
         config = cls.load_config()
         if config is None:
             return
-        active_peers = set(peer.stem for peer in cls.DIRECTORY.glob('*.conf') if peer.stem != config[cls.EXIT_NODE])
+        active_peers = set(peer.stem for peer in RUN_DIR.glob('*.conf') if peer.stem != config[cls.EXIT_NODE])
         stored_nodes = set(config[cls.NODES].keys())
         add = active_peers - stored_nodes
         if not add:
@@ -187,7 +185,7 @@ class ExitNode:
         config = cls.load_config()
         if config is None:
             return
-        active_peers = set(peer.stem for peer in cls.DIRECTORY.glob('*.conf'))
+        active_peers = set(peer.stem for peer in RUN_DIR.glob('*.conf'))
         stored_nodes = set(config[cls.NODES].keys())
         remove = stored_nodes - active_peers
         if not remove:

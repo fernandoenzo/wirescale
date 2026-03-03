@@ -10,7 +10,7 @@ from io import StringIO
 from ipaddress import IPv4Address
 from pathlib import Path
 
-from wirescale.communications.common import file_locker
+from wirescale.communications.common import file_locker, RUN_DIR
 from wirescale.communications.messages import ErrorMessages
 from wirescale.communications.systemd import Systemd
 from wirescale.vpn.tsmanager import TSManager
@@ -42,7 +42,7 @@ def check_peer(value) -> IPv4Address:
 
 
 def check_existing_conf(value) -> Path:
-    res = Path(f'/run/wirescale/{value}.conf')
+    res = RUN_DIR.joinpath(f'{value}.conf')
     if not res.exists():
         raise ArgumentTypeError(f"file '{res}' does not exist")
     return res.resolve()

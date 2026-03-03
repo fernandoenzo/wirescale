@@ -4,7 +4,6 @@
 
 import json
 import subprocess
-import sys
 from _socket import if_nametoindex
 from configparser import ConfigParser
 from ipaddress import IPv4Address
@@ -13,7 +12,7 @@ from threading import get_ident
 from time import sleep
 from typing import List, Tuple, TYPE_CHECKING
 
-from wirescale.communications.common import check_with_timeout, CONNECTION_PAIRS
+from wirescale.communications.common import check_with_timeout, CONFIG_DIR, CONNECTION_PAIRS
 from wirescale.communications.messages import ErrorCodes, ErrorMessages
 from wirescale.vpn.wgconfig import WGConfig
 
@@ -49,7 +48,7 @@ def check_interface(interface: str, allow_suffix: bool) -> Tuple[str, int]:
 
 def check_configfile() -> Path:
     pair = CONNECTION_PAIRS[get_ident()]
-    peer = Path(f'/etc/wirescale/{pair.peer_name}.conf')
+    peer = CONFIG_DIR.joinpath(f'{pair.peer_name}.conf')
     if peer.is_file():
         return peer.resolve()
     error = ErrorMessages.CONFIG_PATH_ERROR.format(peer_name=pair.peer_name)

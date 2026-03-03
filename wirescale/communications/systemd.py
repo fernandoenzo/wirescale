@@ -10,7 +10,7 @@ from threading import get_ident
 from time import sleep
 from typing import Tuple, TYPE_CHECKING, Union
 
-from wirescale.communications.common import CONNECTION_PAIRS
+from wirescale.communications.common import CONNECTION_PAIRS, RUN_DIR
 
 if TYPE_CHECKING:
     from wirescale.communications.connection_pair import ConnectionPair
@@ -118,7 +118,7 @@ class Systemd:
                 str(config.listen_ext_port), str(int(config.nat)), config.remote_interface, str(config.remote_local_port), str(int(config.iptables_accept)),
                 str(int(config.iptables_forward)), str(int(config.iptables_masquerade)), str(config.recover_tries), str(config.recreate_tries)]
 
-        systemd = subprocess.run(['systemd-run', '-u', unit, '/bin/sh', '/run/wirescale/wirescale-autoremove', 'start', *args],
+        systemd = subprocess.run(['systemd-run', '-u', unit, '/bin/sh', f'{RUN_DIR}/wirescale-autoremove', 'start', *args],
                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         Messages.send_info_message(local_message=f'Launching autoremove subprocess. {systemd.stdout.strip()}')
 

@@ -6,11 +6,11 @@ import os
 import shutil
 import subprocess
 import sys
-from pathlib import Path
 
 from parallel_utils.thread import create_thread
 
 from wirescale.__main__ import SCRIPT_PATH
+from wirescale.communications.common import RUN_DIR
 from wirescale.communications.messages import ErrorMessages
 from wirescale.communications.systemd import Systemd
 from wirescale.communications.tcp_server import TCPServer
@@ -39,7 +39,7 @@ def check_root(message: str = None):
 
 
 def copy_script():
-    script_file = Path('/run/wirescale/wirescale-autoremove')
+    script_file = RUN_DIR.joinpath('wirescale-autoremove')
     script_file.unlink(missing_ok=True)
     shutil.copy(SCRIPT_PATH.joinpath('wirescale-autoremove'), script_file)
     script_file.chmod(0o744)

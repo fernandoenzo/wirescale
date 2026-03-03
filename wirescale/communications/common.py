@@ -17,8 +17,10 @@ if TYPE_CHECKING:
     from wirescale.communications.connection_pair import ConnectionPair
 
 CONNECTION_PAIRS: Dict[int, 'ConnectionPair'] = {}
+CONFIG_DIR = Path('/etc/wirescale/')
+RUN_DIR = Path('/run/wirescale/')
 SHUTDOWN = Event()
-SOCKET_PATH = Path('/run/wirescale/wirescaled.sock').resolve()
+SOCKET_PATH = RUN_DIR.joinpath('wirescaled.sock').resolve()
 TCP_PORT = 41642
 WIRESCALE_TABLE = 0xA08D037A  # 2693596026
 EXIT_NODE_MARK = WIRESCALE_TABLE + 1
@@ -80,7 +82,7 @@ class BytesStrConverter:
 
 @contextmanager
 def file_locker():
-    with Path('/run/wirescale/control/locker').open(mode='w') as lockfile:
+    with RUN_DIR.joinpath('control/locker').open(mode='w') as lockfile:
         fcntl.flock(lockfile, fcntl.LOCK_EX)
         try:
             yield

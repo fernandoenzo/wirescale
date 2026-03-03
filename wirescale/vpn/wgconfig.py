@@ -19,7 +19,7 @@ from typing import Dict, FrozenSet, Tuple
 
 from parallel_utils.thread import create_thread
 
-from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS, file_locker, subprocess_run_tmpfile
+from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS, file_locker, RUN_DIR, subprocess_run_tmpfile
 from wirescale.communications.messages import ActionCodes, ErrorMessages, Messages
 from wirescale.communications.systemd import Systemd
 from wirescale.vpn.exit_node import ExitNode
@@ -29,7 +29,7 @@ from wirescale.vpn.tsmanager import TSManager
 
 class WGConfig:
     repeatable_fields = frozenset(('address', 'dns', 'preup', 'postup', 'predown', 'postdown', 'allowedips'))
-    configfile = Path('/run/wirescale/%i.conf')
+    configfile = RUN_DIR.joinpath('%i.conf')
 
     def __init__(self, file_path: Path):
         self.file_path: Path = file_path
@@ -261,7 +261,7 @@ class WGConfig:
 
     @property
     def new_config_path(self):
-        return Path('/run/wirescale/').joinpath(f'{self.interface}.conf')
+        return RUN_DIR.joinpath(f'{self.interface}.conf')
 
     @classmethod
     def write_config(cls, config: ConfigParser, suffix: int = None):
