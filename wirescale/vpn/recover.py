@@ -71,9 +71,7 @@ class RecoverConfig:
         systemd = Systemd.create_from_autoremove(unit=unit)
         pair = pair or ConnectionPair(caller=TSManager.my_ip(), receiver=systemd.ts_ip)
         if systemd.ts_ip != pair.peer_ip:
-            error = ErrorMessages.IP_MISMATCH.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip, interface=interface, autoremove_ip=systemd.ts_ip)
-            error_remote = ErrorMessages.REMOTE_IP_MISMATCH.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_ip=pair.peer_ip, interface=interface)
-            ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
+            ErrorMessages.send_paired_error(ErrorMessages.IP_MISMATCH, interface=interface, autoremove_ip=systemd.ts_ip)
         recover = RecoverConfig(interface=interface, latest_handshake=latest_handshake, running_in_remote=systemd.running_in_remote, iptables_accept=systemd.iptables_accept,
                                 iptables_forward=systemd.iptables_forward, iptables_masquerade=systemd.iptables_masquerade, wg_ip=systemd.wg_ip, current_port=systemd.local_port,
                                 recover_tries=systemd.recover_tries, recreate_tries=systemd.recreate_tries, remote_interface=systemd.remote_interface, remote_local_port=systemd.remote_local_port,

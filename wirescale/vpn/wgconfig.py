@@ -254,10 +254,7 @@ class WGConfig:
         try:
             return func(section=section, option=field)
         except:
-            pair = CONNECTION_PAIRS[get_ident()]
-            error = ErrorMessages.BAD_WS_CONFIG.format(field=field, config_file=self.file_path)
-            error_remote = ErrorMessages.REMOTE_BAD_WS_CONFIG.format(field=field, my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
-            ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
+            ErrorMessages.send_paired_error(ErrorMessages.BAD_WS_CONFIG, field=field, config_file=self.file_path)
 
     @property
     def new_config_path(self):
