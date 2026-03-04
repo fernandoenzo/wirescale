@@ -42,28 +42,34 @@ class TSManager:
         return Systemd.is_active('tailscaled.service')
 
     @classmethod
-    def has_state(cls) -> bool:
-        return cls.status()['BackendState'].lower() != 'NoState'.lower()
+    def state(cls) -> str:
+        return cls.status()['BackendState']
 
     @classmethod
-    def check_has_state(cls, timeout=15) -> bool:
-        return check_with_timeout(cls.has_state, timeout=timeout)
+    def check_state(cls, tag: str, state: str = None) -> bool:
+        if state is None:
+            return cls.state().lower() == tag.lower()
+        return state.lower() == tag.lower()
 
     @classmethod
-    def is_logged(cls) -> bool:
-        return cls.status()['BackendState'].lower() != 'NeedsLogin'.lower()
+    def has_state(cls, state: str = None) -> bool:
+        return not cls.check_state('NoState', state)
 
     @classmethod
-    def is_starting(cls) -> bool:
-        return cls.status()['BackendState'].lower() == 'Starting'.lower()
+    def is_logged(cls, state: str = None) -> bool:
+        return not cls.check_state('NeedsLogin', state)
 
     @classmethod
-    def is_stopped(cls) -> bool:
-        return cls.status()['BackendState'].lower() == 'Stopped'.lower()
+    def is_starting(cls, state: str = None) -> bool:
+        return cls.check_state('Starting', state)
 
     @classmethod
-    def is_running(cls) -> bool:
-        return cls.status()['BackendState'].lower() == 'Running'.lower()
+    def is_stopped(cls, state: str = None) -> bool:
+        return cls.check_state('Stopped', state)
+
+    @classmethod
+    def is_running(cls, state: str = None) -> bool:
+        return cls.check_state('Running', state)
 
     @classmethod
     def check_service_running(cls):
@@ -73,16 +79,17 @@ class TSManager:
     @classmethod
     def check_running(cls):
         cls.check_service_running()
-        sleep_time = 0.5
-        if not cls.check_has_state():
+        if not check_with_timeout(cls.has_state, timeout=15):
             ErrorMessages.send_error_message(local_message=ErrorMessages.TS_COORD_OFFLINE)
-        if not cls.is_logged():
+        state = cls.state()
+        if not cls.is_logged(state):
             ErrorMessages.send_error_message(local_message=ErrorMessages.TS_NO_LOGGED)
-        if cls.is_stopped():
+        if cls.is_stopped(state):
             ErrorMessages.send_error_message(local_message=ErrorMessages.TS_STOPPED)
-        while cls.is_starting():
-            sleep(sleep_time)
-        if not cls.is_running():
+        while cls.is_starting(state):
+            sleep(0.5)
+            state = cls.state()
+        if not cls.is_running(state):
             ErrorMessages.send_error_message(local_message=ErrorMessages.TS_NOT_RUNNING)
 
     @classmethod
@@ -126,7 +133,7 @@ class TSManager:
 
     @classmethod
     def peer_is_online(cls, ip: IPv4Address, timeout: int = 2) -> bool:
-        if not cls.check_has_state():
+        if not check_with_timeout(cls.has_state, timeout=15):
             ErrorMessages.send_error_message(local_message=ErrorMessages.TS_COORD_OFFLINE)
         check_ping = subprocess.run(['tailscale', 'ping', '-c', '1', '--until-direct=false', '--timeout', f'{timeout}s', str(ip)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if check_ping.returncode == 0:
