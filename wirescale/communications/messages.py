@@ -9,7 +9,7 @@ from argparse import ArgumentError
 from enum import auto, StrEnum, unique
 from ipaddress import IPv4Address
 from threading import get_ident
-from typing import TYPE_CHECKING, Union
+from typing import NamedTuple, TYPE_CHECKING, Union
 
 from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS
 from wirescale.version import VERSION
@@ -237,16 +237,13 @@ class TCPMessages:
     def process_recover(message: dict) -> 'RecoverConfig':
         from wirescale.communications.checkers import check_behind_nat, check_recover_config
         from wirescale.vpn.recover import RecoverConfig
-        pair = CONNECTION_PAIRS[get_ident()]
         interface = message[MessageFields.INTERFACE]
         recover = RecoverConfig.create_from_autoremove(interface=interface, latest_handshake=None)
         recover.nonce = BytesStrConverter.str64_to_raw_bytes(message[MessageFields.NONCE])
         try:
             decrypted = recover.decrypt(data=message[MessageFields.ENCRYPTED])
         except:
-            error = ErrorMessages.CANT_DECRYPT.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
-            error_remote = ErrorMessages.REMOTE_CANT_DECRYPT.format(my_name=pair.my_name, my_ip=pair.my_ip)
-            ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
+            ErrorMessages.send_paired_error(ErrorMessages.CANT_DECRYPT)
         decrypted = json.loads(decrypted)
         message.update(decrypted)
         recover.current_port = message[MessageFields.PORT]
@@ -261,14 +258,11 @@ class TCPMessages:
     @staticmethod
     def process_recover_response(message: dict, recover: 'RecoverConfig'):
         from wirescale.communications.checkers import check_behind_nat
-        pair = CONNECTION_PAIRS[get_ident()]
         recover.nonce = BytesStrConverter.str64_to_raw_bytes(message[MessageFields.NONCE])
         try:
             decrypted = recover.decrypt(data=message[MessageFields.ENCRYPTED])
         except:
-            error = ErrorMessages.CANT_DECRYPT.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
-            error_remote = ErrorMessages.REMOTE_CANT_DECRYPT.format(my_name=pair.my_name, my_ip=pair.my_ip)
-            ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
+            ErrorMessages.send_paired_error(ErrorMessages.CANT_DECRYPT)
         decrypted = json.loads(decrypted)
         message.update(decrypted)
         recover.listen_ext_port = message[MessageFields.EXPOSED_PORT]
@@ -347,55 +341,74 @@ class Messages:
                 pair.send_to_remote(json.dumps(remote_message))
 
 
+class ErrorPair(NamedTuple):
+    local: str
+    remote: str
+
+
 class ErrorMessages:
     ALLOWED_IPS_MISMATCH = "Error: IPs from the 'Address' field of '{sender_name}' ({sender_ip}) are not fully covered in the 'AllowedIPs' field of '{my_name}' ({my_ip})"
-    BAD_FORMAT_PRIVKEY = "Error: The private key has not the correct length or format in file '{config_file}'"
-    BAD_FORMAT_PSK = "Error: The pre-shared key has not the correct length or format in file '{config_file}'"
-    BAD_FORMAT_PUBKEY = "Error: The public key has not the correct length or format in file '{config_file}'"
-    BAD_WS_CONFIG = "Error: Invalid value for the '{field}' field in the 'Wirescale' section of file '{config_file}'"
-    CANT_DECRYPT = "Error: Couldn't decrypt the recover message sent by remote peer '{peer_name}' ({peer_ip})"
+    BAD_FORMAT_PRIVKEY = ErrorPair(
+        local="Error: The private key has not the correct length or format in file '{config_file}'",
+        remote="Error: The private key has not the correct length or format in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'")
+    BAD_FORMAT_PSK = ErrorPair(
+        local="Error: The pre-shared key has not the correct length or format in file '{config_file}'",
+        remote="Error: The pre-shared key has not the correct length or format in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'")
+    BAD_FORMAT_PUBKEY = ErrorPair(
+        local="Error: The public key has not the correct length or format in file '{config_file}'",
+        remote="Error: The public key has not the correct length or format in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'")
+    BAD_WS_CONFIG = ErrorPair(
+        local="Error: Invalid value for the '{field}' field in the 'Wirescale' section of file '{config_file}'",
+        remote="Error: Invalid value for the '{field}' field in the 'Wirescale' section in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'")
+    CANT_DECRYPT = ErrorPair(
+        local="Error: Couldn't decrypt the recover message sent by remote peer '{peer_name}' ({peer_ip})",
+        remote="Error: Remote peer '{my_name}' ({my_ip}) couldn't decrypt our recover message")
     CLOSED = 'Error: Wirescale is shutting down and is no longer accepting new requests'
     CLOSING_SOCKET = "Error: Connection is broken. Closing socket"
-    CONFIG_PATH_ERROR = "Error: Cannot locate a configuration file for peer '{peer_name}' in '/etc/wirescale/'"
+    CONFIG_PATH_ERROR = ErrorPair(
+        local="Error: Cannot locate a configuration file for peer '{peer_name}' in '/etc/wirescale/'",
+        remote="Error: Remote peer '{my_name}' ({my_ip}) cannot locate a configuration file for peer '{peer_name}'")
     CONNECTION_LOST = "Error: Connection with remote peer '{peer_name}' ({peer_ip}) has been lost. Aborting pending operations"
     FINAL_ERROR = 'Something went wrong and, finally, it was not possible to establish the P2P connection'
     HANDSHAKE_FAILED = "Error: Handshake with interface '{interface}' failed"
     HANDSHAKE_FAILED_RECOVER = "Error: Handshake with interface '{interface}' failed after changing its endpoint"
-    INTERFACE_EXISTS = "Error: A network interface '{interface}' already exists"
-    INTERFACE_MISMATCH = "Error: Remote peer '{peer_name}' ({peer_ip}) expects a network interface name that does not match the one we are assigning"
+    INTERFACE_EXISTS = ErrorPair(
+        local="Error: A network interface '{interface}' already exists",
+        remote="Error: A network interface '{interface}' already exists in remote peer '{my_name}' ({my_ip})")
+    INTERFACE_MISMATCH = ErrorPair(
+        local="Error: Remote peer '{peer_name}' ({peer_ip}) expects a network interface name that does not match the one we are assigning",
+        remote="Error: Remote peer '{my_name}' ({my_ip}) is not assigning the expected name '{interface}' to its network interface")
     INTERFACE_NOT_FOUND = "Error: Interface '{interface}' not found"
-    IP_MISMATCH = "Error: Remote peer '{peer_name}' ({peer_ip}) IP address mismatch with the 'autoremove-{interface}' systemd unit's registered IP ({autoremove_ip})"
-    LATEST_HANDSHAKE_MISMATCH = "Error: The latest handshake of interface '{interface}' has been updated since the recover request was made. Discarding request"
-    MISSING_ADDRESS = "Error: 'Address' option missing in 'Interface' section of file '{config_file}'"
-    MISSING_ALLOWEDIPS = "Error: 'AllowedIPs' option missing in 'Peer' section of file '{config_file}'"
-    MISSING_UNIT = "Error: systemd unit '{unit}' is not active"
+    IP_MISMATCH = ErrorPair(
+        local="Error: Remote peer '{peer_name}' ({peer_ip}) IP address mismatch with the 'autoremove-{interface}' systemd unit's registered IP ({autoremove_ip})",
+        remote="Error: Remote peer '{my_name}' ({my_ip}) has registered a different IP address in its 'autoremove-{interface}' systemd unit than ours ({peer_ip})")
+    LATEST_HANDSHAKE_MISMATCH = ErrorPair(
+        local="Error: The latest handshake of interface '{interface}' has been updated since the recover request was made. Discarding request",
+        remote=("Error: The latest handshake of remote interface '{interface}' from remote peer '{my_name}' ({my_ip}) has been updated since the recover "
+                "request was made. Discarding request."))
+    MISSING_ADDRESS = ErrorPair(
+        local="Error: 'Address' option missing in 'Interface' section of file '{config_file}'",
+        remote="Error: 'Address' option missing in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'")
+    MISSING_ALLOWEDIPS = ErrorPair(
+        local="Error: 'AllowedIPs' option missing in 'Peer' section of file '{config_file}'",
+        remote="Error: 'AllowedIPs' option missing in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'")
+    MISSING_UNIT = ErrorPair(
+        local="Error: systemd unit '{unit}' is not active",
+        remote="Error: systemd unit '{unit}' is not active in remote peer '{my_name}' ({my_ip})")
     MTU_NOT_CHANGED = "Error: Could not assign the new MTU of '{mtu}' to the interface '{interface}'"
-    PORT_MISMATCH = "Error: WireGuard interface '{interface}' is not listening on port {port}"
+    PORT_MISMATCH = ErrorPair(
+        local="Error: WireGuard interface '{interface}' is not listening on port {port}",
+        remote="Error: WireGuard interface '{interface}' is not listening on local port {port} in remote peer '{my_name}' ({my_ip})")
     PSK_MISMATCH = ("Error: Peer '{name_without_psk}' ({ip_without_psk}) does not have a pre-shared key for '{name_with_psk}' ({ip_with_psk}), but '{name_with_psk}' has one configured for "
                     "'{name_without_psk}'. Ensure key consistency.")
     PUBKEY_MISMATCH = "Error: The public key provided by '{sender_name}' ({sender_ip}) is inconsistent with the one that '{receiver_name}' ({receiver_ip}) has on record for this peer."
     RECOVER_SYSTEMD = "Error: The 'recover' option can only be invoked by the Wirescale shell script"
-    REMOTE_BAD_FORMAT_PRIVKEY = "Error: The private key has not the correct length or format in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'"
-    REMOTE_BAD_FORMAT_PSK = "Error: The pre-shared key has not the correct length or format in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'"
-    REMOTE_BAD_FORMAT_PUBKEY = "Error: The public key has not the correct length or format in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'"
-    REMOTE_BAD_WS_CONFIG = "Error: Invalid value for the '{field}' field in the 'Wirescale' section in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'"
-    REMOTE_CANT_DECRYPT = "Error: Remote peer '{my_name}' ({my_ip}) couldn't decrypt our recover message"
     REMOTE_CLOSED = "Error: Wirescale instance at '{my_name}' ({my_ip}) has been set to stop receiving requests"
     REMOTE_CONFIG_ERROR = "Error: Remote peer '{my_name}' ({my_ip}) has a syntax error in its configuration file for '{peer_name}'"
-    REMOTE_CONFIG_PATH_ERROR = "Error: Remote peer '{my_name}' ({my_ip}) cannot locate a configuration file for peer '{peer_name}'"
-    REMOTE_INTERFACE_EXISTS = "Error: A network interface '{interface}' already exists in remote peer '{my_name}' ({my_ip})"
-    REMOTE_INTERFACE_MISMATCH = "Error: Remote peer '{my_name}' ({my_ip}) is not assigning the expected name '{interface}' to its network interface"
-    REMOTE_IP_MISMATCH = "Error: Remote peer '{my_name}' ({my_ip}) has registered a different IP address in its 'autoremove-{interface}' systemd unit than ours ({peer_ip})"
-    REMOTE_LATEST_HANDSHAKE_MISMATCH = ("Error: The latest handshake of remote interface '{interface}' from remote peer '{my_name}' ({my_ip}) has been updated since the recover "
-                                        "request was made. Discarding request.")
-    REMOTE_MISSING_ADDRESS = "Error: 'Address' option missing in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'"
-    REMOTE_MISSING_ALLOWEDIPS = "Error: 'AllowedIPs' option missing in remote peer '{my_name}' ({my_ip}) configuration file for '{peer_name}'"
-    REMOTE_MISSING_UNIT = "Error: systemd unit '{unit}' is not active in remote peer '{my_name}' ({my_ip})"
     REMOTE_MISSING_WIRESCALE = "Error: Remote peer '{peer_name}' ({peer_ip}) does not have Wirescale running"
-    REMOTE_PORT_MISMATCH = "Error: WireGuard interface '{interface}' is not listening on local port {port} in remote peer '{peer_name}' ({peer_ip})"
-    REMOTE_RUNFILE_MISSING = "Error: File '/run/wirescale/{interface}.conf' does not exist or is not a regular file in remote peer '{my_name}' ({my_ip})"
-    REMOTE_WG_INTERFACE_MISSING = "Error: Remote peer '{my_name}' ({my_ip}) does not have a WireGuard interface named '{interface}'"
-    RUNFILE_MISSING = "Error: File '/run/wirescale/{interface}.conf' does not exist or is not a regular file"
+    RUNFILE_MISSING = ErrorPair(
+        local="Error: File '/run/wirescale/{interface}.conf' does not exist or is not a regular file",
+        remote="Error: File '/run/wirescale/{interface}.conf' does not exist or is not a regular file in remote peer '{my_name}' ({my_ip})")
     SOCKET_REMOTE_ERROR = "Error: Remote peer '{peer_name}' ({peer_ip}) has closed the connection. Aborting pending operations"
     SOCKET_ERROR = "Error: The program has been closed. Aborting pending operations"
     SUDO = 'Error: This program must be run as a superuser'
@@ -411,7 +424,9 @@ class ErrorMessages:
     TS_NOT_RECOVERED = "Error: Either this tailscale instance or '{peer_name}' ({peer_ip}) one has not fully recovered and cannot reestablish the connection"
     TS_NOT_RUNNING = 'Error: Tailscale is not running'
     UNIX_SOCKET = "Error: Couldn't connect to the local UNIX socket"
-    WG_INTERFACE_MISSING = "Error: WireGuard interface '{interface}' does not exist"
+    WG_INTERFACE_MISSING = ErrorPair(
+        local="Error: WireGuard interface '{interface}' does not exist",
+        remote="Error: Remote peer '{my_name}' ({my_ip}) does not have a WireGuard interface named '{interface}'")
 
     @staticmethod
     def build_error_message(error_message: str, error_code: ErrorCodes = ErrorCodes.GENERIC) -> dict:
@@ -421,6 +436,16 @@ class ErrorMessages:
             MessageFields.ERROR_MESSAGE: error_message
         }
         return res
+
+    @classmethod
+    def send_paired_error(cls, error_pair: ErrorPair, error_code: ErrorCodes = ErrorCodes.GENERIC, remote_code: ErrorCodes = ErrorCodes.GENERIC,
+                          always_send_to_remote: bool = True, **kwargs):
+        pair = CONNECTION_PAIRS[get_ident()]
+        fmt = {'my_name': pair.my_name, 'my_ip': pair.my_ip, 'peer_name': pair.peer_name, 'peer_ip': pair.peer_ip, **kwargs}
+        local_msg = error_pair.local.format(**fmt)
+        remote_msg = error_pair.remote.format(**fmt)
+        cls.send_error_message(local_message=local_msg, remote_message=remote_msg, error_code=error_code, remote_code=remote_code,
+                               always_send_to_remote=always_send_to_remote)
 
     @classmethod
     def process_error_message(cls, message: dict):

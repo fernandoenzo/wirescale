@@ -66,11 +66,11 @@ class Systemd:
         from wirescale.communications.messages import ErrorMessages
         if not cls.is_active(unit):
             pair = CONNECTION_PAIRS.get(get_ident())
-            error = ErrorMessages.MISSING_UNIT.format(unit=unit)
-            error_remote = None
             if pair is not None:
-                error_remote = ErrorMessages.REMOTE_MISSING_UNIT.format(my_name=pair.my_name, my_ip=pair.my_ip, unit=unit)
-            ErrorMessages.send_error_message(local_message=error, remote_message=error_remote)
+                ErrorMessages.send_paired_error(ErrorMessages.MISSING_UNIT, unit=unit)
+            else:
+                error = ErrorMessages.MISSING_UNIT.local.format(unit=unit)
+                ErrorMessages.send_error_message(local_message=error)
 
     @staticmethod
     @functools.cache

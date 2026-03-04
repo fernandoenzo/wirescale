@@ -103,9 +103,7 @@ class TCPServer:
         wgconfig.interface, wgconfig.suffix = check_interface(interface=wgconfig.interface, allow_suffix=wgconfig.allow_suffix)
         expected_interface = message[MessageFields.EXPECTED_INTERFACE]
         if expected_interface is not None and wgconfig.interface != expected_interface:
-            error = ErrorMessages.INTERFACE_MISMATCH.format(peer_name=pair.peer_name, peer_ip=pair.peer_ip)
-            remote_error = ErrorMessages.REMOTE_INTERFACE_MISMATCH.format(my_name=pair.my_name, my_ip=pair.my_ip, interface=expected_interface)
-            ErrorMessages.send_error_message(local_message=error, remote_message=remote_error)
+            ErrorMessages.send_paired_error(ErrorMessages.INTERFACE_MISMATCH, interface=expected_interface)
         test_wgconfig(wgconfig)
         wgconfig.iptables_accept = first_not_none(wgconfig.iptables_accept, ARGS.IPTABLES_ACCEPT, default=False)
         wgconfig.iptables_forward = first_not_none(wgconfig.iptables_forward, ARGS.IPTABLES_FORWARD, default=False)
