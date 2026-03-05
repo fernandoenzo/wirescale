@@ -19,6 +19,7 @@ from wirescale.communications.unix_client import UnixClient
 from wirescale.communications.unix_server import UnixServer
 from wirescale.parsers import top_parser
 from wirescale.parsers.args import ARGS, parse_args
+from wirescale.vpn.commands import wg_quick_down
 from wirescale.vpn.exit_node import ExitNode
 from wirescale.vpn.watch import ACTIVE_SOCKETS
 
@@ -94,6 +95,6 @@ def main():
             ErrorMessages.send_error_message(local_message=ErrorMessages.RECOVER_SYSTEMD)
         UnixClient.recover()
     elif ARGS.DOWN:
-        subprocess.run(['wg-quick', 'down', str(ARGS.CONFIGFILE)], text=True)
+        wg_quick_down(ARGS.CONFIGFILE, silent=False)
     else:
         top_parser.print_help()

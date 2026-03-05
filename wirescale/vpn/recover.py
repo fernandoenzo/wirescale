@@ -5,7 +5,6 @@
 import base64
 import os
 import re
-import subprocess
 from contextlib import ExitStack
 from datetime import datetime
 from functools import cached_property
@@ -25,6 +24,7 @@ from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS,
 from wirescale.communications.connection_pair import ConnectionPair
 from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, Messages
 from wirescale.communications.systemd import Systemd
+from wirescale.vpn.commands import iptables_run, wg_set, wg_show
 from wirescale.vpn.tsmanager import TSManager
 
 
@@ -86,8 +86,8 @@ class RecoverConfig:
         iptables = 'iptables -{action} INPUT -p udp --dport {port} -j ACCEPT -m comment --comment "wirescale-{interface}"'
         add_iptables = iptables.format(action='I', port=self.new_port, interface=self.interface).split()
         remove_iptables = iptables.format(action='D', port=self.current_port, interface=self.interface).split()
-        subprocess.run(remove_iptables, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.run(add_iptables, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        iptables_run(remove_iptables)
+        iptables_run(add_iptables)
 
     def modify_wgconfig(self):
         with open(self.runfile, 'r') as f:
@@ -104,8 +104,8 @@ class RecoverConfig:
             f.write(text)
 
     def load_keys(self):
-        privkey = subprocess.run(['wg', 'show', self.interface, 'private-key'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='utf-8').stdout.strip()
-        pubkey_psk = subprocess.run(['wg', 'show', self.interface, 'preshared-keys'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='utf-8').stdout.strip()
+        privkey = wg_show(self.interface, 'private-key')
+        pubkey_psk = wg_show(self.interface, 'preshared-keys')
         pubkey, psk = pubkey_psk.split('\n')[0].split('\t')
         self.remote_pubkey_str = pubkey.strip()
         privkey = base64.urlsafe_b64decode(privkey)
@@ -139,8 +139,8 @@ class RecoverConfig:
         Messages.send_info_message(local_message='Stopping tailscale...')
         TSManager.stop()
         Messages.send_info_message(local_message=f"Modifying WireGuard interface '{self.interface}'...")
-        subprocess.run(['wg', 'set', self.interface, 'listen-port', str(self.new_port)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.run(['wg', 'set', self.interface, 'peer', self.remote_pubkey_str, 'endpoint', f'{self.endpoint[0]}:{self.endpoint[1]}'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        wg_set(self.interface, 'listen-port', str(self.new_port))
+        wg_set(self.interface, 'peer', self.remote_pubkey_str, 'endpoint', f'{self.endpoint[0]}:{self.endpoint[1]}')
         Messages.send_info_message(local_message='Starting tailscale...')
         TSManager.start()
         create_thread(TSManager.wait_tailscale_restarted, pair, stack)
@@ -161,5 +161,5 @@ class RecoverConfig:
         self.modify_wgconfig()
         if self.iptables_accept:
             self.fix_iptables()
-        subprocess.run(['wg', 'set', self.interface, 'listen-port', str(self.new_port)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.run(['wg', 'set', self.interface, 'peer', self.remote_pubkey_str, 'endpoint', f'{self.endpoint[0]}:{self.endpoint[1]}'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        wg_set(self.interface, 'listen-port', str(self.new_port))
+        wg_set(self.interface, 'peer', self.remote_pubkey_str, 'endpoint', f'{self.endpoint[0]}:{self.endpoint[1]}')

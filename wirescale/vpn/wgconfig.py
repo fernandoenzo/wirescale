@@ -5,7 +5,6 @@
 import collections
 import hashlib
 import re
-import subprocess
 from configparser import ConfigParser
 from contextlib import ExitStack
 from datetime import datetime
@@ -13,15 +12,15 @@ from functools import cached_property
 from io import StringIO
 from ipaddress import ip_address, ip_network, IPv4Address, IPv4Network, IPv6Address, IPv6Network
 from pathlib import Path
-from subprocess import STDOUT
 from threading import get_ident
 from typing import Dict, FrozenSet, Tuple
 
 from parallel_utils.thread import create_thread
 
-from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS, file_locker, RUN_DIR, subprocess_run_tmpfile
+from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS, file_locker, RUN_DIR
 from wirescale.communications.messages import ActionCodes, ErrorMessages, Messages
 from wirescale.communications.systemd import Systemd
+from wirescale.vpn.commands import sysctl_set, wg_genkey, wg_genpsk, wg_pubkey, wg_quick_down, wg_quick_up
 from wirescale.vpn.exit_node import ExitNode
 from wirescale.vpn.iptables import IPTABLES
 from wirescale.vpn.tsmanager import TSManager
@@ -147,7 +146,7 @@ class WGConfig:
         self.add_script('postup', postup_forward)
         self.add_script('postdown', postdown_forward_back, first_place=True)
         self.add_script('postdown', postdown_forward, first_place=True)
-        subprocess.run(['sysctl', '-w', 'net.ipv4.ip_forward=1'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        sysctl_set('net.ipv4.ip_forward', '1')
 
     def add_iptables_masquerade(self):
         postup_mark = IPTABLES.FORWARD_MARK.format(mark=self.mark, interface=self.interface)
@@ -186,11 +185,11 @@ class WGConfig:
 
     @staticmethod
     def generate_wg_privkey() -> str:
-        return subprocess.run(['wg', 'genkey'], capture_output=True, text=True).stdout.strip()
+        return wg_genkey()
 
     @staticmethod
     def generate_wg_pubkey(privkey: str) -> str:
-        return subprocess.run(['wg', 'pubkey'], input=privkey, capture_output=True, text=True).stdout.strip()
+        return wg_pubkey(privkey)
 
     @classmethod
     def generate_wg_keypair(cls) -> Tuple[str, str]:
@@ -200,7 +199,7 @@ class WGConfig:
 
     @staticmethod
     def generate_wg_psk() -> str:
-        return subprocess.run(['wg', 'genpsk'], capture_output=True, text=True).stdout.strip()
+        return wg_genpsk()
 
     def generate_new_config(self):
         new_config = ConfigParser(interpolation=None)
@@ -287,7 +286,7 @@ class WGConfig:
         Messages.send_info_message(local_message='Stopping tailscale...')
         TSManager.stop()
         Messages.send_info_message(local_message=f"Setting up WireGuard interface '{self.interface}'...")
-        wgquick = subprocess_run_tmpfile(['wg-quick', 'up', str(self.new_config_path)], stderr=STDOUT)
+        wgquick = wg_quick_up(self.new_config_path)
         Messages.send_info_message(local_message='Starting tailscale...')
         TSManager.start()
         create_thread(TSManager.wait_tailscale_restarted, pair, stack)
@@ -296,7 +295,7 @@ class WGConfig:
             updated = check_updated_handshake(self.interface)
             if not updated:
                 error = ErrorMessages.HANDSHAKE_FAILED.format(interface=self.interface)
-                subprocess.run(['wg-quick', 'down', str(self.new_config_path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                wg_quick_down(self.new_config_path)
                 ErrorMessages.send_error_message(local_message=error)
             Systemd.launch_autoremove(config=self, pair=pair)
             if self.exit_node:
