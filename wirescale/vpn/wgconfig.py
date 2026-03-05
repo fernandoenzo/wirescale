@@ -7,7 +7,6 @@ import hashlib
 import re
 from configparser import ConfigParser
 from contextlib import ExitStack
-from datetime import datetime
 from functools import cached_property
 from io import StringIO
 from ipaddress import ip_address, ip_network, IPv4Address, IPv4Network, IPv6Address, IPv6Network
@@ -24,13 +23,15 @@ from wirescale.vpn.commands import sysctl_set, wg_genkey, wg_genpsk, wg_pubkey, 
 from wirescale.vpn.exit_node import ExitNode
 from wirescale.vpn.iptables import IPTABLES
 from wirescale.vpn.tsmanager import TSManager
+from wirescale.vpn.vpn_config import VPNConfig
 
 
-class WGConfig:
+class WGConfig(VPNConfig):
     repeatable_fields = frozenset(('address', 'dns', 'preup', 'postup', 'predown', 'postdown', 'allowedips'))
     configfile = RUN_DIR.joinpath('%i.conf')
 
     def __init__(self, file_path: Path):
+        super().__init__()
         self.file_path: Path = file_path
         self.config: ConfigParser = ConfigParser(interpolation=None)
         self.config.optionxform = lambda option: option
@@ -42,12 +43,9 @@ class WGConfig:
         self.remote_addresses: FrozenSet[IPv4Address | IPv6Address] = None
         self.private_key = self.get_field('Interface', 'PrivateKey') or self.generate_wg_privkey()
         self.listen_port = TSManager.local_port()
-        self.listen_ext_port: int = None
-        self.endpoint: Tuple[IPv4Address, int] = None
         self.exit_node: bool = False
         self.table = table.lower() if (table := self.get_field('Interface', 'Table')) else None
         self.mtu = self.get_field('Interface', 'MTU')
-        self.nat: bool = None
         self.fwmark = self.get_field('Interface', 'FwMark')
         self.allowed_ips = self.get_allowed_ips()
         self.interface: str = self.get_wirescale_field(field='interface')
@@ -57,14 +55,22 @@ class WGConfig:
         self.public_key = self.generate_wg_pubkey(self.private_key)
         self.recover_tries: int = self.get_wirescale_field(field='recover-tries', func=self.config.getint)
         self.recreate_tries: int = self.get_wirescale_field(field='recreate-tries', func=self.config.getint)
-        self.remote_interface: str = None
-        self.remote_local_port: int = None
         self.remote_pubkey: str = self.get_field('Peer', 'PublicKey')
         self.psk = self.get_field('Peer', 'PresharedKey')
         self.has_psk: bool = self.psk is not None
         self.psk = self.psk or self.generate_wg_psk()
-        self.start_time: int = datetime.now().second
-        self.suffix: int = None
+
+    @property
+    def autoremove_pubkey(self) -> str:
+        return self.remote_pubkey
+
+    @property
+    def autoremove_wg_ip(self) -> IPv4Address:
+        return next(ip for ip in self.remote_addresses)
+
+    @property
+    def autoremove_listen_port(self) -> int:
+        return self.listen_port
 
     @cached_property
     def mark(self) -> int:

@@ -6,12 +6,10 @@ import base64
 import os
 import re
 from contextlib import ExitStack
-from datetime import datetime
 from functools import cached_property
 from ipaddress import IPv4Address
 from pathlib import Path
 from threading import get_ident
-from typing import Tuple
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X25519PublicKey
@@ -26,15 +24,16 @@ from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMess
 from wirescale.communications.systemd import Systemd
 from wirescale.vpn.commands import iptables_run, wg_set, wg_show
 from wirescale.vpn.tsmanager import TSManager
+from wirescale.vpn.vpn_config import VPNConfig
 
 
-class RecoverConfig:
+class RecoverConfig(VPNConfig):
 
     def __init__(self, interface: str, iptables_accept: bool, iptables_forward: bool, iptables_masquerade: bool, running_in_remote: bool, latest_handshake: int,
                  current_port: int, recover_tries: int, recreate_tries: int, remote_interface: str, remote_local_port: int, suffix: int, wg_ip: IPv4Address):
+        super().__init__()
         self.current_port: int = current_port
         self.derived_key: bytes = None
-        self.endpoint: Tuple[IPv4Address, int] = None
         self.chacha: ChaCha20Poly1305 = None
         self.config_file: Path = None
         self.interface: str = interface
@@ -43,10 +42,8 @@ class RecoverConfig:
         self.iptables_masquerade: bool = iptables_masquerade
         self.running_in_remote: bool = running_in_remote
         self.latest_handshake: int = latest_handshake
-        self.nat: bool = None
         self.nonce: bytes = os.urandom(12)
         self.new_port: int = TSManager.local_port()
-        self.listen_ext_port: int = None
         self.private_key: X25519PrivateKey = None
         self.recover_tries: int = recover_tries
         self.recreate_tries: int = recreate_tries
@@ -56,9 +53,20 @@ class RecoverConfig:
         self.remote_pubkey_str: str = None
         self.psk: bytes = None
         self.shared_key: bytes = None
-        self.start_time: int = datetime.now().second
         self.suffix: int = suffix
         self.wg_ip: IPv4Address = wg_ip
+
+    @property
+    def autoremove_pubkey(self) -> str:
+        return self.remote_pubkey_str
+
+    @property
+    def autoremove_wg_ip(self) -> IPv4Address:
+        return self.wg_ip
+
+    @property
+    def autoremove_listen_port(self) -> int:
+        return self.new_port
 
     @cached_property
     def runfile(self):

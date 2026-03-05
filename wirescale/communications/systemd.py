@@ -8,14 +8,13 @@ import subprocess
 from ipaddress import IPv4Address
 from threading import get_ident
 from time import sleep
-from typing import Tuple, TYPE_CHECKING, Union
+from typing import Tuple, TYPE_CHECKING
 
 from wirescale.communications.common import CONNECTION_PAIRS, RUN_DIR
 
 if TYPE_CHECKING:
     from wirescale.communications.connection_pair import ConnectionPair
-    from wirescale.vpn.recover import RecoverConfig
-    from wirescale.vpn.wgconfig import WGConfig
+    from wirescale.vpn.vpn_config import VPNConfig
 
 
 class Systemd:
@@ -99,7 +98,7 @@ class Systemd:
         return stop == 0
 
     @classmethod
-    def launch_autoremove(cls, config: Union['WGConfig', 'RecoverConfig'], pair: 'ConnectionPair'):
+    def launch_autoremove(cls, config: 'VPNConfig', pair: 'ConnectionPair'):
         from wirescale.communications.messages import Messages
         unit = f'autoremove-{config.interface}.service'
         tries, is_active = 20, True
@@ -110,11 +109,8 @@ class Systemd:
         subprocess.run(['systemctl', 'stop', unit], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(['systemctl', 'reset-failed', unit], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-        remote_pubkey: str = config.remote_pubkey_str if hasattr(config, 'remote_pubkey_str') else config.remote_pubkey
-        wg_ip: IPv4Address = config.wg_ip if hasattr(config, 'wg_ip') else next(ip for ip in config.remote_addresses)
-        running_in_remote: bool = config.running_in_remote if hasattr(config, 'running_in_remote') else pair.running_in_remote
-        listen_port: int = config.new_port if hasattr(config, 'new_port') else config.listen_port
-        args = [config.interface, str(config.suffix), str(pair.peer_ip), remote_pubkey, str(wg_ip), str(int(running_in_remote)), str(config.start_time), str(listen_port),
+        running_in_remote: bool = config.running_in_remote if config.running_in_remote is not None else pair.running_in_remote
+        args = [config.interface, str(config.suffix), str(pair.peer_ip), config.autoremove_pubkey, str(config.autoremove_wg_ip), str(int(running_in_remote)), str(config.start_time), str(config.autoremove_listen_port),
                 str(config.listen_ext_port), str(int(config.nat)), config.remote_interface, str(config.remote_local_port), str(int(config.iptables_accept)),
                 str(int(config.iptables_forward)), str(int(config.iptables_masquerade)), str(config.recover_tries), str(config.recreate_tries)]
 
