@@ -19,6 +19,7 @@ from wirescale.communications.checkers import check_configfile, check_interface,
 from wirescale.communications.common import CONNECTION_PAIRS, first_not_none, Semaphores, SHUTDOWN, SOCKET_PATH
 from wirescale.communications.connection_pair import ConnectionPair
 from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, MessageFields, Messages
+from wirescale.communications.operations import RecoverOperation, UpgradeOperation
 from wirescale.communications.tcp_client import TCPClient
 from wirescale.communications.tcp_server import TCPServer
 from wirescale.communications.udp_server import UDPServer
@@ -147,7 +148,8 @@ class UnixServer:
         wgconfig.recover_tries = first_not_none(recover_tries, wgconfig.recover_tries, default=3)
         wgconfig.recreate_tries = first_not_none(recreate_tries, wgconfig.recreate_tries, default=0)
         wgconfig.expected_interface = message[MessageFields.EXPECTED_INTERFACE]
-        TCPClient.upgrade(wgconfig=wgconfig, interface=interface, suffix_number=suffix_number, stack=stack)
+        operation = UpgradeOperation(wgconfig=wgconfig, interface=interface, suffix_number=suffix_number)
+        TCPClient.run(operation=operation, stack=stack)
 
     @staticmethod
     def recover(message: dict, stack: ExitStack):
@@ -155,4 +157,5 @@ class UnixServer:
         latest_handshake = message[MessageFields.LATEST_HANDSHAKE]
         recover = RecoverConfig.create_from_autoremove(interface=interface, latest_handshake=latest_handshake)
         check_recover_config(recover)
-        TCPClient.recover(recover=recover, stack=stack)
+        operation = RecoverOperation(recover=recover)
+        TCPClient.run(operation=operation, stack=stack)
