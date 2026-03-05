@@ -5,7 +5,6 @@
 import collections
 import fcntl
 import json
-import subprocess
 import sys
 from contextlib import contextmanager
 from ipaddress import ip_network, IPv4Network, IPv6Network
@@ -14,6 +13,7 @@ from typing import Dict, List, Optional, Set
 from wirescale.communications.common import EXIT_NODE_MARK, GLOB_MARK, RUN_DIR, WIRESCALE_TABLE
 from wirescale.communications.messages import Messages
 from wirescale.communications.systemd import Systemd
+from wirescale.vpn.commands import iptables_run, ip_run, wg_set, wg_show
 
 
 class ExitNode:
@@ -59,23 +59,20 @@ class ExitNode:
     @staticmethod
     def get_fwmark(interface: str) -> Optional[int]:
         """Get the firewall mark for the given interface."""
-        command = ['wg', 'show', interface, 'fwmark']
-        mark = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='utf-8').stdout.strip()
+        mark = wg_show(interface, 'fwmark')
         return int(mark, 16) if mark != 'off' else None
 
     @staticmethod
     def set_fwmark(interface: str, mark: Optional[int]) -> None:
         """Set the firewall mark for the given interface."""
         mark = mark if mark is not None else 0
-        command = ['wg', 'set', interface, 'fwmark', str(mark)]
-        subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        wg_set(interface, 'fwmark', str(mark))
 
     @staticmethod
     def get_allowed_ips(interface: str) -> Set[IPv4Network | IPv6Network]:
         """Get the allowed IPs for the given interface."""
         node = Systemd.create_from_autoremove(f'autoremove-{interface}.service')
-        command = ['wg', 'show', interface, 'allowed-ips']
-        peers = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='utf-8').stdout.splitlines()
+        peers = wg_show(interface, 'allowed-ips').splitlines()
         peers = [x.split() for x in peers]
         return {ip_network(network) for peer in peers if peer[0] == node.remote_pubkey for network in peer[1:]}
 
@@ -94,8 +91,7 @@ class ExitNode:
                 return False
             all_networks.add(cls.GLOBAL_NETWORK)
         all_networks = ','.join(str(x) for x in all_networks)
-        command = ['wg', 'set', interface, 'peer', node.remote_pubkey, 'allowed-ips', all_networks]
-        subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        wg_set(interface, 'peer', node.remote_pubkey, 'allowed-ips', all_networks)
         return True
 
     @classmethod
@@ -103,8 +99,8 @@ class ExitNode:
         """Add iptables CONNMARK rules for the exit node."""
         save_connmark = [x.format(mark=fwmark, interface=interface) for x in cls.SAVE_CONNMARK]
         restore_connmark = [x.format(interface=interface) for x in cls.RESTORE_CONNMARK]
-        subprocess.run(restore_connmark, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.run(save_connmark, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        iptables_run(restore_connmark)
+        iptables_run(save_connmark)
 
     @classmethod
     def remove_iptables_rules(cls, interface: str, fwmark: int) -> None:
@@ -112,33 +108,30 @@ class ExitNode:
         save_connmark = [x.format(mark=fwmark, interface=interface) for x in cls.SAVE_CONNMARK]
         restore_connmark = [x.format(interface=interface) for x in cls.RESTORE_CONNMARK]
         save_connmark[3], restore_connmark[3] = '-D', '-D'
-        subprocess.run(save_connmark, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.run(restore_connmark, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        iptables_run(save_connmark)
+        iptables_run(restore_connmark)
 
     @classmethod
     def add_custom_routing_table(cls, interface: str) -> None:
         """Add a custom routing table for the exit node."""
-        add_route = ['ip', '-4', 'route', 'add', str(cls.GLOBAL_NETWORK), 'dev', interface, 'table', str(WIRESCALE_TABLE)]
-        subprocess.run(add_route, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        ip_run('-4', 'route', 'add', str(cls.GLOBAL_NETWORK), 'dev', interface, 'table', str(WIRESCALE_TABLE))
 
     @classmethod
     def flush_custom_routing_table(cls) -> None:
         """Flush the custom routing table."""
-        del_route = ['ip', 'route', 'flush', 'table', str(WIRESCALE_TABLE)]
-        subprocess.run(del_route, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        ip_run('route', 'flush', 'table', str(WIRESCALE_TABLE))
 
     @classmethod
     def add_ip_rules(cls, fwmark: int) -> None:
         """Add IP rules for the exit node."""
         cls.RULES[cls.EXIT_NODE][8] = str(fwmark)
         for rule in cls.RULES:
-            subprocess.run(cls.RULES[rule], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            ip_run(*cls.RULES[rule][1:])
 
     @staticmethod
     def remove_ip_rule(priority: int) -> None:
         """Delete an IP rule with the given priority."""
-        del_rule = ['ip', '-4', 'rule', 'del', 'priority', str(priority)]
-        subprocess.run(del_rule, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        ip_run('-4', 'rule', 'del', 'priority', str(priority))
 
     @classmethod
     def remove_all_ip_rules(cls, config: Dict) -> None:
@@ -176,7 +169,7 @@ class ExitNode:
                 add_rule = cls.RULES[cls.NODES].copy()
                 add_rule[5] = str(i)
                 add_rule[7] = str(mark)
-                subprocess.run(add_rule, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                ip_run(*add_rule[1:])
         cls.save_config(config)
 
     @classmethod

@@ -3,7 +3,6 @@
 
 
 import json
-import subprocess
 from _socket import if_nametoindex
 from configparser import ConfigParser
 from ipaddress import IPv4Address
@@ -14,6 +13,7 @@ from typing import List, Tuple, TYPE_CHECKING
 
 from wirescale.communications.common import check_with_timeout, CONFIG_DIR, CONNECTION_PAIRS
 from wirescale.communications.messages import ErrorCodes, ErrorMessages
+from wirescale.vpn.commands import ip_addr_show_json, wg_quick_down, wg_quick_up_test, wg_show
 from wirescale.vpn.wgconfig import WGConfig
 
 if TYPE_CHECKING:
@@ -52,7 +52,7 @@ def check_configfile() -> Path:
 
 
 def get_local_ip_addresses() -> List[IPv4Address]:
-    result = subprocess.run(['ip', '-j', 'addr', 'show'], capture_output=True, text=True)
+    result = ip_addr_show_json()
     if result.returncode != 0:
         raise RuntimeError(f"Error running 'ip addr show': {result.stderr}")
 
@@ -125,7 +125,7 @@ def test_wgconfig(wgconfig: WGConfig):
     test_config.set(peer, 'PresharedKey', wgconfig.psk) if wgconfig.has_psk else None
     test_config = WGConfig.write_config(test_config, wgconfig.suffix)
     wgconfig.new_config_path.write_text(test_config, encoding='utf-8')
-    wgquick = subprocess.run(['wg-quick', 'up', str(wgconfig.new_config_path)], capture_output=True, text=True)
+    wgquick = wg_quick_up_test(wgconfig.new_config_path)
     try:
         if wgquick.returncode != 0:
             pair = CONNECTION_PAIRS[get_ident()]
@@ -133,7 +133,7 @@ def test_wgconfig(wgconfig: WGConfig):
             remote_error = ErrorMessages.REMOTE_CONFIG_ERROR.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
             ErrorMessages.send_error_message(local_message=error, remote_message=remote_error, always_send_to_remote=False)
         else:
-            subprocess.run(['wg-quick', 'down', str(wgconfig.new_config_path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            wg_quick_down(wgconfig.new_config_path)
     finally:
         wgconfig.new_config_path.unlink(missing_ok=False)
 
@@ -177,7 +177,7 @@ def check_addresses_in_allowedips(wgconfig: WGConfig):
 def match_interface_port(interface: str, port: int) -> bool:
     def match():
         try:
-            real_port = int(subprocess.run(['wg', 'show', interface, 'listen-port'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True).stdout.strip())
+            real_port = int(wg_show(interface, 'listen-port'))
             return real_port == port
         except:
             ErrorMessages.send_paired_error(ErrorMessages.WG_INTERFACE_MISSING, interface=interface)
@@ -188,7 +188,7 @@ def match_interface_port(interface: str, port: int) -> bool:
 def get_latest_handshake(interface: str) -> int:
     pair = CONNECTION_PAIRS.get(get_ident())
     try:
-        handshake = subprocess.run(['wg', 'show', interface, 'latest-handshakes'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True).stdout.strip()
+        handshake = wg_show(interface, 'latest-handshakes')
         return int(handshake.split('\n')[0].split('\t')[1])
     except:
         error = ErrorMessages.WG_INTERFACE_MISSING.local.format(interface=interface)

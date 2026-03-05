@@ -3,7 +3,6 @@
 
 
 import re
-import subprocess
 from argparse import ArgumentTypeError
 from contextlib import redirect_stderr
 from io import StringIO
@@ -13,6 +12,7 @@ from pathlib import Path
 from wirescale.communications.common import file_locker, RUN_DIR
 from wirescale.communications.messages import ErrorMessages
 from wirescale.communications.systemd import Systemd
+from wirescale.vpn.commands import wg_show_rc
 from wirescale.vpn.tsmanager import TSManager
 
 
@@ -49,9 +49,9 @@ def check_existing_conf(value) -> Path:
 
 
 def check_existing_wg_interface(value):
-    res = subprocess.run(['wg', 'show', value, 'listen-port'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
+    res = wg_show_rc(value, 'listen-port')
     if res != 0:
-        error = ErrorMessages.WG_INTERFACE_MISSING.format(interface=value)
+        error = ErrorMessages.WG_INTERFACE_MISSING.local.format(interface=value)
         raise ArgumentTypeError(error[7:])
     return value
 
