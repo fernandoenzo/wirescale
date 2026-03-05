@@ -9,13 +9,14 @@ from argparse import ArgumentError
 from enum import auto, StrEnum, unique
 from ipaddress import IPv4Address
 from threading import get_ident
-from typing import NamedTuple, TYPE_CHECKING, Union
+from typing import NamedTuple, TYPE_CHECKING
 
 from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS
 from wirescale.version import VERSION
 
 if TYPE_CHECKING:
     from wirescale.vpn.recover import RecoverConfig
+    from wirescale.vpn.vpn_config import VPNConfig
     from wirescale.vpn.wgconfig import WGConfig
 
 
@@ -183,7 +184,7 @@ class TCPMessages:
         pair.send_to_remote(json.dumps(res))
 
     @staticmethod
-    def send_go(config: Union['WGConfig', 'RecoverConfig']) -> bool:
+    def send_go(config: 'VPNConfig') -> bool:
         pair = CONNECTION_PAIRS[get_ident()]
         res = {
             MessageFields.CODE: ActionCodes.GO,
