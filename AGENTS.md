@@ -23,7 +23,7 @@ wirescale/                          # Root
     ├── communications/             # Networking layer (WebSocket, UNIX, TCP)
     │   ├── common.py               # Shared state: CONNECTION_PAIRS, file_locker, Semaphores, constants
     │   ├── connection_pair.py      # ConnectionPair — the core connection abstraction
-    │   ├── messages.py             # ErrorMessages, Messages, TCPMessages, UnixMessages, ActionCodes, ErrorCodes, MessageFields
+    │   ├── messages.py             # ErrorPair, ErrorMessages, Messages, TCPMessages, UnixMessages, ActionCodes, ErrorCodes, MessageFields
     │   ├── checkers.py             # Validation functions (config, interface, handshake, NAT, pubkeys)
     │   ├── systemd.py              # Systemd wrapper (systemctl, systemd-run)
     │   ├── tcp_client.py           # TCPClient — initiator side, separate upgrade()/recover() methods
@@ -144,7 +144,7 @@ The `ACTIVE_SOCKETS` singleton (`watch.py`) monitors for deadlocks every 15 seco
 4. Closes all sockets.
 5. Calls `sys.exit(exit_code)` — which in a thread raises `SystemExit`, terminating only that thread.
 
-Error messages are defined as plain string constants in `ErrorMessages`. Local and remote error variants are managed as separate constants, and each call site passes them individually to `send_error_message()`.
+`ErrorMessages.send_paired_error()` is a convenience wrapper for errors that have both a local and remote variant (stored as `ErrorPair`). It auto-injects `my_name`, `my_ip`, `peer_name`, `peer_ip` from the current `ConnectionPair`.
 
 ## Conventions and rules
 
@@ -179,7 +179,18 @@ Error messages are defined as plain string constants in `ErrorMessages`. Local a
 
 ### Error message constants
 
-Error messages in `ErrorMessages` are plain string constants. Local and remote error variants are separate constants (e.g., a local `MISSING_UNIT` and a corresponding `REMOTE_MISSING_UNIT`). Each call site passes the appropriate local and remote messages individually to `send_error_message()`.
+Error messages in `ErrorMessages` follow two patterns:
+
+1. **`ErrorPair` (NamedTuple)** — For errors that have both a local and remote variant. Used with `send_paired_error()`, which auto-injects `my_name`, `my_ip`, `peer_name`, `peer_ip` from the connection pair. Example:
+   ```python
+   INTERFACE_EXISTS = ErrorPair(
+       local="Error: A network interface '{interface}' already exists",
+       remote="Error: A network interface '{interface}' already exists in remote peer '{my_name}' ({my_ip})")
+   ```
+
+2. **Plain strings** — For errors that are only shown locally, or that have anomalous usage patterns. Three standalone remote constants remain: `REMOTE_CONFIG_ERROR` (used with raw exception strings), `REMOTE_MISSING_WIRESCALE` (anomalous usage as local message), `REMOTE_CLOSED` (used in separate contexts).
+
+When adding a new error that has both local and remote variants, always use `ErrorPair` and `send_paired_error()`. The remote template uses `my_name`/`my_ip` (the sender's identity from the remote peer's perspective).
 
 ### LSP errors
 
@@ -193,12 +204,14 @@ All LSP errors shown during editing are **pre-existing** in the project. They st
 
 **`subprocess_run_tmpfile()`**: A replacement for `subprocess.run(capture_output=True)` that uses temporary files instead of pipes to avoid pipe-buffer deadlocks with large outputs. Located in `common.py`, used by `wgconfig.py` for `wg-quick up`.
 
+**Perspective swap in remote error messages**: In remote error templates, `{my_name}`/`{my_ip}` refers to the machine that detected the error (the sender), because from the remote peer's perspective, that machine is "the remote peer". The `send_paired_error()` method handles this transparently by injecting the current pair's identity fields.
+
 ## Branching strategy
 
 The project uses chained feature branches for multi-phase refactoring:
 
 ```
-master → refactor/error-pairs → refactor/subprocess-wrappers → refactor/config-base → refactor/unified-ops
+master → refactor/subprocess-wrappers → refactor/config-base → refactor/unified-ops
 ```
 
 To integrate into `master`, merge only the last branch in the chain. Each branch builds on the previous one. When creating a new chained refactoring, branch from the tip of the last branch.
