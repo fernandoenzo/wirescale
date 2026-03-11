@@ -177,7 +177,12 @@ class ExitNode:
         remove = stored_nodes - active_peers
         if not remove:
             return
-        rules = {(priority, config[cls.NODES].pop(node, None))[0] for node in remove if (priority := config[cls.NODES][node]) is not None}
+        rules = set()
+        for node in remove:
+            priority = config[cls.NODES][node]
+            if priority is not None:
+                config[cls.NODES].pop(node, None)
+                rules.add(priority)
         collections.deque((cls.remove_ip_rule(rule) for rule in rules), maxlen=0)
         cls.save_config(config)
 
