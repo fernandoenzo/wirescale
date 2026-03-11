@@ -7,6 +7,8 @@ from datetime import datetime
 from ipaddress import IPv4Address
 from typing import Optional, Tuple
 
+from wirescale.communications.common import RUN_DIR
+
 
 class VPNConfig(ABC):
     """Base class for WGConfig and RecoverConfig, providing the shared fields
@@ -28,6 +30,10 @@ class VPNConfig(ABC):
         self.running_in_remote: Optional[bool] = None
         self.start_time: int = datetime.now().second
         self.suffix: int = None
+
+    @property
+    def config_path(self):
+        return RUN_DIR.joinpath(f'{self.interface}.conf')
 
     @property
     @abstractmethod

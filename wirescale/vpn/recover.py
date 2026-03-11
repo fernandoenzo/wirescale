@@ -6,7 +6,6 @@ import base64
 import os
 import re
 from contextlib import ExitStack
-from functools import cached_property
 from ipaddress import IPv4Address
 from pathlib import Path
 from threading import get_ident
@@ -18,7 +17,7 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from parallel_utils.thread import create_thread
 
 from wirescale.communications.checkers import check_configfile, check_updated_handshake
-from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS, file_locker, RUN_DIR
+from wirescale.communications.common import BytesStrConverter, CONNECTION_PAIRS, file_locker
 from wirescale.communications.connection_pair import ConnectionPair
 from wirescale.communications.messages import ActionCodes, ErrorCodes, ErrorMessages, Messages
 from wirescale.communications.systemd import Systemd
@@ -68,10 +67,6 @@ class RecoverConfig(VPNConfig):
     def autoremove_listen_port(self) -> int:
         return self.new_port
 
-    @cached_property
-    def runfile(self):
-        return RUN_DIR.joinpath(f'{self.interface}.conf')
-
     @classmethod
     def create_from_autoremove(cls, interface: str, latest_handshake: int):
         pair = CONNECTION_PAIRS.get(get_ident())
@@ -98,7 +93,7 @@ class RecoverConfig(VPNConfig):
         iptables_run(add_iptables)
 
     def modify_wgconfig(self):
-        with open(self.runfile, 'r') as f:
+        with open(self.config_path, 'r') as f:
             text = f.read()
         dport = '--dport {port}'
         listen_port = 'ListenPort = {port}'
@@ -108,7 +103,7 @@ class RecoverConfig(VPNConfig):
         new_dport = dport.format(port=self.new_port)
         text = re.sub(rf'^{orig_listen_port}', new_listen_port, text, flags=re.IGNORECASE | re.MULTILINE)
         text = re.sub(orig_dport, new_dport, text, flags=re.IGNORECASE)
-        with open(self.runfile, 'w') as f:
+        with open(self.config_path, 'w') as f:
             f.write(text)
 
     def load_keys(self):

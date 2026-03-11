@@ -78,7 +78,7 @@ def check_recover_config(recover: 'RecoverConfig'):
                                         remote_code=ErrorCodes.HANDSHAKE_MISMATCH, interface=recover.interface)
     if not match_interface_port(recover.interface, recover.current_port):
         ErrorMessages.send_paired_error(ErrorMessages.PORT_MISMATCH, interface=recover.interface, port=recover.current_port)
-    if not recover.runfile.exists() or not recover.runfile.is_file():
+    if not recover.config_path.exists() or not recover.config_path.is_file():
         ErrorMessages.send_paired_error(ErrorMessages.RUNFILE_MISSING, interface=recover.interface)
 
 
@@ -126,15 +126,15 @@ def test_wgconfig(wgconfig: WGConfig):
     test_config.set(peer, 'PublicKey', remote_pubkey)
     test_config.set(peer, 'PresharedKey', wgconfig.psk) if wgconfig.has_psk else None
     test_config = WGConfig.write_config(test_config, wgconfig.suffix)
-    wgconfig.new_config_path.write_text(test_config, encoding='utf-8')
-    wgquick = wg_quick_up_test(wgconfig.new_config_path)
+    wgconfig.config_path.write_text(test_config, encoding='utf-8')
+    wgquick = wg_quick_up_test(wgconfig.config_path)
     try:
         if wgquick.returncode != 0:
             _send_config_error(wgquick.stderr)
         else:
-            wg_quick_down(wgconfig.new_config_path)
+            wg_quick_down(wgconfig.config_path)
     finally:
-        wgconfig.new_config_path.unlink(missing_ok=False)
+        wgconfig.config_path.unlink(missing_ok=False)
 
 
 def match_pubkeys(wgconfig: WGConfig, remote_pubkey: str, my_pubkey: str | None):

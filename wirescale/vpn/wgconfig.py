@@ -225,7 +225,7 @@ class WGConfig(VPNConfig):
         new_config.set(interface, 'Table', self.table) if self.table else None
         new_config.set(peer, allowedips, ', '.join(str(x) for x in self.allowed_ips))
         new_config = self.write_config(new_config, self.suffix)
-        self.new_config_path.write_text(new_config, encoding='utf-8')
+        self.config_path.write_text(new_config, encoding='utf-8')
 
     def get_wirescale_field(self, field, func=None):
         section = self._find_section('wirescale', missing_ok=True)
@@ -239,10 +239,6 @@ class WGConfig(VPNConfig):
             return func(section=section, option=field)
         except:
             ErrorMessages.send_paired_error(ErrorMessages.BAD_WS_CONFIG, field=field, config_file=self.file_path)
-
-    @property
-    def new_config_path(self):
-        return RUN_DIR.joinpath(f'{self.interface}.conf')
 
     @classmethod
     def write_config(cls, config: ConfigParser, suffix: int = None):
@@ -266,7 +262,7 @@ class WGConfig(VPNConfig):
         Messages.send_info_message(local_message='Stopping tailscale...')
         TSManager.stop()
         Messages.send_info_message(local_message=f"Setting up WireGuard interface '{self.interface}'...")
-        wgquick = wg_quick_up(self.new_config_path)
+        wgquick = wg_quick_up(self.config_path)
         Messages.send_info_message(local_message='Starting tailscale...')
         TSManager.start()
         create_thread(TSManager.wait_tailscale_restarted, pair, stack)
@@ -275,7 +271,7 @@ class WGConfig(VPNConfig):
             updated = check_updated_handshake(self.interface)
             if not updated:
                 error = ErrorMessages.HANDSHAKE_FAILED.format(interface=self.interface)
-                wg_quick_down(self.new_config_path)
+                wg_quick_down(self.config_path)
                 ErrorMessages.send_error_message(local_message=error)
             Systemd.launch_autoremove(config=self, pair=pair)
             if self.exit_node:
@@ -284,7 +280,7 @@ class WGConfig(VPNConfig):
             success = Messages.SUCCESS.format(interface=self.interface)
             Messages.send_info_message(local_message=success, code=ActionCodes.SUCCESS)
         else:
-            self.new_config_path.unlink()
+            self.config_path.unlink()
             final_error = '\n'.join(Messages.add_id(pair.id, m) for m in wgquick.stdout.strip().split('\n'))
             final_error = final_error.strip() + '\n' + Messages.add_id(pair.id, ErrorMessages.FINAL_ERROR)
             ErrorMessages.send_error_message(local_message=final_error)
