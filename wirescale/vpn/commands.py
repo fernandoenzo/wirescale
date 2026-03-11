@@ -65,7 +65,7 @@ def iptables_run(args: List[str]) -> None:
 # --- ip commands ---
 
 def ip_addr_show_json() -> CompletedProcess:
-    return subprocess.run(['ip', '-j', 'addr', 'show'], capture_output=True, text=True)
+    return subprocess.run(['ip', '-4', '-j', 'addr', 'show'], capture_output=True, text=True)
 
 
 def ip_run(*args: str) -> None:
