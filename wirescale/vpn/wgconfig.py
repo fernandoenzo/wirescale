@@ -270,13 +270,8 @@ class WGConfig(VPNConfig):
         config.write(string_io)
         text = string_io.getvalue()
 
-        def replace(match):
-            old_str = match.group(0)
-            result = re.sub(r'\d+_', '', old_str, flags=re.IGNORECASE)
-            return result
-
         for field in cls.repeatable_fields:
-            text = re.sub(rf'{field}\d+_', replace, text, flags=re.IGNORECASE)
+            text = re.sub(rf'({field})\d+_', r'\1', text, flags=re.IGNORECASE)
 
         if suffix is not None:
             text = text.replace('%s', str(suffix))
