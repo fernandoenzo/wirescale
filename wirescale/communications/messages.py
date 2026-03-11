@@ -235,18 +235,21 @@ class TCPMessages:
         pair.send_to_remote(json.dumps(res))
 
     @staticmethod
-    def process_recover(message: dict) -> 'RecoverConfig':
-        from wirescale.communications.checkers import check_behind_nat, check_recover_config
-        from wirescale.vpn.recover import RecoverConfig
-        interface = message[MessageFields.INTERFACE]
-        recover = RecoverConfig.create_from_autoremove(interface=interface, latest_handshake=None)
+    def _decrypt_and_merge(recover: 'RecoverConfig', message: dict):
         recover.nonce = BytesStrConverter.str64_to_raw_bytes(message[MessageFields.NONCE])
         try:
             decrypted = recover.decrypt(data=message[MessageFields.ENCRYPTED])
         except:
             ErrorMessages.send_paired_error(ErrorMessages.CANT_DECRYPT)
-        decrypted = json.loads(decrypted)
-        message.update(decrypted)
+        message.update(json.loads(decrypted))
+
+    @staticmethod
+    def process_recover(message: dict) -> 'RecoverConfig':
+        from wirescale.communications.checkers import check_behind_nat, check_recover_config
+        from wirescale.vpn.recover import RecoverConfig
+        interface = message[MessageFields.INTERFACE]
+        recover = RecoverConfig.create_from_autoremove(interface=interface, latest_handshake=None)
+        TCPMessages._decrypt_and_merge(recover, message)
         recover.current_port = message[MessageFields.PORT]
         recover.listen_ext_port = message[MessageFields.EXPOSED_PORT]
         recover.latest_handshake = message[MessageFields.LATEST_HANDSHAKE]
@@ -259,13 +262,7 @@ class TCPMessages:
     @staticmethod
     def process_recover_response(message: dict, recover: 'RecoverConfig'):
         from wirescale.communications.checkers import check_behind_nat
-        recover.nonce = BytesStrConverter.str64_to_raw_bytes(message[MessageFields.NONCE])
-        try:
-            decrypted = recover.decrypt(data=message[MessageFields.ENCRYPTED])
-        except:
-            ErrorMessages.send_paired_error(ErrorMessages.CANT_DECRYPT)
-        decrypted = json.loads(decrypted)
-        message.update(decrypted)
+        TCPMessages._decrypt_and_merge(recover, message)
         recover.listen_ext_port = message[MessageFields.EXPOSED_PORT]
         recover.remote_local_port = message[MessageFields.REMOTE_PORT]
         recover.start_time = message[MessageFields.START_TIME]
