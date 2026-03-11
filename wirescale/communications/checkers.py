@@ -12,7 +12,7 @@ from typing import List, Tuple, TYPE_CHECKING
 
 from wirescale.communications.common import check_with_timeout, CONFIG_DIR, CONNECTION_PAIRS
 from wirescale.communications.messages import ErrorCodes, ErrorMessages
-from wirescale.vpn.commands import ip_addr_show_json, wg_quick_down, wg_quick_up_test, wg_show
+from wirescale.vpn.commands import ip_addr_show_json, wg_genkey, wg_pubkey, wg_quick_down, wg_quick_up_test, wg_show
 from wirescale.vpn.wgconfig import WGConfig
 
 if TYPE_CHECKING:
@@ -99,9 +99,9 @@ def check_wgconfig(config: Path) -> WGConfig:
         error_pair = ErrorMessages.MISSING_ALLOWEDIPS
     elif not wgconfig.public_key:
         error_pair = ErrorMessages.BAD_FORMAT_PRIVKEY
-    elif wgconfig.has_psk and not wgconfig.generate_wg_pubkey(wgconfig.psk):
+    elif wgconfig.has_psk and not wg_pubkey(wgconfig.psk):
         error_pair = ErrorMessages.BAD_FORMAT_PSK
-    elif wgconfig.remote_pubkey and not wgconfig.generate_wg_pubkey(wgconfig.remote_pubkey):
+    elif wgconfig.remote_pubkey and not wg_pubkey(wgconfig.remote_pubkey):
         error_pair = ErrorMessages.BAD_FORMAT_PUBKEY
     else:
         return wgconfig
@@ -122,7 +122,7 @@ def test_wgconfig(wgconfig: WGConfig):
     test_config.set(interface, 'Table', wgconfig.table) if wgconfig.table else None
     test_config.set(interface, 'MTU', wgconfig.mtu) if wgconfig.mtu else None
     test_config.set(interface, 'FwMark', wgconfig.fwmark) if wgconfig.fwmark else None
-    remote_pubkey = wgconfig.remote_pubkey if wgconfig.remote_pubkey else WGConfig.generate_wg_keypair()[1]
+    remote_pubkey = wgconfig.remote_pubkey if wgconfig.remote_pubkey else wg_pubkey(wg_genkey())
     test_config.set(peer, 'PublicKey', remote_pubkey)
     test_config.set(peer, 'PresharedKey', wgconfig.psk) if wgconfig.has_psk else None
     test_config = WGConfig.write_config(test_config, wgconfig.suffix)

@@ -41,7 +41,7 @@ class WGConfig(VPNConfig):
         self.allow_suffix: bool = self.get_wirescale_field(field='suffix', func=self.config.getboolean)
         self.expected_interface: str = None
         self.remote_addresses: FrozenSet[IPv4Address | IPv6Address] = None
-        self.private_key = self.get_field('Interface', 'PrivateKey') or self.generate_wg_privkey()
+        self.private_key = self.get_field('Interface', 'PrivateKey') or wg_genkey()
         self.listen_port = TSManager.local_port()
         self.exit_node: bool = False
         self.table = table.lower() if (table := self.get_field('Interface', 'Table')) else None
@@ -52,13 +52,13 @@ class WGConfig(VPNConfig):
         self.iptables_accept: bool = self.get_wirescale_field(field='iptables-accept', func=self.config.getboolean)
         self.iptables_forward: bool = self.get_wirescale_field(field='iptables-forward', func=self.config.getboolean)
         self.iptables_masquerade: bool = self.get_wirescale_field(field='iptables-masquerade', func=self.config.getboolean)
-        self.public_key = self.generate_wg_pubkey(self.private_key)
+        self.public_key = wg_pubkey(self.private_key)
         self.recover_tries: int = self.get_wirescale_field(field='recover-tries', func=self.config.getint)
         self.recreate_tries: int = self.get_wirescale_field(field='recreate-tries', func=self.config.getint)
         self.remote_pubkey: str = self.get_field('Peer', 'PublicKey')
         self.psk = self.get_field('Peer', 'PresharedKey')
         self.has_psk: bool = self.psk is not None
-        self.psk = self.psk or self.generate_wg_psk()
+        self.psk = self.psk or wg_genpsk()
 
     @property
     def autoremove_pubkey(self) -> str:
@@ -186,24 +186,6 @@ class WGConfig(VPNConfig):
         metric = (r'/bin/bash -c "ip route | grep -w %i | while read -r line ; do ip route del $line; if [[ ${line##* } == metric ]]; then line=${line% *}; line=${line% *}; fi; '
                   fr'ip route add $line metric {metric}; done"')
         self.add_script('postup', metric, first_place=True)
-
-    @staticmethod
-    def generate_wg_privkey() -> str:
-        return wg_genkey()
-
-    @staticmethod
-    def generate_wg_pubkey(privkey: str) -> str:
-        return wg_pubkey(privkey)
-
-    @classmethod
-    def generate_wg_keypair(cls) -> Tuple[str, str]:
-        private = cls.generate_wg_privkey()
-        public = cls.generate_wg_pubkey(private)
-        return private, public
-
-    @staticmethod
-    def generate_wg_psk() -> str:
-        return wg_genpsk()
 
     def generate_new_config(self):
         new_config = ConfigParser(interpolation=None)
