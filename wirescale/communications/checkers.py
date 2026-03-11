@@ -83,13 +83,17 @@ def check_recover_config(recover: 'RecoverConfig'):
         ErrorMessages.send_paired_error(ErrorMessages.RUNFILE_MISSING, interface=recover.interface)
 
 
-def check_wgconfig(config: Path) -> WGConfig:
+def _send_config_error(local_message: str):
     pair = CONNECTION_PAIRS[get_ident()]
+    remote_error = ErrorMessages.REMOTE_CONFIG_ERROR.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
+    ErrorMessages.send_error_message(local_message=local_message, remote_message=remote_error, always_send_to_remote=False)
+
+
+def check_wgconfig(config: Path) -> WGConfig:
     try:
         wgconfig = WGConfig(config)
     except Exception as error:
-        remote_error = ErrorMessages.REMOTE_CONFIG_ERROR.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
-        ErrorMessages.send_error_message(local_message=str(error), remote_message=remote_error, always_send_to_remote=False)
+        _send_config_error(str(error))
     if wgconfig.addresses is None:
         error_pair = ErrorMessages.MISSING_ADDRESS
     elif wgconfig.allowed_ips is None:
@@ -127,10 +131,7 @@ def test_wgconfig(wgconfig: WGConfig):
     wgquick = wg_quick_up_test(wgconfig.new_config_path)
     try:
         if wgquick.returncode != 0:
-            pair = CONNECTION_PAIRS[get_ident()]
-            error = wgquick.stderr
-            remote_error = ErrorMessages.REMOTE_CONFIG_ERROR.format(my_name=pair.my_name, my_ip=pair.my_ip, peer_name=pair.peer_name)
-            ErrorMessages.send_error_message(local_message=error, remote_message=remote_error, always_send_to_remote=False)
+            _send_config_error(wgquick.stderr)
         else:
             wg_quick_down(wgconfig.new_config_path)
     finally:
