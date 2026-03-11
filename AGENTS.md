@@ -222,7 +222,7 @@ All LSP errors shown during editing are **pre-existing** in the project. They st
 The project uses chained feature branches for multi-phase refactoring:
 
 ```
-master → refactor/config-base → refactor/unified-ops
+master → refactor/unified-ops
 ```
 
 To integrate into `master`, merge only the last branch in the chain. Each branch builds on the previous one. When creating a new chained refactoring, branch from the tip of the last branch.
