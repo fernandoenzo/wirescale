@@ -61,8 +61,7 @@ def get_local_ip_addresses() -> List[IPv4Address]:
         data = json.loads(result.stdout)
         for interface in data:
             for addr_info in interface.get('addr_info', []):
-                if addr_info.get('family') == 'inet':
-                    addresses.append(IPv4Address(addr_info['local']))
+                addresses.append(IPv4Address(addr_info['local']))
     except json.JSONDecodeError:
         pass  # Handle or log error if needed
     return addresses
