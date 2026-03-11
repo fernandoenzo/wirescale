@@ -94,14 +94,19 @@ class WGConfig(VPNConfig):
             self.counters[field] = suffix
         self.config.read_string(text)
 
+    def _find_section(self, name: str, missing_ok=False):
+        section = next((s for s in self.config.sections() if s.lower() == name.lower()), None)
+        if section is not None:
+            return section
+        if missing_ok:
+            return None
+        raise StopIteration
+
     def get_field(self, section_name: str, field: str, missing_section_ok=False) -> str | Tuple[str, ...] | None:
         field = field.lower()
-        try:
-            section = next(section for section in self.config.sections() if section.lower() == section_name.lower())
-        except StopIteration as e:
-            if missing_section_ok:
-                return
-            raise e
+        section = self._find_section(section_name, missing_ok=missing_section_ok)
+        if section is None:
+            return
         if field not in self.repeatable_fields:
             return next((value for (name, value) in self.config.items(section) if name.lower() == field), None)
         return tuple(value for (name, value) in self.config.items(section) if name.lower().startswith(field))
@@ -116,7 +121,7 @@ class WGConfig(VPNConfig):
         return any(ip in network for network in self.allowed_ips)
 
     def add_script(self, action: str, script: str, first_place=False):
-        interface = next(section for section in self.config.sections() if section.lower() == 'interface')
+        interface = self._find_section('interface')
         if first_place:
             same_actions = [(name, value) for (name, value) in self.config.items(interface) if name.lower().startswith(action.lower())]
             collections.deque((self.config.remove_option(interface, name) for (name, _) in same_actions), maxlen=0)
@@ -241,8 +246,7 @@ class WGConfig(VPNConfig):
         self.new_config_path.write_text(new_config, encoding='utf-8')
 
     def get_wirescale_field(self, field, func=None):
-        ws = 'Wirescale'
-        section = next((section for section in self.config.sections() if section.lower() == ws.lower()), None)
+        section = self._find_section('wirescale', missing_ok=True)
         if section is None:
             return None
         value = self.get_field(section_name=section, field=field)
