@@ -217,12 +217,20 @@ All LSP errors shown during editing are **pre-existing** in the project. They st
 
 **Perspective swap in remote error messages**: In remote error templates, `{my_name}`/`{my_ip}` refers to the machine that detected the error (the sender), because from the remote peer's perspective, that machine is "the remote peer". The `send_paired_error()` method handles this transparently by injecting the current pair's identity fields.
 
-## Branching strategy
+## Branching and integration workflow
 
-The project uses chained feature branches for multi-phase refactoring:
+New features and refactors go in dedicated branches. Always ask the user before creating a branch or making changes.
 
-```
-master → refactor/unified-ops
-```
+Branch naming conventions:
+- `feature/<name>` for new functionality
+- `refactor/<name>` for structural changes
 
-To integrate into `master`, merge only the last branch in the chain. Each branch builds on the previous one. When creating a new chained refactoring, branch from the tip of the last branch.
+Integration into `master` follows this sequence:
+
+1. **Cherry-pick** the code commit(s) onto `master`.
+2. **Compile-check** all modified files (`python3 -m py_compile`).
+3. **Update documentation** (`AGENTS.md`, `README`, etc.) if the change affects architecture, conventions, or project structure. Commit separately.
+4. **Push** to remote.
+5. **Delete** the feature branch (local and remote).
+
+Safety checkpoints: stop and ask the user before continuing if any git operation fails (cherry-pick conflict, push rejection, etc.).
