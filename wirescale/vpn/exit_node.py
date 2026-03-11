@@ -95,21 +95,15 @@ class ExitNode:
         return True
 
     @classmethod
-    def add_iptables_rules(cls, interface: str, fwmark: int) -> None:
-        """Add iptables CONNMARK rules for the exit node."""
-        save_connmark = [x.format(mark=fwmark, interface=interface) for x in cls.SAVE_CONNMARK]
-        restore_connmark = [x.format(interface=interface) for x in cls.RESTORE_CONNMARK]
-        iptables_run(restore_connmark)
-        iptables_run(save_connmark)
-
-    @classmethod
-    def remove_iptables_rules(cls, interface: str, fwmark: int) -> None:
-        """Remove iptables CONNMARK rules for the exit node."""
-        save_connmark = [x.format(mark=fwmark, interface=interface) for x in cls.SAVE_CONNMARK]
-        restore_connmark = [x.format(interface=interface) for x in cls.RESTORE_CONNMARK]
-        save_connmark[3], restore_connmark[3] = '-D', '-D'
-        iptables_run(save_connmark)
-        iptables_run(restore_connmark)
+    def _iptables_connmark(cls, interface: str, fwmark: int, action: str = '-I') -> None:
+        """Add or remove iptables CONNMARK rules for the exit node."""
+        save = [x.format(mark=fwmark, interface=interface) for x in cls.SAVE_CONNMARK]
+        restore = [x.format(interface=interface) for x in cls.RESTORE_CONNMARK]
+        if action != '-I':
+            save[3], restore[3] = action, action
+        first, second = (restore, save) if action == '-I' else (save, restore)
+        iptables_run(first)
+        iptables_run(second)
 
     @classmethod
     def add_custom_routing_table(cls, interface: str) -> None:
@@ -215,7 +209,7 @@ class ExitNode:
 
         cls.add_missing_interfaces()
 
-        cls.add_iptables_rules(interface, fwmark)
+        cls._iptables_connmark(interface, fwmark)
         cls.add_custom_routing_table(interface)
         cls.add_ip_rules(fwmark)
 
@@ -237,7 +231,7 @@ class ExitNode:
         if config[cls.ADD_ALLOWEDIPS]:
             cls.modify_allowed_ips(interface=interface, remove=True)
 
-        cls.remove_iptables_rules(interface, fwmark)
+        cls._iptables_connmark(interface, fwmark, action='-D')
         cls.flush_custom_routing_table()
         cls.remove_all_ip_rules(config)
 
