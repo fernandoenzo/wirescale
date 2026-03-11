@@ -8,7 +8,6 @@ from configparser import ConfigParser
 from ipaddress import IPv4Address
 from pathlib import Path
 from threading import get_ident
-from time import sleep
 from typing import List, Tuple, TYPE_CHECKING
 
 from wirescale.communications.common import check_with_timeout, CONFIG_DIR, CONNECTION_PAIRS
@@ -199,8 +198,4 @@ def get_latest_handshake(interface: str) -> int:
 
 
 def check_updated_handshake(interface: str, latest_handshake: int = 0, timeout: int = 20) -> bool:
-    sleep_time = 0.5
-    while not (updated := get_latest_handshake(interface) != latest_handshake) and timeout > 0:
-        timeout -= sleep_time
-        sleep(sleep_time)
-    return updated
+    return check_with_timeout(lambda: get_latest_handshake(interface) != latest_handshake, timeout=timeout)
