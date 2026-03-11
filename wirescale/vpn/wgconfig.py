@@ -83,16 +83,15 @@ class WGConfig(VPNConfig):
             text = f.read()
         for field in self.repeatable_fields:
             field = field.lower()
-            suffix = [1]  # We use a list so that the value is preserved between calls to the replace function
+            suffix = 0
 
             def replace(match):
-                old_str = match.group(0)
-                result = f'{old_str}{suffix[0]}_'
-                suffix[0] += 1
-                return result
+                nonlocal suffix
+                suffix += 1
+                return f'{match.group(0)}{suffix}_'
 
             text = re.sub(field, replace, text, flags=re.IGNORECASE)
-            self.counters[field] = suffix[0] - 1
+            self.counters[field] = suffix
         self.config.read_string(text)
 
     def get_field(self, section_name: str, field: str, missing_section_ok=False) -> str | Tuple[str, ...] | None:
