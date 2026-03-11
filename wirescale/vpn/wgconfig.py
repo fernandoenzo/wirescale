@@ -37,7 +37,7 @@ class WGConfig(VPNConfig):
         self.config.optionxform = lambda option: option
         self.counters: Dict = {}
         self.read_config()
-        self.addresses = self.get_addresses()
+        self.addresses = self._parse_ip_field('interface', 'address', ip_address)
         self.allow_suffix: bool = self.get_wirescale_field(field='suffix', func=self.config.getboolean)
         self.expected_interface: str = None
         self.remote_addresses: FrozenSet[IPv4Address | IPv6Address] = None
@@ -47,7 +47,7 @@ class WGConfig(VPNConfig):
         self.table = table.lower() if (table := self.get_field('Interface', 'Table')) else None
         self.mtu = self.get_field('Interface', 'MTU')
         self.fwmark = self.get_field('Interface', 'FwMark')
-        self.allowed_ips = self.get_allowed_ips()
+        self.allowed_ips = self._parse_ip_field('peer', 'allowedips', lambda addr: ip_network(addr, strict=False))
         self.interface: str = self.get_wirescale_field(field='interface')
         self.iptables_accept: bool = self.get_wirescale_field(field='iptables-accept', func=self.config.getboolean)
         self.iptables_forward: bool = self.get_wirescale_field(field='iptables-forward', func=self.config.getboolean)
@@ -106,17 +106,11 @@ class WGConfig(VPNConfig):
             return next((value for (name, value) in self.config.items(section) if name.lower() == field), None)
         return tuple(value for (name, value) in self.config.items(section) if name.lower().startswith(field))
 
-    def get_addresses(self) -> FrozenSet[IPv4Address | IPv6Address] | None:
-        lines: Tuple[str, ...] = self.get_field('interface', 'address')
+    def _parse_ip_field(self, section: str, field: str, parser) -> FrozenSet | None:
+        lines: Tuple[str, ...] = self.get_field(section, field)
         if not lines:
             return None
-        return frozenset(ip_address(addr.strip()) for line in lines for addr in line.replace(',', ' ').split())
-
-    def get_allowed_ips(self) -> FrozenSet[IPv4Network | IPv6Network] | None:
-        lines: Tuple[str, ...] = self.get_field('peer', 'allowedips')
-        if not lines:
-            return None
-        return frozenset(ip_network(addr.strip(), strict=False) for line in lines for addr in line.replace(',', ' ').split())
+        return frozenset(parser(addr.strip()) for line in lines for addr in line.replace(',', ' ').split())
 
     def ip_is_allowed(self, ip: IPv4Address | IPv6Address) -> bool:
         return any(ip in network for network in self.allowed_ips)
