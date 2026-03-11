@@ -25,7 +25,7 @@ wirescale/                          # Root
     │   ├── connection_pair.py      # ConnectionPair — the core connection abstraction
     │   ├── messages.py             # ErrorPair, ErrorMessages, Messages, TCPMessages, UnixMessages, ActionCodes, ErrorCodes, MessageFields
     │   ├── checkers.py             # Validation functions (config, interface, handshake, NAT, pubkeys)
-    │   ├── systemd.py              # Systemd wrapper (systemctl, systemd-run)
+    │   ├── systemd.py              # Systemd wrapper (already wraps systemctl — do NOT add to commands.py)
     │   ├── tcp_client.py           # TCPClient — initiator side, separate upgrade()/recover() methods
     │   ├── tcp_server.py           # TCPServer — responder side of the TCP WebSocket flow
     │   ├── unix_client.py          # UnixClient — local CLI process connecting to the daemon
@@ -37,10 +37,11 @@ wirescale/                          # Root
     │   ├── utils.py                # Parser utility functions
     │   └── validators.py           # Argument validation functions
     ├── vpn/                        # VPN / WireGuard / Tailscale logic
+    │   ├── commands.py             # Subprocess wrappers for wg, wg-quick, iptables, ip, sysctl
     │   ├── wgconfig.py             # WGConfig — new WireGuard tunnel configuration
     │   ├── recover.py              # RecoverConfig — recover a broken existing tunnel
     │   ├── exit_node.py            # ExitNode — exit-node routing management
-    │   ├── tsmanager.py            # TSManager — Tailscale CLI wrapper
+    │   ├── tsmanager.py            # TSManager — Tailscale CLI wrapper (already a wrapper — do NOT add to commands.py)
     │   ├── iptables.py             # IPTABLES — iptables rule template holder
     │   └── watch.py                # ActiveSockets / ACTIVE_SOCKETS — deadlock prevention
     ├── scripts/                    # Shell helper scripts
@@ -87,7 +88,7 @@ CONNECTION_PAIRS: Dict[int, ConnectionPair] # Thread ID → ConnectionPair mappi
 Other helpers in `common.py`:
 - **`first_not_none(*values, default=None)`** — Returns the first non-`None` value, or `default`. Used extensively in `UnixServer` and `TCPServer` to merge CLI args with config-file values.
 - **`check_with_timeout(func, timeout, sleep_time=0.5)`** — Polls `func()` until truthy or timeout. Returns `bool`.
-- **`subprocess_run_tmpfile()`** — A replacement for `subprocess.run(capture_output=True)` that uses temporary files instead of pipes to avoid pipe-buffer deadlocks with large outputs. Used by `wgconfig.py` for `wg-quick up`.
+- **`subprocess_run_tmpfile()`** — A replacement for `subprocess.run(capture_output=True)` that uses temporary files instead of pipes to avoid pipe-buffer deadlocks with large outputs. Used by `wg_quick_up()` in `commands.py`.
 - **`BytesStrConverter`** — Utility class for base64/UTF-8 byte conversions, used in the recover flow's crypto operations.
 
 ## Architecture
@@ -146,6 +147,16 @@ The `ACTIVE_SOCKETS` singleton (`watch.py`) monitors for deadlocks every 15 seco
 
 `ErrorMessages.send_paired_error()` is a convenience wrapper for errors that have both a local and remote variant (stored as `ErrorPair`). It auto-injects `my_name`, `my_ip`, `peer_name`, `peer_ip` from the current `ConnectionPair`.
 
+### Subprocess wrapper layers
+
+There are three wrapper layers, each wrapping a specific set of tools. Do NOT merge them:
+
+| Layer | File | Wraps | Notes |
+|-------|------|-------|-------|
+| `commands.py` | `vpn/commands.py` | `wg`, `wg-quick`, `iptables`, `ip`, `sysctl` | New centralized wrappers |
+| `systemd.py` | `communications/systemd.py` | `systemctl`, `systemd-run` | Already existed as a wrapper — do NOT move to commands.py |
+| `tsmanager.py` | `vpn/tsmanager.py` | `tailscale`, `ss`, `ping` | Already existed as a wrapper — do NOT move to commands.py |
+
 ## Conventions and rules
 
 ### Things you must NEVER change
@@ -202,7 +213,7 @@ All LSP errors shown during editing are **pre-existing** in the project. They st
 
 **`file_locker()` context manager**: A file-based exclusive lock (`fcntl.flock`) on `/run/wirescale/control/locker`. Used to serialize operations that touch Tailscale state or perform name resolution.
 
-**`subprocess_run_tmpfile()`**: A replacement for `subprocess.run(capture_output=True)` that uses temporary files instead of pipes to avoid pipe-buffer deadlocks with large outputs. Located in `common.py`, used by `wgconfig.py` for `wg-quick up`.
+**`subprocess_run_tmpfile()`**: A replacement for `subprocess.run(capture_output=True)` that uses temporary files instead of pipes to avoid pipe-buffer deadlocks with large outputs. Located in `common.py`, used by `wg_quick_up()` in `commands.py`.
 
 **Perspective swap in remote error messages**: In remote error templates, `{my_name}`/`{my_ip}` refers to the machine that detected the error (the sender), because from the remote peer's perspective, that machine is "the remote peer". The `send_paired_error()` method handles this transparently by injecting the current pair's identity fields.
 
@@ -211,7 +222,7 @@ All LSP errors shown during editing are **pre-existing** in the project. They st
 The project uses chained feature branches for multi-phase refactoring:
 
 ```
-master → refactor/subprocess-wrappers → refactor/config-base → refactor/unified-ops
+master → refactor/config-base → refactor/unified-ops
 ```
 
 To integrate into `master`, merge only the last branch in the chain. Each branch builds on the previous one. When creating a new chained refactoring, branch from the tip of the last branch.
