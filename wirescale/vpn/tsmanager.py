@@ -23,6 +23,10 @@ if TYPE_CHECKING:
 
 
 class TSManager:
+    @staticmethod
+    def _run_ts(*args) -> subprocess.CompletedProcess:
+        return subprocess.run(['tailscale', *args], capture_output=True, text=True)
+
     @classmethod
     def start(cls) -> bool:
         return Systemd.start('tailscaled.service')
@@ -34,7 +38,7 @@ class TSManager:
     @classmethod
     def status(cls) -> Dict:
         cls.check_service_running()
-        status = subprocess.run(['tailscale', 'status', '--json'], capture_output=True, text=True)
+        status = cls._run_ts('status', '--json')
         return json.loads(status.stdout)
 
     @staticmethod
@@ -105,13 +109,13 @@ class TSManager:
     @lru_cache(maxsize=None)
     def my_ip(cls) -> IPv4Address:
         cls.check_running()
-        ip = subprocess.run(['tailscale', 'ip', '-4'], capture_output=True, text=True).stdout.strip()
+        ip = cls._run_ts('ip', '-4').stdout.strip()
         return IPv4Address(ip)
 
     @classmethod
     def peer(cls, ip: IPv4Address) -> Dict:
         cls.check_running()
-        peer = subprocess.run(['tailscale', 'whois', '--json', str(ip)], capture_output=True, text=True)
+        peer = cls._run_ts('whois', '--json', str(ip))
         if peer.returncode != 0:
             no_peer = ErrorMessages.TS_NO_PEER.format(ip=ip)
             ErrorMessages.send_error_message(local_message=no_peer)
@@ -125,7 +129,7 @@ class TSManager:
     @classmethod
     def peer_ip(cls, name: str) -> IPv4Address:
         cls.check_running()
-        ip = subprocess.run(['tailscale', 'ip', '-4', name], capture_output=True, text=True)
+        ip = cls._run_ts('ip', '-4', name)
         if ip.returncode != 0:
             no_ip = ErrorMessages.TS_NO_IP.format(peer_name=name)
             ErrorMessages.send_error_message(local_message=no_ip)
@@ -171,7 +175,7 @@ class TSManager:
         if not cls.wait_until_peer_is_online(ip, timeout=25):
             peer_is_offline = ErrorMessages.TS_PEER_OFFLINE.format(peer_name=peer_name, peer_ip=ip)
             ErrorMessages.send_error_message(local_message=peer_is_offline, error_code=ErrorCodes.TS_UNREACHABLE, exit_code=4)
-        force_endpoint = subprocess.run(['tailscale', 'ping', '-c', '30', str(ip)], capture_output=True, text=True)
+        force_endpoint = cls._run_ts('ping', '-c', '30', str(ip))
         if force_endpoint.returncode != 0:
             no_endpoint = ErrorMessages.TS_NO_ENDPOINT.format(peer_name=peer_name, peer_ip=ip)
             ErrorMessages.send_error_message(local_message=no_endpoint, error_code=ErrorCodes.TS_UNREACHABLE, exit_code=4)
