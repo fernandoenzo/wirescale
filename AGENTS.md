@@ -24,9 +24,10 @@ wirescale/                          # Root
     │   ├── common.py               # Shared state: CONNECTION_PAIRS, file_locker, Semaphores, constants
     │   ├── connection_pair.py      # ConnectionPair — the core connection abstraction
     │   ├── messages.py             # ErrorPair, ErrorMessages, Messages, TCPMessages, UnixMessages, ActionCodes, ErrorCodes, MessageFields
+    │   ├── operations.py           # VPNOperation base class, UpgradeOperation, RecoverOperation — unified upgrade/recover flow
     │   ├── checkers.py             # Validation functions (config, interface, handshake, NAT, pubkeys)
     │   ├── systemd.py              # Systemd wrapper (already wraps systemctl — do NOT add to commands.py)
-    │   ├── tcp_client.py           # TCPClient — initiator side, separate upgrade()/recover() methods
+    │   ├── tcp_client.py           # TCPClient — initiator side, run(operation) drives the message loop
     │   ├── tcp_server.py           # TCPServer — responder side of the TCP WebSocket flow
     │   ├── unix_client.py          # UnixClient — local CLI process connecting to the daemon
     │   ├── unix_server.py          # UnixServer — daemon-side UNIX socket handler, separate upgrade()/recover()
@@ -38,6 +39,7 @@ wirescale/                          # Root
     │   └── validators.py           # Argument validation functions
     ├── vpn/                        # VPN / WireGuard / Tailscale logic
     │   ├── commands.py             # Subprocess wrappers for wg, wg-quick, iptables, ip, sysctl
+    │   ├── vpn_config.py           # VPNConfig — abstract base class for WGConfig and RecoverConfig
     │   ├── wgconfig.py             # WGConfig — new WireGuard tunnel configuration
     │   ├── recover.py              # RecoverConfig — recover a broken existing tunnel
     │   ├── exit_node.py            # ExitNode — exit-node routing management
@@ -113,15 +115,15 @@ CLI process                Daemon (same machine)              Daemon (remote mac
 ───────────                ─────────────────────              ──────────────────────
 UnixClient ──UNIX socket──▶ UnixServer ──TCP WebSocket──▶ TCPServer
                               │                                    │
-                              └─ calls TCPClient.upgrade()          │
-                              │  or TCPClient.recover()             │
+                              └─ creates VPNOperation              │
+                              │  and calls TCPClient.run()         │
                               │         │                           │
                               │         └────TCP WebSocket─────────┘
 ```
 
 1. **UnixClient** (CLI process): Connects to the local daemon via UNIX socket. Sends the user's command (upgrade/recover/stop). Receives status messages until success or error.
-2. **UnixServer** (daemon): Receives the UNIX message, queues it through semaphores, and calls `TCPClient.upgrade()` or `TCPClient.recover()` directly.
-3. **TCPClient** (daemon, initiator side): Opens a TCP WebSocket to the remote peer's daemon. Has separate `upgrade()` and `recover()` methods with shared helpers (`_establish_connection`, `_send_go_or_fail`). Each method drives its own message loop: TOKEN → HELLO → ACK → request → response → GO → execute.
+2. **UnixServer** (daemon): Receives the UNIX message, queues it through semaphores, creates a `VPNOperation` (`UpgradeOperation` or `RecoverOperation`), and calls `TCPClient.run(operation)`.
+3. **TCPClient** (daemon, initiator side): Opens a TCP WebSocket to the remote peer's daemon. The unified `run(operation)` method drives the message loop: TOKEN → HELLO → ACK → operation-specific request/response → GO → execute. The `VPNOperation` strategy object (`UpgradeOperation` or `RecoverOperation`) encapsulates the differences between upgrade and recover flows.
 4. **TCPServer** (daemon, responder side): Receives the TCP WebSocket connection. Processes the upgrade/recover request. Sends back the response. Waits for GO, then executes its side.
 
 ### Threading model
